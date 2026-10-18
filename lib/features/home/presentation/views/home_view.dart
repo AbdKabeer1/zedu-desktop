@@ -396,7 +396,7 @@ class HomeChatArea extends ConsumerWidget {
             Divider(height: 24, color: colors.divider),
             TextField(
               decoration: InputDecoration(
-                hintText: 'Message #$channelName',
+                hintText: 'Write a message...',
                 border: InputBorder.none,
                 isDense: true,
               ),
