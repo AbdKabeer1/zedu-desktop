@@ -395,7 +395,10 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     );
     switch (result) {
       case Success<TeamMember>():
-        final newTeamMembers = [...state.teamMembers, result.value];
+        final newTeamMembers = [
+          ...state.teamMembers,
+          result.value.copyWith(role: role),
+        ];
         state = state.copyWith(
           teamMembers: newTeamMembers,
           isSaving: false,
