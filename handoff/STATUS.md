@@ -19,7 +19,8 @@ Last updated: 2026-10-28
 
 ## Blocked
 
-- None.
+- Local `flutter build macos --debug` reaches Xcode but cannot sign because no `com.zedu.desktopApp` Mac App Development provisioning profile is installed. No code compile/analyze error was reported before signing.
+- Manual clipboard paste/send verification requires a signed desktop build.
 
 ## Next
 

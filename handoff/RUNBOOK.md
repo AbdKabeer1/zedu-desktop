@@ -15,7 +15,10 @@ CI pins Flutter 3.41.5. The local Flutter is 3.47.7 and may rewrite protected/co
 dart format --output=none --set-exit-if-changed .
 flutter analyze --fatal-infos --fatal-warnings
 flutter test
+flutter build macos --debug
 ```
+
+The build requires a Mac App Development profile for `com.zedu.desktopApp`. If Flutter 3.47 rewrites `analysis_options.yaml`, `macos/Podfile`, `macos/Podfile.lock`, or `macos/Runner.xcodeproj/project.pbxproj`, restore those generated changes; CI uses Flutter 3.41.5.
 
 ## Deliver
 

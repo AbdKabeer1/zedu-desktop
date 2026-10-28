@@ -14,3 +14,8 @@
 
 - The team and review branches contain many unrelated commits not present in `zeduchat:central-staging`.
 - A target-based branch keeps the PR limited to #1285.
+
+## Keep pasted images in the system temporary directory
+
+- Each paste uses a unique subdirectory and the physical basename `Pasted Image.png`, because path-backed `XFile` derives its display name from the basename.
+- The operating system owns temporary-directory cleanup; changing the asynchronous message lifecycle to delete files safely is outside this focused payload fix.
