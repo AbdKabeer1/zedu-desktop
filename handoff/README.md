@@ -9,7 +9,8 @@ Correct the Roles & Permissions subtitle without changing the title, cards, or l
 - [x] Exact approved subtitle copy.
 - [x] Widget regression test.
 - [x] Formatting, fatal analysis, and full tests.
-- [ ] Pull request and Ziki delivery evidence.
+- [x] Pull request opened: https://github.com/zeduchat/zedu-desktop/pull/338.
+- [x] Ziki delivery comment posted: `cmvsee3ih0jzut101zv1waq5h`.
 
 ## Acceptance criteria
 
