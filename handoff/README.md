@@ -9,7 +9,7 @@ Prevent pasted desktop screenshots from producing an empty file path in outgoing
 - [x] Disk-backed clipboard PNG utility.
 - [x] DM composer integration.
 - [x] Focused tests plus clean format/analyze/full-test verification.
-- [ ] Pull request and Ziki PR linkage.
+- [x] Pull request opened and linked: https://github.com/zeduchat/zedu-desktop/pull/337.
 
 ## Deadline
 

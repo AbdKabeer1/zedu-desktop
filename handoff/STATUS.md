@@ -12,10 +12,12 @@ Last updated: 2026-10-28
 - Added unique system-temp persistence with the physical basename `Pasted Image.png`.
 - Updated the clipboard composer to await persistence and attachment validation.
 - Added 5 focused tests; full suite passes 36/36.
+- Opened https://github.com/zeduchat/zedu-desktop/pull/337.
+- Linked PR #337 to Ziki #1285 with test evidence; Ziki reports `reviewStatus: submitted`.
 
 ## In progress
 
-- PR creation and Ziki delivery linkage.
+- PR review and signed desktop smoke testing.
 
 ## Blocked
 
@@ -24,5 +26,5 @@ Last updated: 2026-10-28
 
 ## Next
 
-1. Open the clean PR into `zeduchat/zedu-desktop:central-staging`.
-2. Link the PR and 36-test evidence to Ziki #1285.
+1. Review PR #337.
+2. Run the paste/send smoke test in a signed macOS or Windows build.
