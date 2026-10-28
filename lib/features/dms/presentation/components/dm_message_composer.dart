@@ -336,15 +336,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
         bytesBuilder.addAll(chunk);
       }
       final bytes = Uint8List.fromList(bytesBuilder);
-      if (bytes.isNotEmpty) {
-        addFiles([
-          XFile.fromData(
-            bytes,
-            mimeType: 'image/png',
-            name: 'Pasted Image.png',
-          ),
-        ]);
-      }
+      await persistAndAddClipboardPng(bytes, addFiles: addFiles);
     });
   }
 

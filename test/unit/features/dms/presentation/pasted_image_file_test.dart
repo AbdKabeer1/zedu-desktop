@@ -1,7 +1,7 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
 void main() {
@@ -31,9 +31,7 @@ void main() {
     expect(pasted.path, isNotEmpty);
     expect(
       pasted.path,
-      endsWith(
-        'zedu-pasted-42${Platform.pathSeparator}Pasted Image.png',
-      ),
+      endsWith('zedu-pasted-42${Platform.pathSeparator}Pasted Image.png'),
     );
     expect(pasted.name, 'Pasted Image.png');
     expect(pasted.mimeType, 'image/png');
@@ -68,5 +66,36 @@ void main() {
     expect(first.path, isNot(second.path));
     expect(await File(first.path).readAsBytes(), [1]);
     expect(await File(second.path).readAsBytes(), [2]);
+  });
+
+  test('persists the PNG before adding it to the composer', () async {
+    XFile? added;
+
+    await persistAndAddClipboardPng(
+      Uint8List.fromList([9, 8, 7]),
+      addFiles: (files) async {
+        added = files.single;
+        expect(await File(added!.path).exists(), isTrue);
+      },
+      directory: tempDirectory,
+      uniqueId: 200,
+    );
+
+    expect(added, isNotNull);
+    expect(await added!.readAsBytes(), [9, 8, 7]);
+  });
+
+  test('does not add an attachment for empty clipboard data', () async {
+    var addCalls = 0;
+
+    await persistAndAddClipboardPng(
+      Uint8List(0),
+      addFiles: (_) async => addCalls++,
+      directory: tempDirectory,
+      uniqueId: 201,
+    );
+
+    expect(addCalls, 0);
+    expect(await tempDirectory.list().toList(), isEmpty);
   });
 }

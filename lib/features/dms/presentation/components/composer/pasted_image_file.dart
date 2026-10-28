@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:zedu/core/core.dart';
 
@@ -27,9 +26,21 @@ Future<XFile> persistClipboardPng(
     '${pasteDirectory.path}${Platform.pathSeparator}Pasted Image.png',
   );
   await target.writeAsBytes(bytes, flush: true);
-  return XFile(
-    target.path,
-    mimeType: 'image/png',
-    name: 'Pasted Image.png',
+  return XFile(target.path, mimeType: 'image/png', name: 'Pasted Image.png');
+}
+
+Future<void> persistAndAddClipboardPng(
+  Uint8List bytes, {
+  required Future<void> Function(List<XFile>) addFiles,
+  Directory? directory,
+  int? uniqueId,
+}) async {
+  if (bytes.isEmpty) return;
+
+  final pasted = await persistClipboardPng(
+    bytes,
+    directory: directory,
+    uniqueId: uniqueId,
   );
+  await addFiles([pasted]);
 }

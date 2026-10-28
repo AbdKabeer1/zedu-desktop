@@ -7,4 +7,4 @@ export 'dm_emoji_picker.dart';
 export 'buzz_preparation_view.dart';
 export 'buzz_meeting_view.dart';
 export 'dm_profile_card.dart';
-export 'composer/composer.dart';
+export 'composer/pasted_image_file.dart';
