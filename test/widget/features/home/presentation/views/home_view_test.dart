@@ -147,6 +147,7 @@ void main() {
       // The name shows in the sidebar row and in the chat header.
       expect(find.text('# $_longName'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
   });
 
   group('ResizableSidebar', () {
