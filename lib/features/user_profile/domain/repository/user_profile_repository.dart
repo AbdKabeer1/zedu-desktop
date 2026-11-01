@@ -27,7 +27,7 @@ abstract interface class UserProfileRepository {
     OrganizationProfile organization, {
     String? orgId,
   });
-  Future<Result<void>> deleteOrganization({String? orgId});
+  Future<Result<void>> deleteOrganization({required String orgId});
 
   Future<Result<List<TeamMember>>> getTeamMembers({String? orgId});
   Future<Result<TeamMember>> inviteMember({

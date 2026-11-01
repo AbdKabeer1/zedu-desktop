@@ -24,6 +24,22 @@ class _TestWorkspaceNotifier extends WorkspaceNotifier {
   }
 }
 
+/// A workspace notifier listing workspaces "A" and "B", with [selected]
+/// chosen.
+class _ListedWorkspaceNotifier extends WorkspaceNotifier {
+  _ListedWorkspaceNotifier(this.selected);
+
+  final String? selected;
+
+  @override
+  WorkspaceState build() {
+    return WorkspaceState(
+      workspaces: [_workspace('A'), _workspace('B')],
+      selectedWorkspace: selected == null ? null : _workspace(selected!),
+    );
+  }
+}
+
 Future<Result<T>> _failed<T>() async {
   return Failure<T>(const ApiFailure(message: 'unavailable'));
 }
@@ -128,6 +144,88 @@ void main() {
       final state = container.read(userProfileNotifierProvider);
       expect(state.organization?.name, 'load 1');
       expect(state.isLoading, isFalse);
+    });
+  });
+
+  group('UserProfileNotifier.deleteOrganization', () {
+    late MockUserProfileRepository repo;
+    late MockSecureStorageService storage;
+
+    setUp(() {
+      repo = MockUserProfileRepository();
+      storage = MockSecureStorageService();
+      locator.registerSingleton<SecureStorageService>(storage);
+
+      when(() => storage.readData(any())).thenAnswer((_) async => null);
+      when(() => repo.getAccount()).thenAnswer((_) => _failed());
+      when(() => repo.getSecuritySessions()).thenAnswer((_) => _failed());
+      when(() => repo.getRolesAndPermissions()).thenAnswer((_) => _failed());
+      when(() => repo.getBillingInfo()).thenAnswer((_) => _failed());
+      when(
+        () => repo.getNotificationPreferences(),
+      ).thenAnswer((_) => _failed());
+      when(
+        () => repo.getTeamMembers(orgId: any(named: 'orgId')),
+      ).thenAnswer((_) => _failed());
+      when(
+        () => repo.getOrganization(orgId: any(named: 'orgId')),
+      ).thenAnswer((_) => _failed());
+      when(
+        () => repo.deleteOrganization(orgId: any(named: 'orgId')),
+      ).thenAnswer((_) async => const Success<void>(null));
+    });
+
+    tearDown(() async {
+      await locator.reset();
+    });
+
+    ProviderContainer buildContainer({required String? selected}) {
+      final container = ProviderContainer(
+        overrides: [
+          userProfileRepositoryProvider.overrideWithValue(repo),
+          workspaceProvider.overrideWith(
+            () => _ListedWorkspaceNotifier(selected),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(userProfileNotifierProvider, (_, _) {});
+      return container;
+    }
+
+    test('removes the deleted workspace from the switcher', () async {
+      final container = buildContainer(selected: 'A');
+      // Let the initial profile load finish first.
+      await Future<void>.delayed(Duration.zero);
+
+      await container
+          .read(userProfileNotifierProvider.notifier)
+          .deleteOrganization();
+
+      verify(() => repo.deleteOrganization(orgId: 'A')).called(1);
+      final workspaces = container.read(workspaceProvider);
+      expect(workspaces.workspaces.map((w) => w.id), ['B']);
+      expect(workspaces.selectedWorkspace?.id, 'B');
+      expect(
+        container.read(userProfileNotifierProvider).successMessage,
+        'Organization deleted successfully.',
+      );
+    });
+
+    test('makes no request when no workspace is selected', () async {
+      final container = buildContainer(selected: null);
+      // Let the initial profile load finish first.
+      await Future<void>.delayed(Duration.zero);
+
+      await container
+          .read(userProfileNotifierProvider.notifier)
+          .deleteOrganization();
+
+      verifyNever(() => repo.deleteOrganization(orgId: any(named: 'orgId')));
+      expect(
+        container.read(userProfileNotifierProvider).error,
+        'No organisation is selected.',
+      );
     });
   });
 }

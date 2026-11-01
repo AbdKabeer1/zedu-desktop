@@ -26,7 +26,7 @@ abstract interface class UserProfileRemoteDataSource {
     OrganizationProfile organization, {
     String? orgId,
   });
-  Future<void> deleteOrganization({String? orgId});
+  Future<void> deleteOrganization({required String orgId});
   Future<List<TeamMemberModel>> getTeamMembers({String? orgId});
   Future<TeamMemberModel> inviteMember({
     required String email,
@@ -255,12 +255,12 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   }
 
   @override
-  Future<void> deleteOrganization({String? orgId}) async {
+  Future<void> deleteOrganization({required String orgId}) async {
     if (_config.usesMockData) return;
-    // Delete the workspace that is shown, not whichever organisation the
-    // profile endpoint resolves to.
+    // The API has no /profile/organization route, so an organisation can only
+    // be deleted by id.
     await _apiBaseService.delete<Map<String, dynamic>>(
-      path: orgId == null ? '/profile/organization' : '/organisations/$orgId',
+      path: '/organisations/$orgId',
     );
   }
 
