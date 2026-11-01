@@ -9,3 +9,8 @@
 
 - Work is based on the repository branch where the reported copy currently ships.
 - This keeps the PR limited to #248 rather than pulling unrelated team/review commits.
+
+## Preserve current staging title during rebase
+
+- `staging` changed the heading from `Roles & Permissions` to `Roles & permissions` after this ticket branch was created.
+- The ticket changes only the subtitle, so conflict resolution keeps staging's heading and applies the approved subtitle sentence.

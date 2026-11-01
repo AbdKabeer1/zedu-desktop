@@ -1,19 +1,20 @@
 # Status
 
-Last updated: 2026-10-28
+Last updated: 2026-11-01
 
 ## Done
 
-- Reproduced the stale subtitle on `central-staging`.
+- Reproduced the stale subtitle and rebased the branch onto current `staging`.
 - Added a widget test that failed before the copy change and now passes.
-- Full Flutter suite passes 32/32.
+- Resolved the staging copy conflict by retaining the current `Roles & permissions` title and applying only the approved subtitle.
+- Full Flutter suite passes 263/263.
 - Fatal analysis and format checks pass.
 - Opened https://github.com/zeduchat/zedu-desktop/pull/338.
 - Posted PR and test evidence to Ziki delivery comment `cmvsee3ih0jzut101zv1waq5h`.
 
 ## In progress
 
-- PR review and Ziki issue confirmation.
+- PR #338 review after the staging rebase.
 
 ## Blocked
 
@@ -21,5 +22,7 @@ Last updated: 2026-10-28
 
 ## Next
 
-1. Review PR #338.
-2. If the issue is confirmed and a claim becomes available, retry the PR-link callback.
+1. Force-push the rebased ticket branch with lease protection.
+2. Change PR #338 base from `central-staging` to `staging`.
+3. Reply to the reviewer with rebase and test evidence.
+4. If the issue is confirmed and a claim becomes available, retry the PR-link callback.

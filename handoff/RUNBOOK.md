@@ -22,6 +22,6 @@ flutter test
 git push -u fork fix/ziki-248-role-permissions-copy
 gh pr create \
   --repo zeduchat/zedu-desktop \
-  --base central-staging \
+  --base staging \
   --head AbdKabeer1:fix/ziki-248-role-permissions-copy
 ```
