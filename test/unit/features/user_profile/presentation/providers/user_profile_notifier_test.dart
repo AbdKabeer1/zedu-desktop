@@ -100,7 +100,16 @@ void main() {
       ).thenAnswer((_) async => const Success(<SecuritySession>[]));
       when(
         () => repository.getOrganization(orgId: any(named: 'orgId')),
-      ).thenAnswer((_) async => Success(OrganizationProfile.empty()));
+      ).thenAnswer(
+        (_) async => const Success(
+          OrganizationProfile(
+            id: '',
+            name: '',
+            natureOfBusiness: '',
+            country: '',
+          ),
+        ),
+      );
       when(
         () => repository.getTeamMembers(orgId: any(named: 'orgId')),
       ).thenAnswer((_) async => const Success(<TeamMember>[]));

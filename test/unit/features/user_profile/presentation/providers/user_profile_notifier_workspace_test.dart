@@ -75,7 +75,7 @@ void main() {
       when(() => repo.getRolesAndPermissions()).thenAnswer((_) => _failed());
       when(() => repo.getBillingInfo()).thenAnswer((_) => _failed());
       when(
-        () => repo.getNotificationPreferences(),
+        () => repo.getNotificationPreferences(orgId: any(named: 'orgId')),
       ).thenAnswer((_) => _failed());
       when(
         () => repo.getTeamMembers(orgId: any(named: 'orgId')),
@@ -162,7 +162,7 @@ void main() {
       when(() => repo.getRolesAndPermissions()).thenAnswer((_) => _failed());
       when(() => repo.getBillingInfo()).thenAnswer((_) => _failed());
       when(
-        () => repo.getNotificationPreferences(),
+        () => repo.getNotificationPreferences(orgId: any(named: 'orgId')),
       ).thenAnswer((_) => _failed());
       when(
         () => repo.getTeamMembers(orgId: any(named: 'orgId')),
