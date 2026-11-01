@@ -10,11 +10,14 @@ Last updated: 2026-11-01
 - Full Flutter suite passes 263/263.
 - Fatal analysis and format checks pass.
 - Opened https://github.com/zeduchat/zedu-desktop/pull/338.
+- Force-pushed the rebased branch with lease protection and changed PR #338 base to `staging`.
+- GitHub reports the branch mergeable and 0 commits behind `staging`.
+- Posted rebase and test evidence: https://github.com/zeduchat/zedu-desktop/pull/338#issuecomment-6556807705
 - Posted PR and test evidence to Ziki delivery comment `cmvsee3ih0jzut101zv1waq5h`.
 
 ## In progress
 
-- PR #338 review after the staging rebase.
+- Reviewer approval and required PR checks after the staging rebase.
 
 ## Blocked
 
@@ -22,7 +25,6 @@ Last updated: 2026-11-01
 
 ## Next
 
-1. Force-push the rebased ticket branch with lease protection.
-2. Change PR #338 base from `central-staging` to `staging`.
-3. Reply to the reviewer with rebase and test evidence.
-4. If the issue is confirmed and a claim becomes available, retry the PR-link callback.
+1. Monitor and address PR #338 review/check feedback.
+2. Merge after reviewer approval and required checks.
+3. If the issue is confirmed and a claim becomes available, retry the PR-link callback.
