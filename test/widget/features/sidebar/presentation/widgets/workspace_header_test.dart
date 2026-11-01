@@ -141,7 +141,7 @@ void main() {
       },
     );
 
-        testWidgets('plus button opens the New Group Chat page', (tester) async {
+    testWidgets('plus button opens the New Group Chat page', (tester) async {
       await useTestWindow(tester);
       await tester.pumpWidget(buildHeaderUnderTest());
       await tester.pump();
