@@ -310,12 +310,15 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                       maxLines: 8,
                       style: TextStyle(color: colors.textPrimary, fontSize: 15),
                       decoration: InputDecoration(
-                        hintText: widget.activeChat.type == ActiveChatType.groupDm
+                        hintText:
+                            widget.activeChat.type == ActiveChatType.groupDm
                             ? 'Message group...'
                             : 'Message #${widget.activeChat.id ?? "general"}',
                         hintStyle: TextStyle(color: colors.textHint),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
                       ),
                       onSubmitted: (_) => _handleSend(),
                     ),
