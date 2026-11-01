@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zedu/core/core.dart';
@@ -60,6 +62,19 @@ class _FakeUserProfileNotifier extends UserProfileNotifier {
 }
 
 Widget _buildHomeView(_FakeUserProfileNotifier userProfileNotifier) {
+  final buttonStyle = AppTheme.light.elevatedButtonTheme.style!;
+  final homeTheme = AppTheme.light.copyWith(
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: buttonStyle.copyWith(
+        textStyle: WidgetStatePropertyAll(
+          buttonStyle.textStyle!
+              .resolve({})!
+              .copyWith(fontFamily: FontFamily.lato),
+        ),
+      ),
+    ),
+  );
+
   return ProviderScope(
     overrides: [
       authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
@@ -67,7 +82,11 @@ Widget _buildHomeView(_FakeUserProfileNotifier userProfileNotifier) {
       channelProvider.overrideWith(_FakeChannelNotifier.new),
       userProfileNotifierProvider.overrideWith(() => userProfileNotifier),
     ],
-    child: MaterialApp(theme: AppTheme.light, home: const HomeView()),
+    child: MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: homeTheme,
+      home: const HomeView(),
+    ),
   );
 }
 
@@ -100,7 +119,54 @@ Finder get _emailField => find.byWidgetPredicate(
       widget.decoration?.hintText?.contains('Enter name or email') == true,
 );
 
+Future<void> _loadAppFonts() async {
+  for (final family in ['Lato', 'Roboto']) {
+    final loader = FontLoader(family);
+    for (final weight in ['Regular', 'Bold']) {
+      final bytes = File('assets/fonts/$family/$family-$weight.ttf');
+      loader.addFont(
+        Future.value(ByteData.sublistView(bytes.readAsBytesSync())),
+      );
+    }
+    await loader.load();
+  }
+  var flutterRoot = File(Platform.resolvedExecutable).parent;
+  final iconFontPath = [
+    'bin',
+    'cache',
+    'artifacts',
+    'material_fonts',
+    'materialicons-regular.otf',
+  ].join(Platform.pathSeparator);
+  while (flutterRoot.path != flutterRoot.parent.path &&
+      !File(
+        '${flutterRoot.path}${Platform.pathSeparator}$iconFontPath',
+      ).existsSync()) {
+    flutterRoot = flutterRoot.parent;
+  }
+  final iconFont = File(
+    '${flutterRoot.path}${Platform.pathSeparator}$iconFontPath',
+  );
+  if (!iconFont.existsSync()) {
+    throw StateError('Flutter Material Icons font was not found.');
+  }
+  final iconLoader = FontLoader('MaterialIcons')
+    ..addFont(Future.value(ByteData.sublistView(iconFont.readAsBytesSync())));
+  await iconLoader.load();
+  final wordmarkLoader = FontLoader('Poetsen One')
+    ..addFont(
+      Future.value(
+        ByteData.sublistView(
+          File('assets/fonts/Lato/Lato-Regular.ttf').readAsBytesSync(),
+        ),
+      ),
+    );
+  await wordmarkLoader.load();
+}
+
 void main() {
+  setUpAll(_loadAppFonts);
+
   group('HomeView invite onboarding CTA', () {
     testWidgets('shows the approved invitation copy and accessible CTA', (
       tester,
@@ -141,6 +207,42 @@ void main() {
       expect(find.text('Add people to #general'), findsOneWidget);
       expect(_emailField, findsOneWidget);
       expect(find.byTooltip('Copy Invite Link'), findsOneWidget);
+    });
+
+    testWidgets('captures the redesigned empty-channel screen', (tester) async {
+      await _pumpHomeView(tester, const Size(1280, 720));
+
+      await expectLater(
+        find.byType(HomeView),
+        matchesGoldenFile('goldens/home_view_invite_cta.png'),
+      );
+    });
+
+    testWidgets('captures the open invitation modal', (tester) async {
+      await _pumpHomeView(tester, const Size(1280, 720));
+      await tester.tap(_inviteButton);
+      await tester.pumpAndSettle();
+
+      await expectLater(
+        find.byType(Overlay).last,
+        matchesGoldenFile('goldens/home_view_invite_modal.png'),
+      );
+    });
+
+    testWidgets('closes the invitation modal using its accessible button', (
+      tester,
+    ) async {
+      await _pumpHomeView(tester, const Size(1280, 720));
+      await tester.tap(_inviteButton);
+      await tester.pumpAndSettle();
+
+      final closeButton = find.byTooltip('Close invitation dialog');
+      expect(closeButton, findsOneWidget);
+      await tester.tap(closeButton);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(InviteTeammatesModal), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('preserves email invitations through the existing modal', (
@@ -207,6 +309,27 @@ void main() {
       tester,
     ) async {
       await _pumpHomeView(tester, const Size(1280, 600), settle: false);
+
+      final card = find.ancestor(
+        of: find.text('Bring your team into Zedu'),
+        matching: find.byType(Card),
+      );
+      final cardRect = tester.getRect(card);
+      final buttonRect = tester.getRect(_inviteButton);
+
+      expect(buttonRect.left, greaterThanOrEqualTo(cardRect.left));
+      expect(buttonRect.right, lessThanOrEqualTo(cardRect.right));
+      expect(buttonRect.bottom, lessThanOrEqualTo(cardRect.bottom));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('keeps the CTA visible at narrow desktop widths', (
+      tester,
+    ) async {
+      await _pumpHomeView(tester, const Size(1100, 600));
+
+      expect(find.text('Bring your team into Zedu'), findsOneWidget);
+      expect(_inviteButton, findsOneWidget);
 
       final card = find.ancestor(
         of: find.text('Bring your team into Zedu'),
