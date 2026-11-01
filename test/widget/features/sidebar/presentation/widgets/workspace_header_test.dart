@@ -140,5 +140,27 @@ void main() {
         expect(menuRect.bottom, lessThanOrEqualTo(260));
       },
     );
+
+    testWidgets('plus button opens the New Group Chat page', (tester) async {
+      await useTestWindow(tester);
+      await tester.pumpWidget(buildHeaderUnderTest());
+      await tester.pump();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(WorkspaceSwitcherHeader)),
+      );
+      expect(
+        container.read(activeChatProvider).type,
+        isNot(ActiveChatType.newGroupChat),
+      );
+
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pump();
+
+      expect(
+        container.read(activeChatProvider).type,
+        ActiveChatType.newGroupChat,
+      );
+    });
   });
 }

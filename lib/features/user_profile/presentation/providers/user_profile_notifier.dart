@@ -126,45 +126,27 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     }
   }
 
+  /// Saves [preferences] and makes them the new saved baseline on success.
+  /// A failed save leaves the baseline alone, so the screen keeps the edits.
   Future<void> updateNotificationPreferences(
     NotificationPreferences preferences,
   ) async {
+    if (state.isSaving) return;
     state = state.copyWith(
       isSaving: true,
       clearError: true,
       clearSuccess: true,
     );
-    final result = await _repository.updateNotificationPreferences(preferences);
+    final result = await _repository.updateNotificationPreferences(
+      orgId: ref.read(workspaceProvider).selectedWorkspace?.id,
+      preferences: preferences,
+    );
     switch (result) {
       case Success<NotificationPreferences>():
         state = state.copyWith(
           notifications: result.value,
           isSaving: false,
           successMessage: 'Notification preferences saved successfully.',
-        );
-      case Failure<NotificationPreferences>():
-        state = state.copyWith(
-          isSaving: false,
-          error: result.error.friendlyMessage,
-        );
-    }
-  }
-
-  Future<void> revertNotificationPreferences(
-    NotificationPreferences preferences,
-  ) async {
-    state = state.copyWith(
-      isSaving: true,
-      clearError: true,
-      clearSuccess: true,
-    );
-    final result = await _repository.updateNotificationPreferences(preferences);
-    switch (result) {
-      case Success<NotificationPreferences>():
-        state = state.copyWith(
-          notifications: result.value,
-          isSaving: false,
-          successMessage: 'Changes reverted successfully.',
         );
       case Failure<NotificationPreferences>():
         state = state.copyWith(
@@ -268,15 +250,20 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
   }
 
   Future<void> deleteOrganization() async {
+    final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
+    if (orgId == null) {
+      state = state.copyWith(error: 'No organisation is selected.');
+      return;
+    }
     state = state.copyWith(
       isSaving: true,
       clearError: true,
       clearSuccess: true,
     );
-    final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
     final result = await _repository.deleteOrganization(orgId: orgId);
     switch (result) {
       case Success<void>():
+        ref.read(workspaceProvider.notifier).removeWorkspace(orgId);
         state = state.copyWith(
           isSaving: false,
           successMessage: 'Organization deleted successfully.',
@@ -520,7 +507,7 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
   Future<void> _loadProfile(int loadId, String? orgId) async {
     final results = await Future.wait([
       _repository.getAccount(),
-      _repository.getNotificationPreferences(),
+      _repository.getNotificationPreferences(orgId: orgId),
       _repository.getSecuritySessions(),
       _repository.getOrganization(orgId: orgId),
       _repository.getTeamMembers(orgId: orgId),
