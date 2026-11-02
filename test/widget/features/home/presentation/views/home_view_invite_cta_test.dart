@@ -20,19 +20,16 @@ class _FakeCreditsNotifier extends CreditsNotifier {
 
 class _FakeChannelNotifier extends ChannelNotifier {
   @override
-  ChannelState build() => ChannelState(
-    channels: [
-      Channel(
-        id: '1',
-        name: 'general',
-        description: 'General talk',
-        organisationId: 'org1',
-        ownerId: 'u1',
-        membersCount: 1,
-        isJoined: true,
-      ),
-    ],
-  );
+  Future<List<Channel>> build() async => [
+    Channel(
+      id: '1',
+      name: 'general',
+      description: 'General talk',
+      organisationId: 'org1',
+      ownerId: 'u1',
+      membersCount: 1,
+    ),
+  ];
 }
 
 class _FakeUserProfileNotifier extends UserProfileNotifier {
