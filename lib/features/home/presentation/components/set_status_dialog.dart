@@ -61,7 +61,6 @@ class _SetStatusDialogState extends ConsumerState<SetStatusDialog> {
     if (_isSaving) return;
     setState(() => _isSaving = true);
 
-    final online = ref.read(authNotifierProvider).user?.status.online ?? true;
     final success = await ref
         .read(authNotifierProvider.notifier)
         .changeStatus(
@@ -69,7 +68,6 @@ class _SetStatusDialogState extends ConsumerState<SetStatusDialog> {
           text: _textCtrl.text.trim(),
           timeout: _timeout,
           pauseNotifications: _pauseNotifications,
-          online: online,
         );
 
     if (!mounted) return;
