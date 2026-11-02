@@ -58,6 +58,7 @@ class _AppTextFieldState extends State<AppTextField> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final toggleLabel = obscureText ? 'Show password' : 'Hide password';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,6 +76,8 @@ class _AppTextFieldState extends State<AppTextField> {
                 : const SizedBox.shrink()),
         const SizedBox(height: 6),
         Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
           onFocusChange: (hasFocus) {
             if (!hasFocus) {
               widget.onFocusLostOrSubmitted?.call();
@@ -138,10 +141,12 @@ class _AppTextFieldState extends State<AppTextField> {
                   : null,
               suffixIcon: widget.isPassword
                   ? IconButton(
+                      tooltip: toggleLabel,
                       icon: Icon(
                         obscureText
                             ? Icons.visibility_off_outlined
                             : Icons.visibility_outlined,
+                        semanticLabel: toggleLabel,
                         color: context.colors.textHint,
                       ),
                       onPressed: () {

@@ -6,10 +6,27 @@ import 'package:zedu/features/features.dart';
 class UserProfileNotifier extends Notifier<UserProfileState> {
   late final UserProfileRepository _repository;
 
+  /// Identifies the latest [load]. A load that is no longer the latest drops
+  /// its result, even when the selected workspace is the same one again
+  /// (switching A to B and back to A).
+  int _loadCounter = 0;
+
   @override
   UserProfileState build() {
     _repository = ref.read(userProfileRepositoryProvider);
-    load();
+    // The profile can stay open while the workspace is switched, so reload
+    // the workspace-dependent details (organization, members) for the new one.
+    ref.listen(
+      workspaceProvider.select((state) => state.selectedWorkspace?.id),
+      (previous, next) {
+        if (previous != next) load();
+      },
+    );
+    // load() reads and writes state, which is not available until build()
+    // returns, so it starts right after, unless the provider was disposed.
+    Future.microtask(() {
+      if (ref.mounted) load();
+    });
     return const UserProfileState(isLoading: true);
   }
 
@@ -27,11 +44,13 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
       clearError: true,
       clearSuccess: true,
     );
-    final result = await _repository.updateAccount(account);
+    final current = state.account ?? ProfileAccount.empty();
+    final changes = _changedFields(account, current);
+    final result = await _repository.updateAccount(changes);
     switch (result) {
       case Success<ProfileAccount>():
         state = state.copyWith(
-          account: result.value,
+          account: _savedAccount(state.account ?? current, changes),
           isSaving: false,
           successMessage: 'Account information saved successfully.',
         );
@@ -41,6 +60,49 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
           error: result.error.friendlyMessage,
         );
     }
+  }
+
+  /// Keeps only the fields the user edited (others become empty), so the
+  /// placeholder values shown before the profile loads are never saved.
+  ProfileAccount _changedFields(
+    ProfileAccount updated,
+    ProfileAccount current,
+  ) {
+    String changed(String now, String was) => now == was ? '' : now;
+    return ProfileAccount(
+      name: changed(updated.name, current.name),
+      email: changed(updated.email, current.email),
+      timezone: changed(updated.timezone, current.timezone),
+      avatarUrl: updated.avatarUrl,
+      displayName: changed(updated.displayName, current.displayName),
+      username: changed(updated.username, current.username),
+      phoneNumber: changed(updated.phoneNumber, current.phoneNumber),
+      title: changed(updated.title, current.title),
+      namePronunciation: changed(
+        updated.namePronunciation,
+        current.namePronunciation,
+      ),
+      country: changed(updated.country, current.country),
+    );
+  }
+
+  /// The profile as the server now holds it. `PATCH /profile` doesn't take
+  /// email, country or avatar, and the backend ignores empty values, so those
+  /// keep their current values instead of showing edits that weren't saved.
+  ProfileAccount _savedAccount(ProfileAccount current, ProfileAccount changes) {
+    String saved(String sent, String was) => sent.isEmpty ? was : sent;
+    return current.copyWith(
+      name: saved(changes.name, current.name),
+      timezone: saved(changes.timezone, current.timezone),
+      displayName: saved(changes.displayName, current.displayName),
+      username: saved(changes.username, current.username),
+      phoneNumber: saved(changes.phoneNumber, current.phoneNumber),
+      title: saved(changes.title, current.title),
+      namePronunciation: saved(
+        changes.namePronunciation,
+        current.namePronunciation,
+      ),
+    );
   }
 
   Future<void> deleteAccount() async {
@@ -64,45 +126,27 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     }
   }
 
+  /// Saves [preferences] and makes them the new saved baseline on success.
+  /// A failed save leaves the baseline alone, so the screen keeps the edits.
   Future<void> updateNotificationPreferences(
     NotificationPreferences preferences,
   ) async {
+    if (state.isSaving) return;
     state = state.copyWith(
       isSaving: true,
       clearError: true,
       clearSuccess: true,
     );
-    final result = await _repository.updateNotificationPreferences(preferences);
+    final result = await _repository.updateNotificationPreferences(
+      orgId: ref.read(workspaceProvider).selectedWorkspace?.id,
+      preferences: preferences,
+    );
     switch (result) {
       case Success<NotificationPreferences>():
         state = state.copyWith(
           notifications: result.value,
           isSaving: false,
           successMessage: 'Notification preferences saved successfully.',
-        );
-      case Failure<NotificationPreferences>():
-        state = state.copyWith(
-          isSaving: false,
-          error: result.error.friendlyMessage,
-        );
-    }
-  }
-
-  Future<void> revertNotificationPreferences(
-    NotificationPreferences preferences,
-  ) async {
-    state = state.copyWith(
-      isSaving: true,
-      clearError: true,
-      clearSuccess: true,
-    );
-    final result = await _repository.updateNotificationPreferences(preferences);
-    switch (result) {
-      case Success<NotificationPreferences>():
-        state = state.copyWith(
-          notifications: result.value,
-          isSaving: false,
-          successMessage: 'Changes reverted successfully.',
         );
       case Failure<NotificationPreferences>():
         state = state.copyWith(
@@ -145,7 +189,10 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
       clearError: true,
       clearSuccess: true,
     );
-    final result = await _repository.updateOrganization(organization);
+    final result = await _repository.updateOrganization(
+      organization,
+      orgId: ref.read(workspaceProvider).selectedWorkspace?.id,
+    );
     switch (result) {
       case Success<OrganizationProfile>():
         state = state.copyWith(
@@ -191,7 +238,7 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
                 name: result.value.name,
                 avatar: '',
                 unreadCount: 0,
-                membersCount: 1,
+                channelsCount: 0,
               ),
             );
       case Failure<OrganizationProfile>():
@@ -203,14 +250,20 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
   }
 
   Future<void> deleteOrganization() async {
+    final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
+    if (orgId == null) {
+      state = state.copyWith(error: 'No organisation is selected.');
+      return;
+    }
     state = state.copyWith(
       isSaving: true,
       clearError: true,
       clearSuccess: true,
     );
-    final result = await _repository.deleteOrganization();
+    final result = await _repository.deleteOrganization(orgId: orgId);
     switch (result) {
       case Success<void>():
+        ref.read(workspaceProvider.notifier).removeWorkspace(orgId);
         state = state.copyWith(
           isSaving: false,
           successMessage: 'Organization deleted successfully.',
@@ -430,18 +483,41 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     }
   }
 
+  bool _isObsoleteLoad(int loadId, String? orgId) {
+    if (!ref.mounted) return true;
+    final currentOrgId = ref.read(workspaceProvider).selectedWorkspace?.id;
+    return loadId != _loadCounter || currentOrgId != orgId;
+  }
+
   Future<void> load() async {
+    final loadId = ++_loadCounter;
     state = state.copyWith(isLoading: true, clearError: true);
     final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
+    try {
+      await _loadProfile(loadId, orgId);
+    } catch (_) {
+      if (_isObsoleteLoad(loadId, orgId)) return;
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Could not load your profile. Please try again.',
+      );
+    }
+  }
+
+  Future<void> _loadProfile(int loadId, String? orgId) async {
     final results = await Future.wait([
       _repository.getAccount(),
-      _repository.getNotificationPreferences(),
+      _repository.getNotificationPreferences(orgId: orgId),
       _repository.getSecuritySessions(),
-      _repository.getOrganization(),
+      _repository.getOrganization(orgId: orgId),
       _repository.getTeamMembers(orgId: orgId),
       _repository.getRolesAndPermissions(),
       _repository.getBillingInfo(),
     ]);
+
+    // A newer load started, or the workspace changed, while this was loading:
+    // drop the stale result, the newer load will fill the screen.
+    if (_isObsoleteLoad(loadId, orgId)) return;
 
     final accountResult = results[0] as Result<ProfileAccount>;
     final notificationResult = results[1] as Result<NotificationPreferences>;
@@ -481,6 +557,10 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
         } catch (_) {}
       }
     }
+
+    // The secure-storage read above can take long enough for another load to
+    // start, so check again right before writing the state.
+    if (_isObsoleteLoad(loadId, orgId)) return;
 
     state = state.copyWith(
       account: _valueOrNull(accountResult),

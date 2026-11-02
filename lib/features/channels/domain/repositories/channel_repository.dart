@@ -17,4 +17,13 @@ abstract class ChannelRepository {
     String? description,
   });
   Future<Result<void>> archiveChannel(String channelId, bool archived);
+  Future<Result<List<String>>> fetchOrganisationMemberIds(String orgId);
+  Future<Result<List<String>>> fetchChannelMemberIds(String channelId);
+  Future<Result<void>> addMembersToChannel({
+    required String channelId,
+    required List<String> userIds,
+  });
+
+  /// The latest messages of a channel, newest first.
+  Future<Result<List<ChannelMessage>>> fetchChannelMessages(String channelId);
 }

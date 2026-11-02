@@ -7,25 +7,29 @@ abstract interface class UserProfileRemoteDataSource {
   Future<ProfileAccountModel> getAccount();
   Future<ProfileAccountModel> updateAccount(ProfileAccount account);
   Future<void> deleteAccount();
-  Future<NotificationPreferencesModel> getNotificationPreferences();
-  Future<NotificationPreferencesModel> updateNotificationPreferences(
-    NotificationPreferences preferences,
-  );
+  Future<NotificationPreferencesModel> getNotificationPreferences({
+    required String? orgId,
+  });
+  Future<NotificationPreferencesModel> updateNotificationPreferences({
+    required String? orgId,
+    required NotificationPreferences preferences,
+  });
   Future<List<SecuritySessionModel>> getSecuritySessions();
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
   });
-  Future<OrganizationProfileModel> getOrganization();
+  Future<OrganizationProfileModel> getOrganization({String? orgId});
   Future<OrganizationProfileModel> createOrganization({
     required String name,
     required String type,
     required String country,
   });
   Future<OrganizationProfileModel> updateOrganization(
-    OrganizationProfile organization,
-  );
-  Future<void> deleteOrganization();
+    OrganizationProfile organization, {
+    String? orgId,
+  });
+  Future<void> deleteOrganization({required String orgId});
   Future<List<TeamMemberModel>> getTeamMembers({String? orgId});
   Future<TeamMemberModel> inviteMember({
     required String email,
@@ -54,7 +58,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   Future<ProfileAccountModel> getAccount() async {
     if (_config.usesMockData) return ProfileAccountModel.fromJson(_account);
     final response = await _apiBaseService.get<Map<String, dynamic>>(
-      path: '/profile/account',
+      path: '/profile',
     );
     return ProfileAccountModel.fromJson(
       response.data['data'] as Map<String, dynamic>,
@@ -64,26 +68,25 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   @override
   Future<ProfileAccountModel> updateAccount(ProfileAccount account) async {
     if (_config.usesMockData) {
-      AppLogger.d('Using mock data for PATCH /profile/account', tag: _tag);
-      return ProfileAccountModel(
-        name: account.name,
-        email: account.email,
-        timezone: account.timezone,
-        avatarUrl: account.avatarUrl,
-      );
+      AppLogger.d('Using mock data for PATCH /profile', tag: _tag);
+      return ProfileAccountModel.fromAccount(account);
     }
-    final response = await _apiBaseService.patch<Map<String, dynamic>>(
-      path: '/profile/account',
-      data: {
-        'name': account.name,
-        'email': account.email,
-        'timezone': account.timezone,
-        'avatar_url': account.avatarUrl,
-      },
+    // Same endpoint and multipart fields as Zedu web. Empty values are left
+    // out so fields the user didn't change are never overwritten.
+    final fields = <String, String>{
+      'full_name': account.name,
+      'display_name': account.displayName,
+      'username': account.username,
+      'phone': account.phoneNumber,
+      'title': account.title,
+      'timezone': account.timezone,
+      'name_pronounciation': account.namePronunciation,
+    }..removeWhere((_, value) => value.isEmpty);
+    await _apiBaseService.patch<Map<String, dynamic>>(
+      path: '/profile',
+      data: FormData.fromMap(fields),
     );
-    return ProfileAccountModel.fromJson(
-      response.data['data'] as Map<String, dynamic>,
-    );
+    return ProfileAccountModel.fromAccount(account);
   }
 
   @override
@@ -95,44 +98,147 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   }
 
   @override
-  Future<NotificationPreferencesModel> getNotificationPreferences() async {
+  Future<NotificationPreferencesModel> getNotificationPreferences({
+    required String? orgId,
+  }) async {
     if (_config.usesMockData) {
-      return NotificationPreferencesModel.fromJson(_notifications);
+      return NotificationPreferencesModel.fromDeviceJson(
+        _notifications,
+        mobile: _notifications,
+        timezone: _account['timezone'],
+      );
     }
-    final response = await _apiBaseService.get<Map<String, dynamic>>(
-      path: '/profile/notifications',
+    final org = _requireOrg(orgId);
+    final results = await Future.wait([
+      _getDevicePreferences(org, 'desktop'),
+      // Mobile and timezone only add detail, so the screen still loads
+      // without them.
+      _orNull(_getDevicePreferences(org, 'mobile')),
+      _orNull(_getProfileTimezone()),
+      _readMobileOverride(org),
+    ]);
+    final model = NotificationPreferencesModel.fromDeviceJson(
+      results[0] as Map<String, dynamic>,
+      mobile: results[1] as Map<String, dynamic>?,
+      timezone: results[2] as String?,
     );
-    return NotificationPreferencesModel.fromJson(
-      response.data['data'] as Map<String, dynamic>,
-    );
+    if (results[3] != true || model.differentMobileSettings) return model;
+    return model.copyWithModel(differentMobileSettings: true);
   }
 
   @override
-  Future<NotificationPreferencesModel> updateNotificationPreferences(
-    NotificationPreferences preferences,
-  ) async {
+  Future<NotificationPreferencesModel> updateNotificationPreferences({
+    required String? orgId,
+    required NotificationPreferences preferences,
+  }) async {
     if (_config.usesMockData) {
-      return NotificationPreferencesModel(
-        mode: preferences.mode,
-        fromTime: preferences.fromTime,
-        toTime: preferences.toTime,
-        useDesktopSettings: preferences.useDesktopSettings,
-        emailNotifications: preferences.emailNotifications,
+      return NotificationPreferencesModel.fromDeviceJson(
+        NotificationPreferencesModel.toDeviceJson(
+          preferences,
+          deviceType: 'desktop',
+        ),
+        timezone: preferences.timezone,
+      ).copyWithModel(
+        differentMobileSettings: preferences.differentMobileSettings,
       );
     }
-    final response = await _apiBaseService.patch<Map<String, dynamic>>(
-      path: '/profile/notifications',
-      data: NotificationPreferencesModel(
-        mode: preferences.mode,
-        fromTime: preferences.fromTime,
-        toTime: preferences.toTime,
-        useDesktopSettings: preferences.useDesktopSettings,
-        emailNotifications: preferences.emailNotifications,
-      ).toJson(),
+    final org = _requireOrg(orgId);
+    final desktop = await _saveDevicePreferences(org, 'desktop', preferences);
+    // With one shared setting, the phone follows whatever is saved here.
+    if (!preferences.differentMobileSettings) {
+      await _saveDevicePreferences(org, 'mobile', preferences);
+    }
+    await _writeMobileOverride(org, preferences.differentMobileSettings);
+    return NotificationPreferencesModel.fromDeviceJson(
+      desktop,
+      timezone: preferences.timezone,
+    ).copyWithModel(
+      differentMobileSettings: preferences.differentMobileSettings,
     );
-    return NotificationPreferencesModel.fromJson(
-      response.data['data'] as Map<String, dynamic>,
+  }
+
+  Future<T?> _orNull<T>(Future<T> request) async {
+    try {
+      return await request;
+    } catch (error) {
+      AppLogger.w('Optional notification request failed - $error', tag: _tag);
+      return null;
+    }
+  }
+
+  String _requireOrg(String? orgId) {
+    if (orgId == null || orgId.isEmpty) {
+      throw const ApiFailure(
+        message: 'Select a workspace to manage its notifications.',
+        kind: ApiFailureKind.client,
+      );
+    }
+    return orgId;
+  }
+
+  Future<Map<String, dynamic>> _getDevicePreferences(
+    String orgId,
+    String deviceType,
+  ) async {
+    final response = await _apiBaseService.get<Map<String, dynamic>>(
+      path: '/organisations/$orgId/notification-preference',
+      queryParameters: {'device_type': deviceType},
     );
+    return response.data['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> _saveDevicePreferences(
+    String orgId,
+    String deviceType,
+    NotificationPreferences preferences,
+  ) async {
+    final response = await _apiBaseService.post<Map<String, dynamic>>(
+      path: '/organisations/$orgId/notification-preference',
+      queryParameters: {'device_type': deviceType},
+      data: NotificationPreferencesModel.toDeviceJson(
+        preferences,
+        deviceType: deviceType,
+      ),
+    );
+    return response.data['data'] as Map<String, dynamic>;
+  }
+
+  /// The backend evaluates the schedule in the profile timezone.
+  Future<String?> _getProfileTimezone() async {
+    final response = await _apiBaseService.get<Map<String, dynamic>>(
+      path: '/profile',
+    );
+    final data = response.data['data'];
+    return data is Map<String, dynamic> ? data['timezone'] as String? : null;
+  }
+
+  // The backend has no field for "mobile has its own settings", so the choice
+  // is remembered on this device. Mobile settings that differ also count.
+  static String _mobileOverrideKey(String orgId) =>
+      'notification_mobile_override_$orgId';
+
+  Future<bool> _readMobileOverride(String orgId) async {
+    if (!locator.isRegistered<SecureStorageService>()) return false;
+    try {
+      final value = await locator<SecureStorageService>().readData(
+        _mobileOverrideKey(orgId),
+      );
+      return value == 'true';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _writeMobileOverride(String orgId, bool value) async {
+    if (!locator.isRegistered<SecureStorageService>()) return;
+    try {
+      await locator<SecureStorageService>().writeData(
+        _mobileOverrideKey(orgId),
+        '$value',
+      );
+    } catch (error) {
+      AppLogger.w('Could not remember mobile override - $error', tag: _tag);
+    }
   }
 
   @override
@@ -156,25 +262,24 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
     required String newPassword,
   }) async {
     if (_config.usesMockData) {
-      AppLogger.d(
-        'Using mock data for POST /profile/security/password',
-        tag: _tag,
-      );
+      AppLogger.d('Using mock data for PUT /auth/change-password', tag: _tag);
       return;
     }
-    await _apiBaseService.post<Map<String, dynamic>>(
-      path: '/profile/security/password',
-      data: {'current_password': currentPassword, 'new_password': newPassword},
+    await _apiBaseService.put<dynamic>(
+      path: '/auth/change-password',
+      data: {'old_password': currentPassword, 'new_password': newPassword},
     );
   }
 
   @override
-  Future<OrganizationProfileModel> getOrganization() async {
+  Future<OrganizationProfileModel> getOrganization({String? orgId}) async {
     if (_config.usesMockData) {
       return OrganizationProfileModel.fromJson(_organization);
     }
+    // The selected workspace's own endpoint returns its real name, type and
+    // country; /profile/organization fails for members of other workspaces.
     final response = await _apiBaseService.get<Map<String, dynamic>>(
-      path: '/profile/organization',
+      path: orgId == null ? '/profile/organization' : '/organisations/$orgId',
     );
     return OrganizationProfileModel.fromJson(
       response.data['data'] as Map<String, dynamic>,
@@ -183,8 +288,9 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
 
   @override
   Future<OrganizationProfileModel> updateOrganization(
-    OrganizationProfile organization,
-  ) async {
+    OrganizationProfile organization, {
+    String? orgId,
+  }) async {
     if (_config.usesMockData) {
       return OrganizationProfileModel(
         id: organization.id,
@@ -193,15 +299,30 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         country: organization.country,
       );
     }
-    final response = await _apiBaseService.patch<Map<String, dynamic>>(
-      path: '/profile/organization',
-      data: OrganizationProfileModel(
-        id: organization.id,
-        name: organization.name,
-        natureOfBusiness: organization.natureOfBusiness,
-        country: organization.country,
-      ).toJson(),
-    );
+    final data = OrganizationProfileModel(
+      id: organization.id,
+      name: organization.name,
+      natureOfBusiness: organization.natureOfBusiness,
+      country: organization.country,
+    ).toJson();
+    // Like the load and the delete, save to the selected workspace's own
+    // endpoint: /profile/organization is rejected for members of other
+    // workspaces. That endpoint reads the business type from `type` (it
+    // ignores `nature_of_business`), so send it under that name.
+    final response = orgId == null
+        ? await _apiBaseService.patch<Map<String, dynamic>>(
+            path: '/profile/organization',
+            data: data,
+          )
+        : await _apiBaseService.put<Map<String, dynamic>>(
+            path: '/organisations/$orgId',
+            data: {
+              'id': organization.id,
+              'name': organization.name,
+              'type': organization.natureOfBusiness,
+              'country': organization.country,
+            },
+          );
     return OrganizationProfileModel.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
@@ -240,10 +361,12 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   }
 
   @override
-  Future<void> deleteOrganization() async {
+  Future<void> deleteOrganization({required String orgId}) async {
     if (_config.usesMockData) return;
+    // The API has no /profile/organization route, so an organisation can only
+    // be deleted by id.
     await _apiBaseService.delete<Map<String, dynamic>>(
-      path: '/profile/organization',
+      path: '/organisations/$orgId',
     );
   }
 
@@ -437,12 +560,10 @@ const _account = {
   'timezone': 'Africa/Lagos',
 };
 
-const _notifications = {
-  'mode': 'allMessages',
-  'from_time': '12:00 AM',
-  'to_time': '11:00 PM',
-  'use_desktop_settings': true,
-  'email_notifications': false,
+const _notifications = <String, dynamic>{
+  'notify_about': 'all_new_messages',
+  'send_mail': false,
+  'time_range': NotificationPreferencesModel.allDay,
 };
 
 const _organization = {

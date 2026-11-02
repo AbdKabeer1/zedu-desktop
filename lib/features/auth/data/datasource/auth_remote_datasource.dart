@@ -6,7 +6,7 @@ abstract interface class AuthRemoteDataSource {
     required String email,
     required String password,
   });
-  Future<UserModel> me();
+  Future<ProfileModel> me();
   Future<void> signUp({
     required String username,
     required String email,
@@ -37,6 +37,7 @@ abstract interface class AuthRemoteDataSource {
     required bool clearStatus,
     required bool online,
   });
+  Future<void> setPresence({required bool online});
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -91,28 +92,27 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<UserModel> me() async {
+  Future<ProfileModel> me() async {
     try {
       if (_config.usesMockData) {
-        AppLogger.d('Using mock data for GET /auth/me', tag: _tag);
-        final loginResponse = LoginResponseModel.fromJson(
-          LoginResponseModel.mockLoginResponse,
+        AppLogger.d('Using mock data for GET /profile', tag: _tag);
+        return ProfileModel.fromJson(
+          LoginResponseModel.mockLoginResponse['user'] as Map<String, dynamic>,
         );
-        return loginResponse.user;
       }
 
-      AppLogger.d('GET /auth/me', tag: _tag);
+      AppLogger.d('GET /profile', tag: _tag);
       final response = await _apiBaseService.get<Map<String, dynamic>>(
-        path: '/auth/me',
+        path: '/profile',
       );
 
       final data = response.data['data'] as Map<String, dynamic>;
-      return UserModel.fromJson(data);
+      return ProfileModel.fromJson(data);
     } on ApiFailure {
       rethrow;
     } catch (error) {
-      AppLogger.e('Failed to parse /auth/me response', tag: _tag, error: error);
-      throw ApiFailure.fromParsingError(error, path: 'auth/me');
+      AppLogger.e('Failed to parse /profile response', tag: _tag, error: error);
+      throw ApiFailure.fromParsingError(error, path: 'profile');
     }
   }
 
@@ -352,6 +352,28 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       rethrow;
     } catch (error) {
       AppLogger.e('Failed /profile/change-status', tag: _tag, error: error);
+      throw ApiFailure.unknown(error);
+    }
+  }
+
+  @override
+  Future<void> setPresence({required bool online}) async {
+    try {
+      if (_config.usesMockData) {
+        AppLogger.d('Using mock data for POST /profile/presence', tag: _tag);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        return;
+      }
+
+      AppLogger.d('POST /profile/presence', tag: _tag);
+      await _apiBaseService.post<dynamic>(
+        path: 'profile/presence',
+        data: {'online': online},
+      );
+    } on ApiFailure {
+      rethrow;
+    } catch (error) {
+      AppLogger.e('Failed /profile/presence', tag: _tag, error: error);
       throw ApiFailure.unknown(error);
     }
   }
