@@ -100,7 +100,7 @@ class _WorkspaceSwitcherHeaderState
               // Add action
             },
             icon: Icon(
-              Icons.add,
+              Icons.edit_note,
               color: colors.onPrimary.withValues(alpha: 0.7),
               size: 20,
             ),

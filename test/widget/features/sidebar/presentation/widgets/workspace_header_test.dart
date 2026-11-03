@@ -140,5 +140,13 @@ void main() {
         expect(menuRect.bottom, lessThanOrEqualTo(260));
       },
     );
+    testWidgets('add action uses a compose icon', (tester) async {
+      await useTestWindow(tester);
+
+      await tester.pumpWidget(buildHeaderUnderTest());
+      await tester.pump();
+
+      expect(find.widgetWithIcon(IconButton, Icons.edit_note), findsOneWidget);
+    });
   });
 }
