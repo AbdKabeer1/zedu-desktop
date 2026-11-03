@@ -189,9 +189,10 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
       clearError: true,
       clearSuccess: true,
     );
+    final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
     final result = await _repository.updateOrganization(
       organization,
-      orgId: ref.read(workspaceProvider).selectedWorkspace?.id,
+      orgId: orgId,
     );
     switch (result) {
       case Success<OrganizationProfile>():
@@ -200,6 +201,11 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
           isSaving: false,
           successMessage: 'Organization information saved successfully.',
         );
+        if (orgId != null) {
+          ref
+              .read(workspaceProvider.notifier)
+              .renameWorkspace(orgId, result.value.name);
+        }
       case Failure<OrganizationProfile>():
         state = state.copyWith(
           isSaving: false,

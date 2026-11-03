@@ -118,6 +118,16 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     );
   }
 
+  /// Keeps the name in the list and the selection in step with a rename.
+  void renameWorkspace(String id, String name) {
+    Workspace rename(Workspace w) => w.id == id ? w.copyWith(name: name) : w;
+    final selected = state.selectedWorkspace;
+    state = state.copyWith(
+      workspaces: state.workspaces.map(rename).toList(),
+      selectedWorkspace: selected == null ? null : rename(selected),
+    );
+  }
+
   Future<void> switchWorkspace(Workspace workspace) async {
     if (state.selectedWorkspace?.id == workspace.id) return;
 
