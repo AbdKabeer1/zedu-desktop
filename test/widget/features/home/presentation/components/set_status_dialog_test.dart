@@ -114,5 +114,29 @@ void main() {
 
       expect(_checkIcon(), findsOneWidget);
     });
+
+    testWidgets('displays valid emojis for preset status options', (
+      tester,
+    ) async {
+      await _pumpDialog(tester);
+
+      expect(find.text('📅'), findsOneWidget);
+      expect(find.text('🚗'), findsOneWidget);
+      expect(find.text('🤒'), findsOneWidget);
+      expect(find.text('🌴'), findsOneWidget);
+      expect(find.text('🏠'), findsOneWidget);
+    });
+
+    testWidgets(
+      'selecting a preset updates the emoji button with the preset emoji',
+      (tester) async {
+        await _pumpDialog(tester);
+
+        await tester.tap(find.text('In a meeting'));
+        await tester.pump();
+
+        expect(find.text('📅'), findsNWidgets(2));
+      },
+    );
   });
 }
