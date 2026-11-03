@@ -156,4 +156,10 @@ class _UploadRepository implements FilesRepository {
     required String savePath,
     void Function(double? progress)? onProgress,
   }) async => const Success(null);
+
+  @override
+  Future<Result<void>> deleteFile(
+    String fileId, {
+    bool permanent = false,
+  }) async => const Success(null);
 }

@@ -28,6 +28,10 @@ abstract class FilesRemoteDataSource {
     required String savePath,
     void Function(int received, int total)? onProgress,
   });
+
+  /// Deletes file [fileId]: moves it to Deleted files, or removes it for good
+  /// when [permanent].
+  Future<void> deleteFile(String fileId, {bool permanent = false});
 }
 
 /// Reads `current_page` and `total_pages_count` (or `total_pages`).
@@ -199,5 +203,13 @@ class FilesRemoteDataSourceImpl implements FilesRemoteDataSource {
     } on DioException catch (error) {
       throw ApiFailure.fromDioException(error);
     }
+  }
+
+  @override
+  Future<void> deleteFile(String fileId, {bool permanent = false}) async {
+    await apiBaseService.delete<dynamic>(
+      path: '/files/file/$fileId',
+      queryParameters: permanent ? const {'permanent': true} : null,
+    );
   }
 }
