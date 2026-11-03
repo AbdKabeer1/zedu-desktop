@@ -922,12 +922,11 @@ class _MessageBubble extends ConsumerWidget {
     final colors = context.colors;
     final history = ref.watch(chatHistoryProvider(channelId));
     final isMe = history.isMyMessage(message);
-    final rawContent = message['content'] as String? ?? '';
+    // Web and mobile send HTML; show it as the Markdown this bubble renders.
     // A voice note or file sent without text carries an empty paragraph
-    // (`<p></p>`). Show no text bubble for it instead of the literal tags.
-    final content = rawContent.replaceAll(RegExp(r'<[^>]*>'), '').trim().isEmpty
-        ? ''
-        : rawContent;
+    // (`<p></p>`), which becomes no text bubble.
+    final text = htmlMessageToMarkdown(message['content'] as String? ?? '');
+    final content = text.trim().isEmpty ? '' : text;
     final createdAt =
         DateTime.tryParse(message['created_at']?.toString() ?? '')?.toLocal() ??
         DateTime.now();
@@ -1014,7 +1013,7 @@ class _MessageBubble extends ConsumerWidget {
                 if (content.isNotEmpty)
                   _OwnMessageMenu(
                     enabled: isMe && status == null,
-                    onEdit: () => onEdit(messageId, rawContent),
+                    onEdit: () => onEdit(messageId, content),
                     onDelete: () => _confirmDelete(context, ref, messageId),
                     child: Container(
                       padding: const EdgeInsets.symmetric(

@@ -402,6 +402,42 @@ void main() {
       expect(find.text('hello there', findRichText: true), findsOneWidget);
     });
 
+    testWidgets('shows a message sent from web without its HTML tags', (
+      tester,
+    ) async {
+      await pumpChat(tester, [
+        message('m1', '<p>Tom &amp; <strong>Jerry</strong></p>'),
+      ]);
+
+      expect(find.text('Tom & Jerry', findRichText: true), findsOneWidget);
+      expect(find.textContaining('<p>', findRichText: true), findsNothing);
+      final bold = find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText &&
+            ((widget.text as TextSpan).children ?? const []).any(
+              (span) =>
+                  span is TextSpan &&
+                  span.text == 'Jerry' &&
+                  span.style?.fontWeight == FontWeight.bold,
+            ),
+      );
+      expect(bold, findsOneWidget);
+    });
+
+    testWidgets('editing a web message puts its text, not HTML, in the box', (
+      tester,
+    ) async {
+      await pumpChat(tester, [ownMessage('m1', '<p>my message</p>')]);
+
+      await tester.longPress(find.text('my message', findRichText: true));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit message'));
+      await tester.pumpAndSettle();
+
+      final composer = tester.widget<TextField>(find.byType(TextField).last);
+      expect(composer.controller!.text, 'my message');
+    });
+
     Finder bubbleDividers(String text) => find.descendant(
       of: find
           .ancestor(
