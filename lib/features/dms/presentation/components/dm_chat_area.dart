@@ -188,38 +188,11 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
     final history = ref.read(
       chatHistoryProvider(widget.conversation.channelId),
     );
-    final files = history.messages
-        .expand((message) => (message['media'] as List<dynamic>?) ?? const [])
-        .toList();
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${widget.conversation.displayName} files'),
-        content: SizedBox(
-          width: 420,
-          child: files.isEmpty
-              ? const Text('No files in the loaded conversation history.')
-              : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: files.length,
-                  itemBuilder: (context, index) {
-                    final file = files[index] as Map;
-                    return ListTile(
-                      leading: const Icon(Icons.insert_drive_file_outlined),
-                      title: Text(
-                        file['file_name']?.toString() ?? 'Attachment',
-                      ),
-                      subtitle: Text(file['file_type']?.toString() ?? ''),
-                    );
-                  },
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
+      builder: (context) => ConversationFilesDialog(
+        title: '${widget.conversation.displayName} files',
+        history: history,
       ),
     );
   }
