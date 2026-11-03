@@ -9,4 +9,9 @@ export 'top_user_menu.dart';
 export 'notifications_dialog.dart';
 export 'dm_empty_state.dart';
 export 'sidebar_channel_list.dart';
+<<<<<<< HEAD
 export 'desktop_window_title_listener.dart';
+=======
+export 'quick_switcher.dart';
+export 'quick_switcher_shortcut.dart';
+>>>>>>> upstream/staging
