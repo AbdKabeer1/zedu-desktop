@@ -93,6 +93,38 @@ void main() {
       expect(state.workspaces.every((w) => w.unreadCount == 0), isTrue);
     });
 
+    test('leaving the only organisation clears the selection', () async {
+      registerConfig(usesMockData: false);
+      stubOrganisations([
+        {'id': 'org-1', 'name': 'Acme'},
+      ]);
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await loadWorkspaces(container);
+      expect(container.read(workspaceProvider).selectedWorkspace?.id, 'org-1');
+
+      container.read(workspaceProvider.notifier).removeWorkspace('org-1');
+
+      final state = container.read(workspaceProvider);
+      expect(state.workspaces, isEmpty);
+      expect(state.selectedWorkspace, isNull);
+    });
+
+    test('leaving one of several selects another organisation', () async {
+      registerConfig(usesMockData: false);
+      stubOrganisations([
+        {'id': 'org-1', 'name': 'Acme'},
+        {'id': 'org-2', 'name': 'Globex'},
+      ]);
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await loadWorkspaces(container);
+
+      container.read(workspaceProvider.notifier).removeWorkspace('org-1');
+
+      expect(container.read(workspaceProvider).selectedWorkspace?.id, 'org-2');
+    });
+
     test('a newly created organisation is the only one listed', () async {
       registerConfig(usesMockData: false);
       stubOrganisations([]);
