@@ -56,10 +56,12 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
   final TextEditingController _controller = TextEditingController();
   late List<QuickSwitcherEntry> _results = widget.entries;
   int _highlighted = 0;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -68,12 +70,33 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
       _results = filterQuickSwitcherEntries(widget.entries, query);
       _highlighted = 0;
     });
+    _revealHighlighted();
   }
 
   void _moveHighlight(int delta) {
     if (_results.isEmpty) return;
     setState(() {
       _highlighted = (_highlighted + delta) % _results.length;
+    });
+    _revealHighlighted();
+  }
+
+  /// Scrolls just enough to show the highlighted row once the list has laid
+  /// out. Every row has the same height, so its position follows from its index.
+  void _revealHighlighted() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients || _results.isEmpty) return;
+      final position = _scrollController.position;
+      final viewport = position.viewportDimension;
+      final rowHeight = (position.maxScrollExtent + viewport) / _results.length;
+      final top = _highlighted * rowHeight;
+      final bottom = top + rowHeight;
+
+      if (top < position.pixels) {
+        _scrollController.jumpTo(top);
+      } else if (bottom > position.pixels + viewport) {
+        _scrollController.jumpTo(bottom - viewport);
+      }
     });
   }
 
@@ -129,6 +152,7 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
                         ),
                       )
                     : ListView.builder(
+                        controller: _scrollController,
                         shrinkWrap: true,
                         itemCount: _results.length,
                         itemBuilder: (context, index) => _QuickSwitcherRow(
