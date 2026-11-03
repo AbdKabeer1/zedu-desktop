@@ -225,8 +225,9 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
   }
 
   void _showActionNotice(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -286,6 +287,8 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
                         onNotification: (ScrollNotification scrollInfo) {
                           if (!historyState.isLoading &&
                               historyState.hasMore &&
+                              !historyState.loadFailed &&
+                              !historyState.loadMoreFailed &&
                               scrollInfo.metrics.pixels >=
                                   scrollInfo.metrics.maxScrollExtent * 0.8) {
                             ref
@@ -330,6 +333,22 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
                                   child: Center(
                                     child: CircularProgressIndicator(),
                                   ),
+                                ),
+                              ),
+                            if (!historyState.isLoading &&
+                                historyState.loadFailed)
+                              SliverToBoxAdapter(
+                                child: _HistoryLoadError(
+                                  message: "Couldn't load messages.",
+                                  onRetry: historyState.retryLoad,
+                                ),
+                              )
+                            else if (!historyState.isLoading &&
+                                historyState.loadMoreFailed)
+                              SliverToBoxAdapter(
+                                child: _HistoryLoadError(
+                                  message: "Couldn't load older messages.",
+                                  onRetry: historyState.loadMore,
                                 ),
                               ),
                             if (!historyState.hasMore)
@@ -489,6 +508,36 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Shown when message history fails to load, with a way to try again.
+class _HistoryLoadError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _HistoryLoadError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: colors.textHint,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
       ),
     );
   }
