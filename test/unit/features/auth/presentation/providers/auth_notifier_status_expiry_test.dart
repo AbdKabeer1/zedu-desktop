@@ -86,7 +86,11 @@ void main() {
       expect(status.emoji, isNull);
       expect(status.expiresAt, isNull);
       expect(status.pauseNotifications, isFalse);
-      expect(status.online, isTrue, reason: 'presence is not part of the status');
+      expect(
+        status.online,
+        isTrue,
+        reason: 'presence is not part of the status',
+      );
     });
 
     test('clears a status that had already expired when loaded', () async {
