@@ -354,6 +354,7 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
                   recipientName: _recipientHandle,
                   hintText: _isOwnSpace ? 'Write a note to yourself' : null,
                   channelId: widget.conversation.channelId,
+                  draftKey: widget.conversation.conversationKey,
                   participants: widget.conversation.participants,
                 ),
               ],
