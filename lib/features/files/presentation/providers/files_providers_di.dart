@@ -28,3 +28,17 @@ final filesActionsProvider =
     NotifierProvider<FilesActionsNotifier, FilesActionsState>(
       FilesActionsNotifier.new,
     );
+
+final saveLocationPickerProvider = Provider<SaveLocationPicker>(
+  (ref) =>
+      (fileName) => FilePicker.saveFile(
+        dialogTitle: 'Save file',
+        fileName: fileName,
+        lockParentWindow: true,
+      ),
+);
+
+final fileDownloadsProvider =
+    NotifierProvider<FileDownloadsNotifier, Map<String, double?>>(
+      FileDownloadsNotifier.new,
+    );

@@ -17,6 +17,17 @@ abstract class FilesRemoteDataSource {
     required String orgId,
     String? parentId,
   });
+
+  /// The download link of file [fileId], or empty when it has none.
+  Future<String> fetchFileLink(String fileId);
+
+  /// Downloads [url] to [savePath]. [onProgress] gets the bytes received and
+  /// the total, which is -1 when the server does not say.
+  Future<void> downloadFile({
+    required String url,
+    required String savePath,
+    void Function(int received, int total)? onProgress,
+  });
 }
 
 /// Reads `current_page` and `total_pages_count` (or `total_pages`).
@@ -40,7 +51,12 @@ abstract class FilesRemoteDataSource {
 class FilesRemoteDataSourceImpl implements FilesRemoteDataSource {
   final ApiBaseService apiBaseService;
 
-  FilesRemoteDataSourceImpl({required this.apiBaseService});
+  /// Fetches file contents from their storage links. It is a plain client,
+  /// so the session token is never sent to the storage host.
+  final Dio downloadClient;
+
+  FilesRemoteDataSourceImpl({required this.apiBaseService, Dio? downloadClient})
+    : downloadClient = downloadClient ?? Dio();
 
   /// Folders per page, as the web app asks for.
   static const pageSize = 10;
@@ -157,5 +173,31 @@ class FilesRemoteDataSourceImpl implements FilesRemoteDataSource {
         'organisation_id': orgId,
       },
     );
+  }
+
+  @override
+  Future<String> fetchFileLink(String fileId) async {
+    final response = await apiBaseService.get<Map<String, dynamic>>(
+      path: '/files/file/$fileId',
+    );
+    final data = response.data['data'];
+    return data is Map ? data['file_link']?.toString().trim() ?? '' : '';
+  }
+
+  @override
+  Future<void> downloadFile({
+    required String url,
+    required String savePath,
+    void Function(int received, int total)? onProgress,
+  }) async {
+    try {
+      await downloadClient.download(
+        url,
+        savePath,
+        onReceiveProgress: onProgress,
+      );
+    } on DioException catch (error) {
+      throw ApiFailure.fromDioException(error);
+    }
   }
 }

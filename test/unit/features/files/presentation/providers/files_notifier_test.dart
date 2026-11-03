@@ -149,4 +149,11 @@ class _UploadRepository implements FilesRepository {
     required String orgId,
     String? parentId,
   }) async => const Success(null);
+
+  @override
+  Future<Result<void>> downloadFile({
+    required WorkspaceFile file,
+    required String savePath,
+    void Function(double? progress)? onProgress,
+  }) async => const Success(null);
 }
