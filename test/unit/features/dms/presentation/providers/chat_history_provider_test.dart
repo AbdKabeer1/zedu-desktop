@@ -411,6 +411,9 @@ void _retryTests() {
         ).called(1);
       },
     );
+  });
+}
+
 void _clearHistoryTests() {
   group('ChatHistoryNotifier.clearLocalHistory', () {
     late MockDmRepository mockRepository;
