@@ -33,6 +33,22 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('close button has a tooltip and dismisses without saving', (
+    tester,
+  ) async {
+    var saved = false;
+    await openDialog(tester, (_) => saved = true);
+
+    final closeButton = find.byTooltip('Close');
+    expect(closeButton, findsOneWidget);
+
+    await tester.tap(closeButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Dialog), findsNothing);
+    expect(saved, isFalse);
+  });
+
   testWidgets('rejects an unsupported manually entered country', (
     tester,
   ) async {
