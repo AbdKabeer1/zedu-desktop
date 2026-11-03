@@ -16,8 +16,10 @@ class UserStatus {
   /// true = Active (green dot), false = Away (grey dot).
   final bool online;
 
+  /// Whether there is a status to show. One whose "Clear after" time has
+  /// passed doesn't count, even before it is cleared.
   bool get hasCustomStatus =>
-      emoji != null || (text != null && text!.isNotEmpty);
+      !isExpired && (emoji != null || (text != null && text!.isNotEmpty));
 
   bool get isExpired => expiresAt != null && DateTime.now().isAfter(expiresAt!);
 
