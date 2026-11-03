@@ -225,8 +225,9 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
   }
 
   void _showActionNotice(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -756,7 +757,11 @@ class _MessageBubble extends ConsumerWidget {
     required this.onEdit,
   });
 
-  TextSpan _parseRichText(String text, TextStyle defaultStyle) {
+  TextSpan _parseRichText(
+    String text,
+    TextStyle defaultStyle,
+    MessageLinks links,
+  ) {
     if (text.isEmpty) return TextSpan(style: defaultStyle, text: '');
 
     final boldRegex = RegExp(r'\*\*(.*?)\*\*', dotAll: true);
@@ -776,10 +781,7 @@ class _MessageBubble extends ConsumerWidget {
     for (final match in combined.allMatches(text)) {
       if (match.start > lastEnd) {
         spans.add(
-          TextSpan(
-            text: text.substring(lastEnd, match.start),
-            style: defaultStyle,
-          ),
+          links.span(text.substring(lastEnd, match.start), defaultStyle),
         );
       }
 
@@ -788,19 +790,14 @@ class _MessageBubble extends ConsumerWidget {
         final inner =
             match.group(1) ?? boldRegex.firstMatch(raw)?.group(1) ?? raw;
         spans.add(
-          TextSpan(
-            text: inner,
-            style: defaultStyle.copyWith(fontWeight: FontWeight.bold),
-          ),
+          links.span(inner, defaultStyle.copyWith(fontWeight: FontWeight.bold)),
         );
       } else if (strikeRegex.hasMatch(raw)) {
         final inner = strikeRegex.firstMatch(raw)?.group(1) ?? raw;
         spans.add(
-          TextSpan(
-            text: inner,
-            style: defaultStyle.copyWith(
-              decoration: TextDecoration.lineThrough,
-            ),
+          links.span(
+            inner,
+            defaultStyle.copyWith(decoration: TextDecoration.lineThrough),
           ),
         );
       } else if (codeRegex.hasMatch(raw)) {
@@ -818,19 +815,16 @@ class _MessageBubble extends ConsumerWidget {
       } else if (italicRegex.hasMatch(raw)) {
         final inner = italicRegex.firstMatch(raw)?.group(1) ?? raw;
         spans.add(
-          TextSpan(
-            text: inner,
-            style: defaultStyle.copyWith(fontStyle: FontStyle.italic),
-          ),
+          links.span(inner, defaultStyle.copyWith(fontStyle: FontStyle.italic)),
         );
       } else {
-        spans.add(TextSpan(text: raw, style: defaultStyle));
+        spans.add(links.span(raw, defaultStyle));
       }
       lastEnd = match.end;
     }
 
     if (lastEnd < text.length) {
-      spans.add(TextSpan(text: text.substring(lastEnd), style: defaultStyle));
+      spans.add(links.span(text.substring(lastEnd), defaultStyle));
     }
 
     return TextSpan(style: defaultStyle, children: spans);
@@ -858,9 +852,15 @@ class _MessageBubble extends ConsumerWidget {
   }
 
   Widget _buildMessageText(String content, TextStyle style) {
+    return MessageLinkScope(
+      builder: (context, links) => _buildLinkedText(content, style, links),
+    );
+  }
+
+  Widget _buildLinkedText(String content, TextStyle style, MessageLinks links) {
     final parts = _splitOnDividers(content);
     if (parts.length == 1) {
-      return RichText(text: _parseRichText(content, style));
+      return RichText(text: _parseRichText(content, style, links));
     }
 
     final divider = Divider(
@@ -880,7 +880,7 @@ class _MessageBubble extends ConsumerWidget {
             for (var i = 0; i < parts.length; i++) ...[
               if (i > 0) divider,
               if (parts[i].isNotEmpty)
-                RichText(text: _parseRichText(parts[i], style)),
+                RichText(text: _parseRichText(parts[i], style, links)),
             ],
           ],
         ),
