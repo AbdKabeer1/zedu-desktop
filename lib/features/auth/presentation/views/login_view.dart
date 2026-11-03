@@ -14,8 +14,12 @@ class _LoginViewState extends ConsumerState<LoginView> {
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
 
+  late final _signUpLink = TapGestureRecognizer()
+    ..onTap = () => context.push(AppRouter.signup);
+
   @override
   void dispose() {
+    _signUpLink.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -95,8 +99,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                         color: context.colors.primary,
                         fontFamily: FontFamily.roboto,
                       ),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () => context.push(AppRouter.signup),
+                      recognizer: _signUpLink,
                     ),
                   ],
                 ),
