@@ -283,14 +283,23 @@ void main() {
         () => repository.getAccount(),
       ).thenAnswer((_) async => Success(ProfileAccount.empty()));
       when(
-        () => repository.getNotificationPreferences(),
+        () => repository.getNotificationPreferences(orgId: any(named: 'orgId')),
       ).thenAnswer((_) async => Success(NotificationPreferences.empty()));
       when(
         () => repository.getSecuritySessions(),
       ).thenAnswer((_) async => Success(<SecuritySession>[]));
       when(
-        () => repository.getOrganization(),
-      ).thenAnswer((_) async => Success(OrganizationProfile.empty()));
+        () => repository.getOrganization(orgId: any(named: 'orgId')),
+      ).thenAnswer(
+        (_) async => const Success(
+          OrganizationProfile(
+            id: '',
+            name: '',
+            natureOfBusiness: '',
+            country: '',
+          ),
+        ),
+      );
       when(
         () => repository.getTeamMembers(orgId: any(named: 'orgId')),
       ).thenAnswer((_) async => Success(<TeamMember>[]));
