@@ -72,6 +72,20 @@ void main() {
       expect(find.text('Bo'), findsNothing);
     });
 
+    testWidgets('an empty or emoji name shows a safe initial', (tester) async {
+      await openDialog(
+        tester,
+        dms: [
+          _dm('c-blank', '  ', unread: 1),
+          _dm('c-emoji', '😀 Joy', unread: 2),
+        ],
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('?'), findsOneWidget);
+      expect(find.text('😀'), findsOneWidget);
+    });
+
     testWidgets('clicking an unread DM opens it on the home screen', (
       tester,
     ) async {

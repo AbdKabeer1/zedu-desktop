@@ -119,6 +119,11 @@ class _UnreadDmRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final avatarUrl = conversation.effectiveAvatarUrl;
+    // Whole first character, so an empty name or an emoji can't break the row.
+    final trimmedName = conversation.displayName.trim();
+    final initial = trimmedName.isNotEmpty
+        ? trimmedName.characters.first.toUpperCase()
+        : '?';
     final preview = conversation.previewMessage
         .replaceAll(RegExp(r'<[^>]*>'), '')
         .replaceAll(RegExp(r'\s+'), ' ')
@@ -139,7 +144,7 @@ class _UnreadDmRow extends StatelessWidget {
                   : null,
               child: avatarUrl == null
                   ? Text(
-                      conversation.displayName[0].toUpperCase(),
+                      initial,
                       style: TextStyle(fontSize: 13, color: colors.primary),
                     )
                   : null,
