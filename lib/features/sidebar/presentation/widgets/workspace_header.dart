@@ -96,6 +96,7 @@ class _WorkspaceSwitcherHeaderState
             ),
           ),
           IconButton(
+            tooltip: 'New conversation',
             onPressed: () {
               ref.read(selectedDmProvider.notifier).select(null);
               ref.read(activeChatProvider.notifier).selectNewGroupChat();

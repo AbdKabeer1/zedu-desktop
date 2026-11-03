@@ -162,5 +162,16 @@ void main() {
         ActiveChatType.newGroupChat,
       );
     });
+
+    testWidgets('plus button has a tooltip for accessibility', (tester) async {
+      await useTestWindow(tester);
+      await tester.pumpWidget(buildHeaderUnderTest());
+      await tester.pump();
+
+      final iconButton = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.add),
+      );
+      expect(iconButton.tooltip, 'New conversation');
+    });
   });
 }
