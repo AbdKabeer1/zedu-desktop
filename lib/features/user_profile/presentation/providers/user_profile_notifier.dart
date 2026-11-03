@@ -148,6 +148,8 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
           isSaving: false,
           successMessage: 'Notification preferences saved successfully.',
         );
+        // Desktop pop-ups read their own copy; refresh it to the saved values.
+        ref.invalidate(desktopNotificationPreferencesProvider);
       case Failure<NotificationPreferences>():
         state = state.copyWith(
           isSaving: false,
