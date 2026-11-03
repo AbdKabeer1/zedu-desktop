@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 import '../../../../../helpers/helpers.dart';
@@ -35,6 +37,15 @@ class _Dms extends DmListNotifier {
 class _FailingChannels extends ChannelNotifier {
   @override
   Future<List<Channel>> build() async => throw Exception('offline');
+}
+
+class _PendingChannels extends ChannelNotifier {
+  _PendingChannels(this.result);
+
+  final Completer<List<Channel>> result;
+
+  @override
+  Future<List<Channel>> build() => result.future;
 }
 
 /// The real notifier follows the selected workspace, which loads from the API.
@@ -75,13 +86,18 @@ Future<ProviderContainer> _pump(
   AuthStatus status = AuthStatus.authenticated,
   bool withTextField = true,
   bool channelsFail = false,
+  Completer<List<Channel>>? pendingChannels,
 }) async {
   final router = _router(withTextField: withTextField);
   final container = ProviderContainer(
     overrides: [
       authNotifierProvider.overrideWith(() => _Auth(status)),
       channelProvider.overrideWith(
-        channelsFail ? _FailingChannels.new : _Channels.new,
+        pendingChannels != null
+            ? () => _PendingChannels(pendingChannels)
+            : channelsFail
+            ? _FailingChannels.new
+            : _Channels.new,
       ),
       dmListProvider.overrideWith(_Dms.new),
       activeChatProvider.overrideWith(_ActiveChat.new),
@@ -188,6 +204,69 @@ void main() {
       // Let the toast close itself before the test ends.
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('opens at once and fills in when the channels arrive', (
+      tester,
+    ) async {
+      final channels = Completer<List<Channel>>();
+      await _pump(tester, pendingChannels: channels);
+
+      await _pressCtrlK(tester);
+
+      expect(find.byType(QuickSwitcherDialog), findsOneWidget);
+      expect(find.text('Loading…'), findsOneWidget);
+      expect(find.text('Gideon'), findsOneWidget);
+      expect(find.text('general'), findsNothing);
+
+      channels.complete([_channel('c-general', 'general')]);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Loading…'), findsNothing);
+      expect(find.text('general'), findsOneWidget);
+      expect(find.text('Gideon'), findsOneWidget);
+    });
+
+    testWidgets('a query typed while loading applies to what arrives', (
+      tester,
+    ) async {
+      final channels = Completer<List<Channel>>();
+      await _pump(tester, pendingChannels: channels);
+      await _pressCtrlK(tester);
+
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(QuickSwitcherDialog),
+          matching: find.byType(TextField),
+        ),
+        'gen',
+      );
+      await tester.pump();
+      expect(find.text('Loading…'), findsOneWidget);
+      expect(find.text('No matches'), findsNothing);
+
+      channels.complete([_channel('c-general', 'general')]);
+      await tester.pumpAndSettle();
+
+      expect(find.text('general'), findsOneWidget);
+      expect(find.text('Gideon'), findsNothing);
+    });
+
+    testWidgets('entries arriving keep the highlight on the same row', (
+      tester,
+    ) async {
+      final channels = Completer<List<Channel>>();
+      final container = await _pump(tester, pendingChannels: channels);
+      await _pressCtrlK(tester);
+
+      // Gideon is highlighted; the channels arrive above it.
+      channels.complete([_channel('c-general', 'general')]);
+      await tester.pumpAndSettle();
+
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedDmProvider)?.channelId, 'c-gideon');
     });
 
     testWidgets('fires when nothing on the screen has focus', (tester) async {
