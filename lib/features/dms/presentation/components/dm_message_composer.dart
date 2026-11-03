@@ -810,6 +810,11 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final hasText = _controller.text.trim().isNotEmpty;
+    final isEditing = _isEditMode && _editingMessageId != null;
+    final hasSendableContent =
+        hasText ||
+        (!isEditing && (_pendingFiles.isNotEmpty || _voiceNote != null));
     // A user or org change replaces the store; follow it.
     ref.listen(dmDraftStoreProvider, (_, next) => _drafts = next);
     ref.listen(
@@ -1055,9 +1060,9 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
                         onTap: _handleSend,
                         child: Icon(
                           Icons.send_rounded,
-                          color: _controller.text.trim().isEmpty
-                              ? colors.textHint.withValues(alpha: 0.55)
-                              : colors.primary,
+                          color: hasSendableContent
+                              ? colors.primary
+                              : colors.textHint.withValues(alpha: 0.55),
                           size: 22,
                         ),
                       ),
