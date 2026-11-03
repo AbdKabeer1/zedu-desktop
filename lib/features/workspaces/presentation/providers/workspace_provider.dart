@@ -1,7 +1,5 @@
 import 'package:zedu/core/core.dart';
-
-import '../../data/models/workspace.dart';
-import 'workspace_state.dart';
+import 'package:zedu/features/features.dart';
 
 class WorkspaceNotifier extends Notifier<WorkspaceState> {
   static const loadErrorMessage = "Couldn't load your organisations";
