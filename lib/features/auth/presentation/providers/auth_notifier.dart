@@ -229,8 +229,7 @@ class AuthNotifier extends Notifier<AuthState> {
           state = const AuthState(status: AuthStatus.unauthenticated);
         } else {
           // Network, timeout or server problem: the token may still be valid.
-          // Keep it so the next launch can restore the session, and tell the
-          // user why they are on the login screen.
+          // Keep it, and let the user try again instead of signing in again.
           AppLogger.w(
             'Session restore failed (${failure.kind.name}) — keeping token',
             tag: _tag,
@@ -238,9 +237,22 @@ class AuthNotifier extends Notifier<AuthState> {
           state = AuthState(
             status: AuthStatus.unauthenticated,
             error: failure.friendlyMessage,
+            sessionRestoreFailed: true,
           );
         }
     }
+  }
+
+  /// Tries the saved session again after the server could not be reached.
+  Future<void> retrySessionRestore() async {
+    state = const AuthState(status: AuthStatus.unknown);
+    await _restoreSession();
+  }
+
+  /// Leaves the retry screen for the login form. The token is kept, so the next
+  /// launch still tries to restore the session.
+  void showLoginForm() {
+    state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
   /// With [rememberMe] false the session lasts until the app closes.
