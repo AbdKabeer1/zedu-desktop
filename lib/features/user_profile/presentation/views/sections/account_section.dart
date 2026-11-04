@@ -64,7 +64,7 @@ class AccountSection extends StatelessWidget {
                 Text(
                   _handle,
                   style: context.textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF6B7280),
+                    color: context.colors.textSecondary,
                   ),
                 ),
               ],
