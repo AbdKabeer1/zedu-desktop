@@ -22,6 +22,10 @@ class _ResetPasswordViewState extends ConsumerState<ResetPasswordView> {
     (_) => TextEditingController(),
   );
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final List<FocusNode> _keyboardFocusNodes = List.generate(
+    6,
+    (_) => FocusNode(),
+  );
 
   Timer? _timer;
   int _secondsLeft = 300;
@@ -52,6 +56,9 @@ class _ResetPasswordViewState extends ConsumerState<ResetPasswordView> {
       controller.dispose();
     }
     for (var node in _focusNodes) {
+      node.dispose();
+    }
+    for (var node in _keyboardFocusNodes) {
       node.dispose();
     }
     _timer?.cancel();
@@ -115,7 +122,17 @@ class _ResetPasswordViewState extends ConsumerState<ResetPasswordView> {
         return SizedBox(
           width: 56,
           height: 56,
-          child: TextFormField(
+          child: KeyboardListener(
+            focusNode: _keyboardFocusNodes[index],
+            onKeyEvent: (KeyEvent event) {
+              if (event is KeyDownEvent &&
+                  event.logicalKey == LogicalKeyboardKey.backspace &&
+                  _tokenControllers[index].text.isEmpty &&
+                  index > 0) {
+                _focusNodes[index - 1].requestFocus();
+              }
+            },
+            child: TextFormField(
             controller: _tokenControllers[index],
             focusNode: _focusNodes[index],
             textAlign: TextAlign.center,
@@ -148,6 +165,7 @@ class _ResetPasswordViewState extends ConsumerState<ResetPasswordView> {
                 _focusNodes[index - 1].requestFocus();
               }
             },
+            ),
           ),
         );
       }),
