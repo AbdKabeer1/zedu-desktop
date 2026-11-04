@@ -66,6 +66,34 @@ class ActiveCallNotifier extends ChangeNotifier {
 
   ActiveCallState get state => _state;
 
+  /// The ringtone playing for the current incoming call, or null.
+  CallRingtone? _ringing;
+
+  @override
+  void notifyListeners() {
+    _syncRingtone();
+    super.notifyListeners();
+  }
+
+  /// Rings while a call is coming in and stops on any other state: accepted,
+  /// declined, cancelled by the caller, timed out or ended. Stays silent while
+  /// notifications are paused.
+  void _syncRingtone() {
+    final shouldRing =
+        _state.status == CallStatus.incoming &&
+        !_ref.read(notificationSettingsProvider).isDndActive;
+    if (shouldRing == (_ringing != null)) return;
+    if (shouldRing) {
+      final ringtone = _ref.read(callRingtoneProvider);
+      _ringing = ringtone;
+      unawaited(ringtone.start());
+    } else {
+      final ringtone = _ringing!;
+      _ringing = null;
+      unawaited(ringtone.stop());
+    }
+  }
+
   void setFullPage(bool isFullPage) {
     _state = _state.copyWith(isFullPage: isFullPage);
     notifyListeners();
@@ -250,6 +278,10 @@ class ActiveCallNotifier extends ChangeNotifier {
   @override
   void dispose() {
     _cancelTimersAndSubscriptions();
+    // The Ref can't be used while disposing, so stop the ringtone we hold.
+    final ringtone = _ringing;
+    _ringing = null;
+    if (ringtone != null) unawaited(ringtone.stop());
     super.dispose();
   }
 }

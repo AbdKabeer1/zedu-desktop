@@ -22,40 +22,59 @@ final _inlineMarkdown = RegExp(
 /// code stays literal. With [keepMarkers] the markers stay in the span but
 /// are invisible, so the span's text matches [text] (needed by the composer,
 /// whose cursor offsets index into the raw text); otherwise they are dropped.
+///
+/// Each formatted token is one span whose children are its (hidden) opening
+/// marker, its text and its closing marker. [plainText] builds the spans for
+/// text outside inline code, for example to make links tappable.
 TextSpan buildInlineMarkdownSpan(
   String text,
   TextStyle style, {
   bool keepMarkers = false,
+  TextSpan Function(String text, TextStyle style)? plainText,
 }) {
   if (text.isEmpty) return TextSpan(style: style, text: '');
   return TextSpan(
     style: style,
-    children: _inlineSpans(text, style, keepMarkers),
+    children: _inlineSpans(
+      text,
+      style,
+      keepMarkers,
+      plainText ?? (text, style) => TextSpan(text: text, style: style),
+    ),
   );
 }
 
-List<InlineSpan> _inlineSpans(String text, TextStyle style, bool keepMarkers) {
+List<InlineSpan> _inlineSpans(
+  String text,
+  TextStyle style,
+  bool keepMarkers,
+  TextSpan Function(String text, TextStyle style) plainText,
+) {
   final spans = <InlineSpan>[];
   final hiddenStyle = style.copyWith(color: Colors.transparent, fontSize: 0.01);
 
   void addToken(String marker, String inner, TextStyle innerStyle, bool nest) {
-    if (keepMarkers) spans.add(TextSpan(text: marker, style: hiddenStyle));
+    final parts = <InlineSpan>[
+      if (keepMarkers) TextSpan(text: marker, style: hiddenStyle),
+    ];
     if (inner.isNotEmpty) {
-      spans.add(
-        nest
-            ? TextSpan(children: _inlineSpans(inner, innerStyle, keepMarkers))
-            : TextSpan(text: inner, style: innerStyle),
-      );
+      if (nest) {
+        final nested = _inlineSpans(inner, innerStyle, keepMarkers, plainText);
+        parts.add(
+          nested.length == 1 ? nested.single : TextSpan(children: nested),
+        );
+      } else {
+        parts.add(TextSpan(text: inner, style: innerStyle));
+      }
     }
-    if (keepMarkers) spans.add(TextSpan(text: marker, style: hiddenStyle));
+    if (keepMarkers) parts.add(TextSpan(text: marker, style: hiddenStyle));
+    spans.add(TextSpan(children: parts));
   }
 
   var lastEnd = 0;
   for (final match in _inlineMarkdown.allMatches(text)) {
     if (match.start > lastEnd) {
-      spans.add(
-        TextSpan(text: text.substring(lastEnd, match.start), style: style),
-      );
+      spans.add(plainText(text.substring(lastEnd, match.start), style));
     }
 
     final italic = match.namedGroup('italic');
@@ -93,7 +112,7 @@ List<InlineSpan> _inlineSpans(String text, TextStyle style, bool keepMarkers) {
   }
 
   if (lastEnd < text.length) {
-    spans.add(TextSpan(text: text.substring(lastEnd), style: style));
+    spans.add(plainText(text.substring(lastEnd), style));
   }
   return spans;
 }

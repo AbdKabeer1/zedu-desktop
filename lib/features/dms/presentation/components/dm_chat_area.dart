@@ -67,7 +67,11 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
       return;
     }
 
-    await showEditProfileDialog(context, account, notifier.updateAccount);
+    await showEditProfileDialog(context, account, (updated) async {
+      await notifier.updateAccount(updated);
+      // updateAccount clears the error when it starts and sets it on failure.
+      return ref.read(userProfileNotifierProvider).error;
+    });
   }
 
   Future<void> _handleMenuAction(String action) async {
@@ -190,38 +194,11 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
     final history = ref.read(
       chatHistoryProvider(widget.conversation.channelId),
     );
-    final files = history.messages
-        .expand((message) => (message['media'] as List<dynamic>?) ?? const [])
-        .toList();
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${widget.conversation.displayName} files'),
-        content: SizedBox(
-          width: 420,
-          child: files.isEmpty
-              ? const Text('No files in the loaded conversation history.')
-              : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: files.length,
-                  itemBuilder: (context, index) {
-                    final file = files[index] as Map;
-                    return ListTile(
-                      leading: const Icon(Icons.insert_drive_file_outlined),
-                      title: Text(
-                        file['file_name']?.toString() ?? 'Attachment',
-                      ),
-                      subtitle: Text(file['file_type']?.toString() ?? ''),
-                    );
-                  },
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
+      builder: (context) => ConversationFilesDialog(
+        title: '${widget.conversation.displayName} files',
+        history: history,
       ),
     );
   }
@@ -289,6 +266,8 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
                         onNotification: (ScrollNotification scrollInfo) {
                           if (!historyState.isLoading &&
                               historyState.hasMore &&
+                              !historyState.loadFailed &&
+                              !historyState.loadMoreFailed &&
                               scrollInfo.metrics.pixels >=
                                   scrollInfo.metrics.maxScrollExtent * 0.8) {
                             ref
@@ -335,6 +314,22 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
                                   ),
                                 ),
                               ),
+                            if (!historyState.isLoading &&
+                                historyState.loadFailed)
+                              SliverToBoxAdapter(
+                                child: _HistoryLoadError(
+                                  message: "Couldn't load messages.",
+                                  onRetry: historyState.retryLoad,
+                                ),
+                              )
+                            else if (!historyState.isLoading &&
+                                historyState.loadMoreFailed)
+                              SliverToBoxAdapter(
+                                child: _HistoryLoadError(
+                                  message: "Couldn't load older messages.",
+                                  onRetry: historyState.loadMore,
+                                ),
+                              ),
                             if (!historyState.hasMore)
                               SliverToBoxAdapter(
                                 child: isOwnSpace
@@ -357,6 +352,7 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
                   recipientName: _recipientHandle,
                   hintText: _isOwnSpace ? 'Write a note to yourself' : null,
                   channelId: widget.conversation.channelId,
+                  draftKey: widget.conversation.conversationKey,
                   participants: widget.conversation.participants,
                 ),
               ],
@@ -497,6 +493,36 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
   }
 }
 
+/// Shown when message history fails to load, with a way to try again.
+class _HistoryLoadError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _HistoryLoadError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: colors.textHint,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
+    );
+  }
+}
+
 class _ConversationSearchDialog extends StatefulWidget {
   final String displayName;
   final List<Map<String, dynamic>> messages;
@@ -514,6 +540,20 @@ class _ConversationSearchDialog extends StatefulWidget {
 class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
   final _controller = TextEditingController();
 
+  /// Message content is HTML. Search and show what the person actually wrote,
+  /// so tag names never match and no tags appear in the results.
+  static String _plainText(Object? content) => (content?.toString() ?? '')
+      .replaceAll(RegExp(r'</?(p|div|li|ul|ol|br|blockquote|pre)\b[^>]*>'), ' ')
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&amp;', '&')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
   @override
   void dispose() {
     _controller.dispose();
@@ -522,11 +562,10 @@ class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final query = _controller.text.toLowerCase();
-    final results = widget.messages.where(
-      (message) =>
-          (message['content']?.toString() ?? '').toLowerCase().contains(query),
-    );
+    final query = _controller.text.trim().toLowerCase();
+    final results = widget.messages
+        .map((message) => _plainText(message['content']))
+        .where((text) => text.toLowerCase().contains(query));
     return AlertDialog(
       title: Text('Search ${widget.displayName}'),
       content: SizedBox(
@@ -549,10 +588,7 @@ class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
                     ? const [Text('Enter a search term')]
                     : results
                           .map(
-                            (message) => ListTile(
-                              dense: true,
-                              title: Text(message['content']?.toString() ?? ''),
-                            ),
+                            (text) => ListTile(dense: true, title: Text(text)),
                           )
                           .toList(),
               ),
@@ -607,9 +643,7 @@ class _DmChatHeader extends StatelessWidget {
       ),
     );
 
-    final participantInitial = conversation.displayName.trim().isEmpty
-        ? '?'
-        : conversation.displayName.trim()[0].toUpperCase();
+    final participantInitial = avatarInitial(conversation.displayName);
 
     return Container(
       height: 58,
@@ -759,8 +793,11 @@ class _MessageBubble extends ConsumerWidget {
     required this.onEdit,
   });
 
-  TextSpan _parseRichText(String text, TextStyle defaultStyle) =>
-      buildInlineMarkdownSpan(text, defaultStyle);
+  TextSpan _parseRichText(
+    String text,
+    TextStyle defaultStyle,
+    MessageLinks links,
+  ) => buildInlineMarkdownSpan(text, defaultStyle, plainText: links.span);
 
   /// Splits [text] around Markdown thematic breaks: a line that is exactly
   /// `---` at the start of the message or after a blank line. A `---` right
@@ -784,9 +821,15 @@ class _MessageBubble extends ConsumerWidget {
   }
 
   Widget _buildMessageText(String content, TextStyle style) {
+    return MessageLinkScope(
+      builder: (context, links) => _buildLinkedText(content, style, links),
+    );
+  }
+
+  Widget _buildLinkedText(String content, TextStyle style, MessageLinks links) {
     final parts = _splitOnDividers(content);
     if (parts.length == 1) {
-      return RichText(text: _parseRichText(content, style));
+      return RichText(text: _parseRichText(content, style, links));
     }
 
     final divider = Divider(
@@ -806,7 +849,7 @@ class _MessageBubble extends ConsumerWidget {
             for (var i = 0; i < parts.length; i++) ...[
               if (i > 0) divider,
               if (parts[i].isNotEmpty)
-                RichText(text: _parseRichText(parts[i], style)),
+                RichText(text: _parseRichText(parts[i], style, links)),
             ],
           ],
         ),
@@ -875,9 +918,7 @@ class _MessageBubble extends ConsumerWidget {
         ? history.currentUserAvatarUrl
         : conversation.effectiveAvatarUrl;
 
-    final senderInitial = senderName.isNotEmpty
-        ? senderName[0].toUpperCase()
-        : '?';
+    final senderInitial = avatarInitial(senderName);
 
     final List<dynamic> media = (message['media'] as List<dynamic>?) ?? [];
 
@@ -1040,6 +1081,16 @@ class _AttachmentBubbleList extends StatelessWidget {
     }
   }
 
+  void _openImage(BuildContext context, String imageUrl, String fileName) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) =>
+            ImageAttachmentViewer(imageUrl: imageUrl, fileName: fileName),
+      ),
+    );
+  }
+
   Widget _buildGenericFile(
     String fileName,
     String fileLink,
@@ -1111,7 +1162,7 @@ class _AttachmentBubbleList extends StatelessWidget {
           final isNetwork = fileLink.startsWith('http');
 
           return GestureDetector(
-            onTap: () => _launchUrl(fileLink),
+            onTap: () => _openImage(context, fileLink, fileName),
             child: Container(
               width: 250,
               height: 200,
