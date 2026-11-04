@@ -15,6 +15,12 @@ class _EmptyChannelRepository extends Mock implements ChannelRepository {
   @override
   Future<Result<List<ChannelMessage>>> fetchChannelMessages(String id) async =>
       const Success(<ChannelMessage>[]);
+
+  @override
+  Future<Result<List<DmParticipant>>> fetchChannelMembers(String id) async =>
+      Success([
+        DmParticipant(userId: 'u1', username: 'ada', email: 'ada@zedu.chat'),
+      ]);
 }
 
 class FakeSecureStorageService extends Fake implements SecureStorageService {
@@ -141,6 +147,18 @@ void main() {
 
       expect(find.text('# general'), findsOneWidget);
       expect(find.text('# random'), findsNothing);
+    });
+
+    testWidgets('the channel composer gets the channel members to mention', (
+      tester,
+    ) async {
+      await pumpSidebarAndChat(tester);
+
+      final composer = tester.widget<DmMessageComposer>(
+        find.byType(DmMessageComposer),
+      );
+      expect(composer.isChannel, isTrue);
+      expect(composer.participants.map((p) => p.username), ['ada']);
     });
 
     testWidgets('a very long channel name does not overflow', (tester) async {

@@ -326,6 +326,11 @@ class HomeChatArea extends ConsumerWidget {
 
     final channelId = selected?.id ?? '';
     final welcome = _buildWelcomeScreen(context, channelName);
+    // Until these load, or if loading fails, the composer simply suggests nobody.
+    final members = channelId.isEmpty
+        ? const <DmParticipant>[]
+        : ref.watch(channelMembersProvider(channelId)).value ??
+              const <DmParticipant>[];
 
     if (channelId.isNotEmpty) {
       // The composer sends through the chat history; reload the list once a
@@ -359,6 +364,7 @@ class HomeChatArea extends ConsumerWidget {
           key: ValueKey(selected?.id ?? channelName),
           recipientName: '#$channelName',
           channelId: selected?.id ?? '',
+          participants: members,
           isChannel: true,
         ),
       ],
