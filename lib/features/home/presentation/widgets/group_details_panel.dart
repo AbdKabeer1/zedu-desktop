@@ -30,6 +30,14 @@ class _GroupDetailsPanelState extends State<GroupDetailsPanel> {
   }
 
   @override
+  void didUpdateWidget(covariant GroupDetailsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.group.name != oldWidget.group.name) {
+      _nameController.text = widget.group.name;
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
@@ -152,7 +160,9 @@ class _GroupDetailsPanelState extends State<GroupDetailsPanel> {
                             alpha: 0.1,
                           ),
                           child: Text(
-                            (member.name ?? member.email)[0],
+                            ((member.name ?? member.email).isNotEmpty
+                                ? (member.name ?? member.email)[0]
+                                : '?'),
                             style: TextStyle(
                               fontSize: 12,
                               color: colors.primary,
