@@ -13,15 +13,22 @@ class _HomeViewState extends ConsumerState<HomeView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final orgId = ref.read(authNotifierProvider).user?.currentOrg;
-      if (orgId != null && orgId.isNotEmpty) {
-        ref.read(creditsNotifierProvider.notifier).load(orgId: orgId);
-      }
+      _loadCredits(ref.read(creditsOrgIdProvider));
     });
+  }
+
+  void _loadCredits(String orgId) {
+    if (orgId.isEmpty) return;
+    ref.read(creditsNotifierProvider.notifier).load(orgId: orgId);
   }
 
   @override
   Widget build(BuildContext context) {
+    // Switching workspace reloads its credits, so the balance in the user
+    // menu belongs to the workspace on screen.
+    ref.listen<String>(creditsOrgIdProvider, (previous, next) {
+      if (previous != next) _loadCredits(next);
+    });
     final colors = context.colors;
     final showProfile = ref.watch(personalProfilePanelProvider);
 
