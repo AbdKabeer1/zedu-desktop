@@ -28,9 +28,10 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
     return '@${parts.first}_${parts.last}';
   }
 
-  bool get _isOwnSpace => widget.conversation.isOwnSpaceFor(
-    ref.read(authNotifierProvider).user?.id,
-  );
+  bool get _isOwnSpace {
+    final userId = ref.read(authNotifierProvider).user?.id;
+    return widget.conversation.isOwnSpaceFor(userId);
+  }
 
   bool _isOwnSpaceSystemEvent(Map<String, dynamic> message) {
     final type =
@@ -203,8 +204,9 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
   }
 
   void _showActionNotice(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
