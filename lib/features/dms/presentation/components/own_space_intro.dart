@@ -28,7 +28,9 @@ class OwnSpaceIntro extends StatelessWidget {
             backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
             child: avatarUrl == null
                 ? Text(
-                    name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?',
+                    name.trim().isNotEmpty
+                        ? name.trim().characters.first.toUpperCase()
+                        : '?',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -67,7 +69,8 @@ class OwnSpaceIntro extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 TextSpan(
-                  text: 'Save resources from class, keep track of your tasks, or draft a message here before you post it to a channel.',
+                  text:
+                      'Save resources from class, keep track of your tasks, or draft a message here before you post it to a channel.',
                 ),
               ],
             ),
