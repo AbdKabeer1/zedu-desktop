@@ -406,6 +406,7 @@ class HomeChatArea extends ConsumerWidget {
                   key: ValueKey(channelId),
                   channelId: channelId,
                   empty: welcome,
+                  unreadCount: selected?.unreadCount ?? 0,
                 ),
         ),
         DmMessageComposer(
