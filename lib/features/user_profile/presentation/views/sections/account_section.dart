@@ -15,6 +15,12 @@ class AccountSection extends StatelessWidget {
   final ValueChanged<ProfileAccount> onSave;
   final Future<void> Function() onDelete;
 
+  String get _handle {
+    final username = account.username.trim();
+    if (username.isNotEmpty) return '@$username';
+    return '@${account.name.replaceAll(' ', '').toLowerCase()}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -56,7 +62,7 @@ class AccountSection extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '@${account.name.replaceAll(' ', '').toLowerCase()}',
+                  _handle,
                   style: context.textTheme.bodySmall?.copyWith(
                     color: const Color(0xFF6B7280),
                   ),
