@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
@@ -25,6 +26,9 @@ Future<void> _pumpDialog(WidgetTester tester) async {
 }
 
 Finder _checkIcon() => find.byIcon(Icons.check_circle);
+
+MouseCursor _activeCursor() =>
+    RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1)!;
 
 void main() {
   group('SetStatusDialog suggested statuses', () {
@@ -113,6 +117,27 @@ void main() {
       await tester.pump();
 
       expect(_checkIcon(), findsOneWidget);
+    });
+  });
+
+  group('SetStatusDialog cursors', () {
+    testWidgets('clickable parts show the click cursor on hover', (
+      tester,
+    ) async {
+      await _pumpDialog(tester);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: Offset.zero);
+
+      for (final target in [
+        find.text('In a meeting'),
+        find.bySemanticsLabel('Choose status emoji'),
+        find.text('Pause notifications'),
+      ]) {
+        await mouse.moveTo(tester.getCenter(target));
+        await tester.pump();
+        expect(_activeCursor(), SystemMouseCursors.click, reason: '$target');
+      }
     });
   });
 }
