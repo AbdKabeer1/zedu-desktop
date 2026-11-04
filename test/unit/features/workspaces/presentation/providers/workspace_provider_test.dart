@@ -61,6 +61,80 @@ void main() {
       await pumpEventQueue();
     });
 
+    group('switchWorkspace', () {
+      const x = Workspace(id: 'x', name: 'X', avatar: '');
+      const y = Workspace(id: 'y', name: 'Y', avatar: '');
+      const z = Workspace(id: 'z', name: 'Z', avatar: '');
+
+      Future<ProviderContainer> loadedOnX() async {
+        registerConfig(usesMockData: false);
+        stubOrganisations([
+          for (final workspace in [x, y, z])
+            {'id': workspace.id, 'name': workspace.name},
+        ]);
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final state = await loadWorkspaces(container);
+        expect(state.selectedWorkspace?.id, 'x');
+        // Let the background fetch started by build() finish as well.
+        await pumpEventQueue();
+        return container;
+      }
+
+      test('stays on the selected workspace when reselected during the '
+          'delay', () async {
+        final container = await loadedOnX();
+        final notifier = container.read(workspaceProvider.notifier);
+
+        final toY = notifier.switchWorkspace(y);
+        final backToX = notifier.switchWorkspace(x);
+        await Future.wait([toY, backToX]);
+
+        final state = container.read(workspaceProvider);
+        expect(state.selectedWorkspace?.id, 'x');
+        expect(state.isLoading, isFalse);
+      });
+
+      test('never selects a workspace that a newer switch replaced', () async {
+        final container = await loadedOnX();
+        final notifier = container.read(workspaceProvider.notifier);
+        final selected = <String?>[];
+        container.listen(
+          workspaceProvider.select((s) => s.selectedWorkspace?.id),
+          (_, next) => selected.add(next),
+        );
+
+        final toY = notifier.switchWorkspace(y);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        final toZ = notifier.switchWorkspace(z);
+        await Future.wait([toY, toZ]);
+
+        expect(selected, ['z']);
+        expect(container.read(workspaceProvider).isLoading, isFalse);
+      });
+
+      test('reselecting with no switch pending keeps a workspace load '
+          'running', () async {
+        final container = await loadedOnX();
+        final notifier = container.read(workspaceProvider.notifier);
+        notifier.state = notifier.state.copyWith(isLoading: true);
+
+        await notifier.switchWorkspace(x);
+
+        expect(container.read(workspaceProvider).isLoading, isTrue);
+      });
+
+      test('switches once the delay has passed', () async {
+        final container = await loadedOnX();
+
+        await container.read(workspaceProvider.notifier).switchWorkspace(y);
+
+        final state = container.read(workspaceProvider);
+        expect(state.selectedWorkspace?.id, 'y');
+        expect(state.isLoading, isFalse);
+      });
+    });
+
     test('shows no organisations when the user belongs to none', () async {
       registerConfig(usesMockData: false);
       stubOrganisations([]);

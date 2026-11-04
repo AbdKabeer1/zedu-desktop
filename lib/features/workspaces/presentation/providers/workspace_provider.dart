@@ -6,6 +6,9 @@ import 'workspace_state.dart';
 class WorkspaceNotifier extends Notifier<WorkspaceState> {
   static const loadErrorMessage = "Couldn't load your organisations";
 
+  int _latestSwitchId = 0;
+  bool _isSwitchPending = false;
+
   @override
   WorkspaceState build() {
     Future.microtask(fetchWorkspaces);
@@ -119,12 +122,25 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
   }
 
   Future<void> switchWorkspace(Workspace workspace) async {
-    if (state.selectedWorkspace?.id == workspace.id) return;
+    // The newest selection wins: any switch still waiting below gives up.
+    final switchId = ++_latestSwitchId;
 
+    if (state.selectedWorkspace?.id == workspace.id) {
+      if (_isSwitchPending) {
+        _isSwitchPending = false;
+        state = state.copyWith(isLoading: false);
+      }
+      return;
+    }
+
+    _isSwitchPending = true;
     state = state.copyWith(isLoading: true);
 
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
+    if (switchId != _latestSwitchId) return;
+
+    _isSwitchPending = false;
     state = state.copyWith(selectedWorkspace: workspace, isLoading: false);
   }
 
