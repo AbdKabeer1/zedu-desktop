@@ -68,7 +68,11 @@ class ProfileStatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isActive = status.toLowerCase() == 'active';
+    final trimmed = status.trim();
+    final isActive = trimmed.toLowerCase() == 'active';
+    final label = trimmed.isEmpty
+        ? 'Unknown'
+        : trimmed[0].toUpperCase() + trimmed.substring(1);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -90,7 +94,7 @@ class ProfileStatusPill extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            status[0].toUpperCase() + status.substring(1),
+            label,
             style: context.textTheme.labelSmall?.copyWith(
               color: isActive
                   ? const Color(0xFF065F46)
