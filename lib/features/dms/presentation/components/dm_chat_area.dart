@@ -1,6 +1,8 @@
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
+import 'composer/composer.dart';
+
 class DmChatArea extends ConsumerStatefulWidget {
   final DmConversation conversation;
 
@@ -820,74 +822,7 @@ class _MessageBubble extends ConsumerWidget {
     String text,
     TextStyle defaultStyle,
     MessageLinks links,
-  ) {
-    if (text.isEmpty) return TextSpan(style: defaultStyle, text: '');
-
-    final boldRegex = RegExp(r'\*\*(.*?)\*\*', dotAll: true);
-    final italicRegex = RegExp(r'(?<!\*)\*(.*?)\*(?!\*)', dotAll: true);
-    final strikeRegex = RegExp(r'~~(.*?)~~', dotAll: true);
-    final codeRegex = RegExp(r'`(.*?)`', dotAll: true);
-
-    final allPatterns = [boldRegex, italicRegex, strikeRegex, codeRegex];
-    final combined = RegExp(
-      allPatterns.map((r) => r.pattern).join('|'),
-      dotAll: true,
-    );
-
-    final spans = <TextSpan>[];
-    int lastEnd = 0;
-
-    for (final match in combined.allMatches(text)) {
-      if (match.start > lastEnd) {
-        spans.add(
-          links.span(text.substring(lastEnd, match.start), defaultStyle),
-        );
-      }
-
-      final raw = match.group(0)!;
-      if (boldRegex.hasMatch(raw)) {
-        final inner =
-            match.group(1) ?? boldRegex.firstMatch(raw)?.group(1) ?? raw;
-        spans.add(
-          links.span(inner, defaultStyle.copyWith(fontWeight: FontWeight.bold)),
-        );
-      } else if (strikeRegex.hasMatch(raw)) {
-        final inner = strikeRegex.firstMatch(raw)?.group(1) ?? raw;
-        spans.add(
-          links.span(
-            inner,
-            defaultStyle.copyWith(decoration: TextDecoration.lineThrough),
-          ),
-        );
-      } else if (codeRegex.hasMatch(raw)) {
-        final inner = codeRegex.firstMatch(raw)?.group(1) ?? raw;
-        spans.add(
-          TextSpan(
-            text: inner,
-            style: defaultStyle.copyWith(
-              fontFamily: 'monospace',
-              backgroundColor: const Color(0x1A6458F5),
-              color: const Color(0xFF6458F5),
-            ),
-          ),
-        );
-      } else if (italicRegex.hasMatch(raw)) {
-        final inner = italicRegex.firstMatch(raw)?.group(1) ?? raw;
-        spans.add(
-          links.span(inner, defaultStyle.copyWith(fontStyle: FontStyle.italic)),
-        );
-      } else {
-        spans.add(links.span(raw, defaultStyle));
-      }
-      lastEnd = match.end;
-    }
-
-    if (lastEnd < text.length) {
-      spans.add(links.span(text.substring(lastEnd), defaultStyle));
-    }
-
-    return TextSpan(style: defaultStyle, children: spans);
-  }
+  ) => buildInlineMarkdownSpan(text, defaultStyle, plainText: links.span);
 
   /// Splits [text] around Markdown thematic breaks: a line that is exactly
   /// `---` at the start of the message or after a blank line. A `---` right
