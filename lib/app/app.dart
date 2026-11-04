@@ -12,10 +12,14 @@ class App extends ConsumerWidget {
       theme: AppTheme.light,
       routerConfig: AppRouter.router,
       builder: (context, child) => AppZoomShortcut(
-        child: CreditsPaymentDeepLinkListener(
-          child: AuthDeepLinkListener(
-            child: QuickSwitcherShortcut(
-              child: child ?? const SizedBox.shrink(),
+        child: DesktopWindowTitleListener(
+          child: CreditsPaymentDeepLinkListener(
+            child: AuthDeepLinkListener(
+              child: SessionExpiryListener(
+                child: QuickSwitcherShortcut(
+                  child: child ?? const SizedBox.shrink(),
+                ),
+              ),
             ),
           ),
         ),
