@@ -212,5 +212,62 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'reclamps width when minWidth or maxWidth changes in didUpdateWidget',
+      (tester) async {
+        await tester.pumpWidget(
+          buildTestMaterialApp(
+            const Scaffold(
+              body: ResizableSidebar(
+                initialWidth: 350,
+                minWidth: 200,
+                maxWidth: 400,
+                child: Text('Sidebar'),
+              ),
+            ),
+          ),
+        );
+
+        final resizableSidebar = find.byKey(
+          const ValueKey('resizable-sidebar'),
+        );
+        expect(tester.getSize(resizableSidebar).width, 350);
+
+        // Update widget with lower maxWidth: 300
+        await tester.pumpWidget(
+          buildTestMaterialApp(
+            const Scaffold(
+              body: ResizableSidebar(
+                initialWidth: 350,
+                minWidth: 200,
+                maxWidth: 300,
+                child: Text('Sidebar'),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(tester.getSize(resizableSidebar).width, 300);
+
+        // Update widget with higher minWidth: 320
+        await tester.pumpWidget(
+          buildTestMaterialApp(
+            const Scaffold(
+              body: ResizableSidebar(
+                initialWidth: 350,
+                minWidth: 320,
+                maxWidth: 400,
+                child: Text('Sidebar'),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(tester.getSize(resizableSidebar).width, 320);
+      },
+    );
   });
 }
