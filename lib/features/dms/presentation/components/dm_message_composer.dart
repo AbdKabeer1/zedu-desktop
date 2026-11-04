@@ -751,6 +751,20 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     final validFiles = <XFile>[];
     for (final file in newFiles) {
       try {
+        if (file.path.isNotEmpty) {
+          final fileOnDisk = File(file.path);
+          if (!await fileOnDisk.exists()) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content:
+                      Text('File ${file.name} does not exist or is invalid.'),
+                ),
+              );
+            }
+            continue;
+          }
+        }
         final length = await file.length();
         if (length > 20 * 1024 * 1024) {
           if (mounted) {
@@ -762,7 +776,14 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
         }
         validFiles.add(file);
       } catch (e) {
-        validFiles.add(file);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  Text('File ${file.name} could not be attached: invalid file.'),
+            ),
+          );
+        }
       }
     }
     setState(() {
