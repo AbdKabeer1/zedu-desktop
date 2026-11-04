@@ -569,7 +569,12 @@ class AuthNotifier extends Notifier<AuthState> {
 
       // 3. Wait for Google's redirect containing the authorization code
       String? grantCode;
-      await for (final request in server) {
+      await for (final request in server.timeout(
+        const Duration(seconds: 60),
+        onTimeout: (sink) {
+          sink.addError(TimeoutException('Google Sign-In redirect timed out'));
+        },
+      )) {
         grantCode = request.uri.queryParameters['code'];
 
         // Return a clean success page to the user in their browser
@@ -634,6 +639,12 @@ class AuthNotifier extends Notifier<AuthState> {
             error: result.error.friendlyMessage,
           );
       }
+    } on TimeoutException {
+      AppLogger.w('Google Sign-In timed out', tag: _tag);
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Google Sign-In timed out. Please try again.',
+      );
     } catch (e) {
       AppLogger.e('Google Sign-In failed', tag: _tag, error: e);
       state = state.copyWith(isLoading: false, error: 'Google Sign-In failed');
