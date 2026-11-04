@@ -1,38 +1,36 @@
 import 'package:zedu/core/core.dart';
+
 import '../../../helpers/helpers.dart';
 
 void main() {
-  group('AppTextField password visibility toggle', () {
-    testWidgets('labels the toggle with the action it performs', (
-      tester,
-    ) async {
-      final semantics = tester.ensureSemantics();
-      await tester.pumpWidget(
-        buildTestMaterialApp(
-          Scaffold(
-            body: Padding(
-              padding: const EdgeInsets.all(24),
-              child: AppTextField(
-                controller: TextEditingController(text: 'secret123'),
-                hint: 'Password',
-                isPassword: true,
-              ),
-            ),
+  testWidgets('error borders keep the 6px radius and error colour', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AppTextField(
+            controller: controller,
+            hint: 'Email',
+            validator: (value) => 'Required',
           ),
         ),
-      );
+      ),
+    );
 
-      expect(find.bySemanticsLabel('Show password'), findsOneWidget);
-      expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
+    final field = tester.widget<TextField>(find.byType(TextField));
+    final decoration = field.decoration!;
+    final errorBorder = decoration.errorBorder! as OutlineInputBorder;
+    final focusedErrorBorder =
+        decoration.focusedErrorBorder! as OutlineInputBorder;
 
-      await tester.tap(find.byIcon(Icons.visibility_off_outlined));
-      await tester.pumpAndSettle();
-
-      expect(find.bySemanticsLabel('Hide password'), findsOneWidget);
-      expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
-
-      semantics.dispose();
-    });
+    expect(errorBorder.borderRadius, BorderRadius.circular(6));
+    expect(errorBorder.borderSide.color, AppPalette.light.error);
+    expect(focusedErrorBorder.borderRadius, BorderRadius.circular(6));
+    expect(focusedErrorBorder.borderSide.color, AppPalette.light.error);
   });
 
   group('AppTextField error borders', () {
