@@ -172,7 +172,11 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
               child: Column(
                 children: teamMembers.map((member) {
                   final name = member.name ?? member.email;
-                  final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+                  final trimmedName = name.trim();
+                  final initial =
+                      trimmedName.isNotEmpty
+                          ? trimmedName.characters.first.toUpperCase()
+                          : '?';
                   return InkWell(
                     onTap: () => _insertMention(name),
                     child: Padding(
