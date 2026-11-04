@@ -512,6 +512,20 @@ class _ConversationSearchDialog extends StatefulWidget {
 class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
   final _controller = TextEditingController();
 
+  /// Message content is HTML. Search and show what the person actually wrote,
+  /// so tag names never match and no tags appear in the results.
+  static String _plainText(Object? content) => (content?.toString() ?? '')
+      .replaceAll(RegExp(r'</?(p|div|li|ul|ol|br|blockquote|pre)\b[^>]*>'), ' ')
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&amp;', '&')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
   @override
   void dispose() {
     _controller.dispose();
@@ -520,11 +534,10 @@ class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final query = _controller.text.toLowerCase();
-    final results = widget.messages.where(
-      (message) =>
-          (message['content']?.toString() ?? '').toLowerCase().contains(query),
-    );
+    final query = _controller.text.trim().toLowerCase();
+    final results = widget.messages
+        .map((message) => _plainText(message['content']))
+        .where((text) => text.toLowerCase().contains(query));
     return AlertDialog(
       title: Text('Search ${widget.displayName}'),
       content: SizedBox(
@@ -547,10 +560,7 @@ class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
                     ? const [Text('Enter a search term')]
                     : results
                           .map(
-                            (message) => ListTile(
-                              dense: true,
-                              title: Text(message['content']?.toString() ?? ''),
-                            ),
+                            (text) => ListTile(dense: true, title: Text(text)),
                           )
                           .toList(),
               ),
