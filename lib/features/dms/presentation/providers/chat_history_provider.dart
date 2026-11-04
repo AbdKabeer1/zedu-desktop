@@ -204,25 +204,48 @@ class ChatHistoryNotifier extends ChangeNotifier {
     }
   }
 
-  /// Puts the server's text on every loaded message whose content changed
-  /// since it was loaded. Skips messages being edited here, and returns whether
-  /// anything changed.
+  /// Merges the server's current fields onto every loaded message with the
+  /// same id. Skips locally pending messages and messages being edited here,
+  /// and returns whether anything changed.
   bool _applyEditedContent(List<Map<String, dynamic>> fresh) {
-    final latest = <String, Object?>{
+    final latest = <String, Map<String, dynamic>>{
       for (final m in fresh)
-        if (m['id'] != null && !_isDeleted(m)) m['id'].toString(): m['content'],
+        if (m['id'] != null && !_isDeleted(m)) m['id'].toString(): m,
     };
     var changed = false;
     messages = messages.map((m) {
       final id = m['id']?.toString();
       if (id == null || !latest.containsKey(id)) return m;
-      if (_editsInFlight.contains(id) || editingMessageId == id) return m;
-      final content = latest[id];
-      if (content == null || content == m['content']) return m;
+      if (m['status'] != null ||
+          _editsInFlight.contains(id) ||
+          editingMessageId == id) {
+        return m;
+      }
+      final updated = Map<String, dynamic>.from(m)..addAll(latest[id]!);
+      if (_sameJsonValue(updated, m)) return m;
       changed = true;
-      return Map<String, dynamic>.from(m)..['content'] = content;
+      return updated;
     }).toList();
     return changed;
+  }
+
+  bool _sameJsonValue(Object? a, Object? b) {
+    if (identical(a, b) || a == b) return true;
+    if (a is List && b is List) {
+      return a.length == b.length &&
+          Iterable.generate(
+            a.length,
+          ).every((index) => _sameJsonValue(a[index], b[index]));
+    }
+    if (a is Map && b is Map) {
+      return a.length == b.length &&
+          a.entries.every(
+            (entry) =>
+                b.containsKey(entry.key) &&
+                _sameJsonValue(entry.value, b[entry.key]),
+          );
+    }
+    return false;
   }
 
   @override
