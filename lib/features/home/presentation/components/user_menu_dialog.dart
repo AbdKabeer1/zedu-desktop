@@ -78,16 +78,14 @@ class UserMenuDialog extends ConsumerWidget {
                         Container(
                           width: 48,
                           height: 48,
+                          clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
                             color: colors.sidebar,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.person,
-                              color: Colors.white,
-                              size: 32,
-                            ),
+                          child: _UserMenuAvatar(
+                            avatarUrl: authUser?.avatarUrl ?? '',
+                            displayName: displayName,
                           ),
                         ),
                         Positioned(
@@ -378,4 +376,48 @@ class _MenuItemButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _UserMenuAvatar extends StatelessWidget {
+  const _UserMenuAvatar({required this.avatarUrl, required this.displayName});
+
+  final String avatarUrl;
+  final String displayName;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = avatarUrl.trim();
+    if (url.isEmpty) return _initials();
+
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => _initials(),
+    );
+  }
+
+  Widget _initials() {
+    return Center(
+      child: Text(
+        _initialsFor(displayName),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+String _initialsFor(String name) {
+  final parts = name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .take(2);
+  if (parts.isEmpty) return '?';
+  return parts
+      .map((part) => String.fromCharCode(part.runes.first).toUpperCase())
+      .join();
 }
