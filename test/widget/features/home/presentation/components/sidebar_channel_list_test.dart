@@ -2,15 +2,20 @@ import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 import '../../../../../helpers/helpers.dart';
 
-Channel _channel(String name, {bool archived = false, String org = 'org-1'}) =>
-    Channel(
-      id: 'channel-$name',
-      name: name,
-      description: '',
-      organisationId: org,
-      ownerId: 'user-1',
-      archived: archived,
-    );
+Channel _channel(
+  String name, {
+  bool archived = false,
+  bool isPrivate = false,
+  String org = 'org-1',
+}) => Channel(
+  id: 'channel-$name',
+  name: name,
+  description: '',
+  organisationId: org,
+  ownerId: 'user-1',
+  archived: archived,
+  isPrivate: isPrivate,
+);
 
 class FakeChannelNotifier extends ChannelNotifier {
   @override
@@ -18,6 +23,16 @@ class FakeChannelNotifier extends ChannelNotifier {
     _channel('general'),
     _channel('random'),
     _channel('old', archived: true),
+  ];
+}
+
+class FakeMixedChannelNotifier extends ChannelNotifier {
+  @override
+  Future<List<Channel>> build() async => [
+    _channel('general'),
+    _channel('secret', isPrivate: true),
+    _channel('random'),
+    _channel('leads', isPrivate: true),
   ];
 }
 
@@ -179,6 +194,76 @@ void main() {
           channelId: 'channel-random',
         ),
       );
+    });
+
+    group('private channels', () {
+      Finder heading() => find.text('Private');
+
+      double top(WidgetTester tester, String text) =>
+          tester.getTopLeft(find.text(text)).dy;
+
+      Finder lockBeside(String name) => find.descendant(
+        of: find.ancestor(of: find.text(name), matching: find.byType(Row)),
+        matching: find.byIcon(Icons.lock_outline),
+      );
+
+      testWidgets('are listed under a Private heading with a lock', (
+        tester,
+      ) async {
+        await pumpList(tester, channels: FakeMixedChannelNotifier.new);
+
+        expect(heading(), findsOneWidget);
+        for (final name in ['secret', 'leads']) {
+          expect(top(tester, name), greaterThan(top(tester, 'Private')));
+          expect(lockBeside(name), findsOneWidget);
+        }
+        for (final name in ['general', 'random']) {
+          expect(top(tester, name), lessThan(top(tester, 'Private')));
+          expect(lockBeside(name), findsNothing);
+        }
+      });
+
+      testWidgets('collapse and expand from the heading', (tester) async {
+        await pumpList(tester, channels: FakeMixedChannelNotifier.new);
+
+        await tester.tap(heading());
+        await tester.pump();
+        expect(find.text('secret'), findsNothing);
+        expect(find.text('leads'), findsNothing);
+        expect(find.text('general'), findsOneWidget);
+        expect(find.text('random'), findsOneWidget);
+
+        await tester.tap(heading());
+        await tester.pump();
+        expect(find.text('secret'), findsOneWidget);
+        expect(find.text('leads'), findsOneWidget);
+      });
+
+      testWidgets('open the same channel as before when selected', (
+        tester,
+      ) async {
+        await pumpList(tester, channels: FakeMixedChannelNotifier.new);
+
+        await tester.tap(find.text('secret'));
+        await tester.pump();
+
+        expect(
+          container.read(activeChatProvider),
+          const ActiveChatState(
+            type: ActiveChatType.channel,
+            id: 'secret',
+            channelId: 'channel-secret',
+          ),
+        );
+      });
+
+      testWidgets('no Private heading when every channel is public', (
+        tester,
+      ) async {
+        await pumpList(tester, channels: FakeChannelNotifier.new);
+
+        expect(heading(), findsNothing);
+      });
     });
   });
 }
