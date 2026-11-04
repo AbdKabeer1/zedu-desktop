@@ -217,6 +217,22 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   static String _mobileOverrideKey(String orgId) =>
       'notification_mobile_override_$orgId';
 
+  // Users carry `full_name`; fall back to the username, then the email, so a
+  // member without a profile name is still recognisable.
+  static String _displayName(Map<String, dynamic> user) {
+    String? nonEmpty(Object? value) {
+      final text = value is String ? value.trim() : '';
+      return text.isEmpty ? null : text;
+    }
+
+    final email = nonEmpty(user['email']);
+    return nonEmpty(user['full_name']) ??
+        nonEmpty(user['name']) ??
+        nonEmpty(user['username']) ??
+        email?.split('@').first ??
+        'Unknown';
+  }
+
   Future<bool> _readMobileOverride(String orgId) async {
     if (!locator.isRegistered<SecureStorageService>()) return false;
     try {
@@ -434,10 +450,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
           role: user['role'] as String? ?? 'User',
           dateJoined: user['created_at'] as String? ?? '',
           status: TeamMemberStatus.active, // Or parse from user['status']
-          name:
-              user['name'] as String? ??
-              user['username'] as String? ??
-              'Unknown',
+          name: _displayName(user),
           avatarUrl: user['avatar_url'] as String?,
         );
       }).toList();
