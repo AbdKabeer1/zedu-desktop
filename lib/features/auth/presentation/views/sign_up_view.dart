@@ -16,9 +16,26 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
   final _emailController = TextEditingController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  late final TapGestureRecognizer _signInRecognizer;
+  late final TapGestureRecognizer _termsRecognizer;
+  late final TapGestureRecognizer _privacyRecognizer;
+
+  @override
+  void initState() {
+    super.initState();
+    _signInRecognizer = TapGestureRecognizer()
+      ..onTap = () => context.go(AppRouter.login);
+    _termsRecognizer = TapGestureRecognizer()
+      ..onTap = () => launchUrl(_termsUrl);
+    _privacyRecognizer = TapGestureRecognizer()
+      ..onTap = () => launchUrl(_privacyUrl);
+  }
 
   @override
   void dispose() {
+    _signInRecognizer.dispose();
+    _termsRecognizer.dispose();
+    _privacyRecognizer.dispose();
     _emailController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
@@ -98,8 +115,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                         color: context.colors.primary,
                         fontFamily: FontFamily.roboto,
                       ),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () => context.go(AppRouter.login),
+                      recognizer: _signInRecognizer,
                     ),
                   ],
                 ),
@@ -251,8 +267,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                         style: context.textTheme.bodySmall?.copyWith(
                           color: context.colors.primary,
                         ),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () => launchUrl(_termsUrl),
+                        recognizer: _termsRecognizer,
                       ),
                       const TextSpan(text: ' and '),
                       TextSpan(
@@ -260,8 +275,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                         style: context.textTheme.bodySmall?.copyWith(
                           color: context.colors.primary,
                         ),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () => launchUrl(_privacyUrl),
+                        recognizer: _privacyRecognizer,
                       ),
                     ],
                   ),

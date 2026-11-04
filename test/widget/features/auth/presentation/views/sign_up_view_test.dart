@@ -162,5 +162,13 @@ void main() {
       expect(createAccountButton, findsOneWidget);
       await drainToastTimer(tester);
     });
+    testWidgets('disposes tap gesture recognizers cleanly on unmount', (
+      tester,
+    ) async {
+      await pumpDesktopSignUp(tester, FakeAuthNotifier());
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      expect(find.byType(SignUpView), findsNothing);
+    });
   });
 }
