@@ -156,7 +156,9 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     }
   }
 
-  Future<void> changePassword({
+  /// Returns the outcome so the change password dialog can stay open and show
+  /// a failure itself, which is why a failure doesn't also set the state error.
+  Future<Result<void>> changePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
@@ -176,11 +178,9 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
           successMessage: 'Password updated successfully.',
         );
       case Failure<void>():
-        state = state.copyWith(
-          isSaving: false,
-          error: result.error.friendlyMessage,
-        );
+        state = state.copyWith(isSaving: false);
     }
+    return result;
   }
 
   Future<void> updateOrganization(OrganizationProfile organization) async {
