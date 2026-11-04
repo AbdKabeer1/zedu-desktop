@@ -24,6 +24,9 @@ class _MagicLinkRequestViewState extends ConsumerState<MagicLinkRequestView> {
   }
 
   Future<void> _onGeneratePressed() async {
+    // Enter and the button share this handler; a request already in flight must
+    // not be sent twice (e.g. Enter held down, or Enter plus a click).
+    if (ref.read(magicLinkNotifierProvider).isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     final email = _emailController.text.trim();
@@ -98,6 +101,7 @@ class _MagicLinkRequestViewState extends ConsumerState<MagicLinkRequestView> {
                       hint: 'Enter your email',
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _onGeneratePressed(),
                       validator: (value) =>
                           Validators.validateEmail(context, value),
                     ),
