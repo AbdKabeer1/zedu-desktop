@@ -17,6 +17,10 @@ class DmMessageComposer extends ConsumerStatefulWidget {
   final ValueChanged<String>? onSend;
   final bool isChannel;
 
+  /// Recorder used for voice notes. Overridable so tests can avoid the
+  /// platform microphone.
+  final AudioRecorder? audioRecorder;
+
   const DmMessageComposer({
     super.key,
     required this.recipientName,
@@ -25,6 +29,7 @@ class DmMessageComposer extends ConsumerStatefulWidget {
     this.participants = const [],
     this.onSend,
     this.isChannel = false,
+    this.audioRecorder,
   });
 
   @override
@@ -38,7 +43,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
 
   bool _showEmojiPicker = false;
   bool _isEditMode = false;
-  final AudioRecorder _audioRecorder = AudioRecorder();
+  late final AudioRecorder _audioRecorder;
   bool _isRecording = false;
   bool _isStarting = false;
   // File the recorder is writing to right now, so it can be removed if the
@@ -78,6 +83,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   @override
   void initState() {
     super.initState();
+    _audioRecorder = widget.audioRecorder ?? AudioRecorder();
     _drafts = ref.read(dmDraftStoreProvider);
     _controller = RichTextController();
     _controller.addListener(_onTextChanged);
@@ -255,6 +261,14 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     );
     setState(() => _mentionSuggestions = []);
     _focusNode.requestFocus();
+  }
+
+  /// Whether the send control can send the composer's current content.
+  /// A recorded voice note or a picked file is enough on its own.
+  bool get _canSend {
+    final hasText = _controller.text.trim().isNotEmpty;
+    if (_isEditMode) return hasText;
+    return hasText || _pendingFiles.isNotEmpty || _voiceNote != null;
   }
 
   void _handleSend() {
@@ -1055,7 +1069,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
                         onTap: _handleSend,
                         child: Icon(
                           Icons.send_rounded,
-                          color: _controller.text.trim().isEmpty
+                          color: !_canSend
                               ? colors.textHint.withValues(alpha: 0.55)
                               : colors.primary,
                           size: 22,

@@ -325,4 +325,68 @@ void main() {
       expect(controller.selection, const TextSelection.collapsed(offset: 5));
     });
   });
+
+  group('DmMessageComposer voice notes', () {
+    testWidgets('enables send when a voice note is recorded without text', (
+      tester,
+    ) async {
+      final recorder = _FakeAudioRecorder();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            dmDraftStoreProvider.overrideWith(
+              (ref) => DmDraftStore(
+                FakeSecureStorageService(),
+                userId: 'user-1',
+                orgId: 'org-1',
+              ),
+            ),
+          ],
+          child: buildTestMaterialApp(
+            Scaffold(
+              body: DmMessageComposer(
+                recipientName: 'Ada',
+                channelId: 'dm-1',
+                audioRecorder: recorder,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      Icon sendIcon() => tester.widget<Icon>(find.byIcon(Icons.send_rounded));
+
+      expect(
+        sendIcon().color,
+        AppPalette.light.textHint.withValues(alpha: 0.55),
+      );
+
+      await tester.tap(find.byTooltip('Voice message'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Stop recording').first);
+      await tester.pump();
+
+      expect(recorder.recordedPaths, hasLength(1));
+      expect(sendIcon().color, AppPalette.light.primary);
+    });
+  });
+}
+
+class _FakeAudioRecorder extends Fake implements AudioRecorder {
+  final recordedPaths = <String>[];
+
+  @override
+  Future<bool> hasPermission({bool request = true}) async => true;
+
+  @override
+  Future<void> start(RecordConfig config, {required String path}) async {
+    recordedPaths.add(path);
+  }
+
+  @override
+  Future<String?> stop() async =>
+      recordedPaths.isEmpty ? null : recordedPaths.last;
+
+  @override
+  Future<void> dispose() async {}
 }
