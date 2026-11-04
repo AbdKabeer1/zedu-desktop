@@ -16,26 +16,19 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
   final _emailController = TextEditingController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  late final TapGestureRecognizer _signInRecognizer;
-  late final TapGestureRecognizer _termsRecognizer;
-  late final TapGestureRecognizer _privacyRecognizer;
 
-  @override
-  void initState() {
-    super.initState();
-    _signInRecognizer = TapGestureRecognizer()
-      ..onTap = () => context.go(AppRouter.login);
-    _termsRecognizer = TapGestureRecognizer()
-      ..onTap = () => launchUrl(_termsUrl);
-    _privacyRecognizer = TapGestureRecognizer()
-      ..onTap = () => launchUrl(_privacyUrl);
-  }
+  late final _loginLink = TapGestureRecognizer()
+    ..onTap = () => context.go(AppRouter.login);
+  late final _termsLink = TapGestureRecognizer()
+    ..onTap = () => launchUrl(_termsUrl);
+  late final _privacyLink = TapGestureRecognizer()
+    ..onTap = () => launchUrl(_privacyUrl);
 
   @override
   void dispose() {
-    _signInRecognizer.dispose();
-    _termsRecognizer.dispose();
-    _privacyRecognizer.dispose();
+    _loginLink.dispose();
+    _termsLink.dispose();
+    _privacyLink.dispose();
     _emailController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
@@ -50,7 +43,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
         .signUp(
           username: _usernameController.text.trim(),
           email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
+          password: _passwordController.text,
         );
   }
 
@@ -115,7 +108,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                         color: context.colors.primary,
                         fontFamily: FontFamily.roboto,
                       ),
-                      recognizer: _signInRecognizer,
+                      recognizer: _loginLink,
                     ),
                   ],
                 ),
@@ -188,6 +181,10 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                         hint: 'Password',
                         textInputAction: TextInputAction.done,
                         validator: (value) {
+                          if (value != null &&
+                              Validators.hasPasswordEdgeSpace(value)) {
+                            return Validators.passwordEdgeSpaceMessage;
+                          }
                           if (value == null || value.length < 8) {
                             return 'Password must be at least 8 characters long';
                           }
@@ -238,11 +235,12 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                 SocialAuthButton(
                   icon: 'assets/svgs/google_logo.svg',
                   label: 'Sign up with Google',
-                  onPressed: () => AppToastService.show(
-                    context,
-                    type: AppToastType.info,
-                    message: 'Google sign up is not available yet.',
-                  ),
+                  // The same Google flow as Login: the backend creates the
+                  // account on first use, and the listener above handles
+                  // success (go home) and errors (toast).
+                  loading: authState.isLoading,
+                  onPressed: () =>
+                      ref.read(authNotifierProvider.notifier).loginWithGoogle(),
                 ),
                 context.gapV(12),
                 SocialAuthButton(
@@ -263,19 +261,19 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                     ),
                     children: [
                       TextSpan(
-                        text: 'terms of service',
+                        text: 'Terms of Service',
                         style: context.textTheme.bodySmall?.copyWith(
                           color: context.colors.primary,
                         ),
-                        recognizer: _termsRecognizer,
+                        recognizer: _termsLink,
                       ),
                       const TextSpan(text: ' and '),
                       TextSpan(
-                        text: 'privacy policy',
+                        text: 'Privacy Policy',
                         style: context.textTheme.bodySmall?.copyWith(
                           color: context.colors.primary,
                         ),
-                        recognizer: _privacyRecognizer,
+                        recognizer: _privacyLink,
                       ),
                     ],
                   ),
