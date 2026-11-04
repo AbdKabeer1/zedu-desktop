@@ -96,4 +96,55 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
   });
+
+  testWidgets('selecting Pinned messages displays modal and does not throw', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final history = MockChatHistory();
+    when(() => history.messages).thenReturn([]);
+    when(() => history.isLoading).thenReturn(false);
+    when(() => history.hasMore).thenReturn(false);
+    when(() => history.loadFailed).thenReturn(false);
+    when(() => history.loadMoreFailed).thenReturn(false);
+    when(() => history.historyCleared).thenReturn(false);
+    final drafts = MockDraftStore();
+    when(() => drafts.load(any())).thenAnswer((_) async => null);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+          chatHistoryProvider('chat-1').overrideWith((ref) => history),
+          dmDraftStoreProvider.overrideWith((ref) => drafts),
+        ],
+        child: buildTestMaterialApp(
+          Scaffold(
+            body: DmChatArea(
+              conversation: DmConversation(
+                channelId: 'chat-1',
+                username: 'Pinned Tester',
+                participantId: 'user-2',
+                previewMessage: '',
+                unreadCount: 0,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('More options'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pinned messages'), findsOneWidget);
+    await tester.tap(find.text('Pinned messages'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pinned messages are not available yet'), findsOneWidget);
+  });
 }
