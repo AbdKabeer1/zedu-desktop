@@ -151,6 +151,7 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     state = state.copyWith(
       workspaces: updatedWorkspaces,
       selectedWorkspace: nextSelected,
+      clearSelectedWorkspace: nextSelected == null,
     );
   }
 }
