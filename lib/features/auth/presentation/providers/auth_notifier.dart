@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
@@ -107,7 +108,10 @@ class AuthNotifier extends Notifier<AuthState> {
     _interceptor = locator<AuthInterceptor>();
     ref.onDispose(() {
       _disposed = true;
+      _statusExpiryTimer?.cancel();
     });
+    // Whenever the user (or their status) changes, re-arm the "Clear after" timer.
+    listenSelf((_, next) => _scheduleStatusExpiry(next));
 
     _interceptor.onUnauthorized = () {
       AppLogger.w('Unauthorized — clearing session', tag: _tag);
@@ -1042,6 +1046,35 @@ class AuthNotifier extends Notifier<AuthState> {
 
   DateTime? _expiryFromTimeout(StatusTimeout timeout) =>
       timeout.expiryFrom(DateTime.now());
+
+  Timer? _statusExpiryTimer;
+
+  /// Arms one timer for the current custom status's "Clear after" time, so it
+  /// disappears while the app stays open. A status that has already expired is
+  /// cleared straight away. Signing out or changing the status re-arms it.
+  void _scheduleStatusExpiry(AuthState next) {
+    _statusExpiryTimer?.cancel();
+    _statusExpiryTimer = null;
+    final status = next.user?.status;
+    final expiresAt = status?.expiresAt;
+    if (status == null || expiresAt == null) return;
+    if (status.emoji == null && (status.text ?? '').isEmpty) return;
+    final left = expiresAt.difference(DateTime.now());
+    _statusExpiryTimer = Timer(
+      left.isNegative ? Duration.zero : left,
+      _clearExpiredStatus,
+    );
+  }
+
+  void _clearExpiredStatus() {
+    final user = state.user;
+    final expiresAt = user?.status.expiresAt;
+    if (_disposed || user == null || expiresAt == null) return;
+    // The status may have been changed since the timer was armed.
+    if (DateTime.now().isBefore(expiresAt)) return;
+    AppLogger.d('custom status expired — clearing', tag: _tag);
+    state = state.copyWith(user: user._withStatus(user.status.cleared()));
+  }
 }
 
 // Private extension to create a new User with a swapped status field.
