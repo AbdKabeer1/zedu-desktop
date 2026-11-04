@@ -8,6 +8,7 @@ import '../../../../../helpers/helpers.dart';
 void main() {
   const account = ProfileAccount(
     name: 'Ada Lovelace',
+    username: 'ada',
     email: 'ada@example.com',
     timezone: 'Africa/Lagos',
   );

@@ -242,6 +242,12 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                               label: 'Username',
                               controller: usernameCtrl,
                               hint: 'Enter username',
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Username is required';
+                                }
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 16),
                             AppTextField(
