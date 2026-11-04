@@ -92,6 +92,7 @@ class CreditsNotifier extends Notifier<CreditsState> {
     );
 
     final result = await _repository.purchaseCredits(
+      packageId: package.id,
       planId: package.id,
       email: email,
     );
