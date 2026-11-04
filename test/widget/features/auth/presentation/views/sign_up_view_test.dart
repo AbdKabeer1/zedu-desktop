@@ -104,7 +104,7 @@ void main() {
 
       expect(
         find.textContaining(
-          'By signing up, you agree to our terms of service',
+          'By signing up, you agree to our Terms of Service and Privacy Policy',
           findRichText: true,
         ),
         findsOneWidget,

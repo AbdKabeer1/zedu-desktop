@@ -257,7 +257,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                     ),
                     children: [
                       TextSpan(
-                        text: 'terms of service',
+                        text: 'Terms of Service',
                         style: context.textTheme.bodySmall?.copyWith(
                           color: context.colors.primary,
                         ),
@@ -265,7 +265,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                       ),
                       const TextSpan(text: ' and '),
                       TextSpan(
-                        text: 'privacy policy',
+                        text: 'Privacy Policy',
                         style: context.textTheme.bodySmall?.copyWith(
                           color: context.colors.primary,
                         ),
