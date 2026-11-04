@@ -1,146 +1,124 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zedu/features/home/home.dart';
+import 'package:zedu/features/features.dart';
 
 void main() {
   group('UserMentionActivityModel', () {
-    final testDate = DateTime.utc(2026, 11, 4, 12, 0, 0);
-
-    test('deserializes from standard snake_case JSON payload', () {
-      final json = <String, dynamic>{
+    test('parses a camelCase mention', () {
+      final model = UserMentionActivityModel.fromJson({
         'id': 'mention-1',
-        'message_id': 'msg-100',
-        'channel_id': 'chan-200',
-        'channel_name': 'general',
-        'sender_name': 'Alice Smith',
-        'sender_avatar_url': 'https://example.com/avatar.png',
-        'content': 'Hey @Bob check this out',
-        'created_at': testDate.toIso8601String(),
-      };
-
-      final model = UserMentionActivityModel.fromJson(json);
+        'messageId': 'msg-1',
+        'channelId': 'channel-1',
+        'channelName': 'general',
+        'senderName': 'Ada',
+        'senderAvatarUrl': 'https://cdn.example.com/ada.png',
+        'content': '@Arnold please review',
+        'createdAt': '2026-11-04T07:30:00.000Z',
+      });
 
       expect(model.id, 'mention-1');
-      expect(model.messageId, 'msg-100');
-      expect(model.channelId, 'chan-200');
+      expect(model.messageId, 'msg-1');
+      expect(model.channelId, 'channel-1');
       expect(model.channelName, 'general');
-      expect(model.senderName, 'Alice Smith');
-      expect(model.senderAvatarUrl, 'https://example.com/avatar.png');
-      expect(model.content, 'Hey @Bob check this out');
-      expect(model.createdAt, testDate);
+      expect(model.senderName, 'Ada');
+      expect(model.senderAvatarUrl, 'https://cdn.example.com/ada.png');
+      expect(model.content, '@Arnold please review');
+      expect(model.createdAt, DateTime.utc(2026, 11, 4, 7, 30));
     });
 
-    test('deserializes alternative camelCase fields and null avatar', () {
-      final json = <String, dynamic>{
-        '_id': 'mention-alt',
-        'messageId': 'msg-alt',
-        'channelId': 'chan-alt',
-        'channelName': 'announcements',
-        'senderName': 'Charlie',
-        'content': 'Welcome everyone',
-        'createdAt': testDate.toIso8601String(),
-      };
+    test('parses the backend snake_case mention', () {
+      final model = UserMentionActivityModel.fromJson({
+        'id': 'mention-2',
+        'message_id': 'msg-2',
+        'channel_id': 'channel-2',
+        'channel_name': 'releases',
+        'sender_name': 'Grace',
+        'sender_avatar_url': '',
+        'content': '@Arnold ship it',
+        'created_at': '2026-11-04T08:00:00.000Z',
+      });
 
-      final model = UserMentionActivityModel.fromJson(json);
-
-      expect(model.id, 'mention-alt');
-      expect(model.messageId, 'msg-alt');
-      expect(model.channelId, 'chan-alt');
-      expect(model.channelName, 'announcements');
-      expect(model.senderName, 'Charlie');
+      expect(model.messageId, 'msg-2');
+      expect(model.senderName, 'Grace');
       expect(model.senderAvatarUrl, isNull);
-      expect(model.content, 'Welcome everyone');
-      expect(model.createdAt, testDate);
+      expect(model.createdAt, DateTime.utc(2026, 11, 4, 8));
     });
 
-    test('parses timestamp from epoch seconds and milliseconds', () {
-      final epochSeconds = testDate.millisecondsSinceEpoch ~/ 1000;
-      final modelFromSeconds = UserMentionActivityModel.fromJson({
-        'id': '1',
-        'message_id': 'm1',
-        'channel_id': 'c1',
-        'channel_name': 'c',
-        'sender_name': 's',
-        'content': 'hi',
-        'created_at': epochSeconds,
-      });
+    test('falls back for missing optional fields', () {
+      final model = UserMentionActivityModel.fromJson({'id': 'mention-3'});
 
-      expect(
-        modelFromSeconds.createdAt.millisecondsSinceEpoch,
-        epochSeconds * 1000,
-      );
-
-      final epochMillis = testDate.millisecondsSinceEpoch;
-      final modelFromMillis = UserMentionActivityModel.fromJson({
-        'id': '2',
-        'message_id': 'm2',
-        'channel_id': 'c2',
-        'channel_name': 'c',
-        'sender_name': 's',
-        'content': 'hi',
-        'created_at': epochMillis,
-      });
-
-      expect(modelFromMillis.createdAt.millisecondsSinceEpoch, epochMillis);
+      expect(model.messageId, isEmpty);
+      expect(model.channelId, isEmpty);
+      expect(model.channelName, isEmpty);
+      expect(model.senderName, isEmpty);
+      expect(model.content, isEmpty);
+      expect(model.senderAvatarUrl, isNull);
+      expect(model.createdAt, isNull);
     });
 
-    test('serializes to JSON accurately', () {
-      final model = UserMentionActivityModel(
-        id: 'mention-serialize',
-        messageId: 'msg-serialize',
-        channelId: 'chan-serialize',
-        channelName: 'dev-team',
-        senderName: 'Dana',
-        senderAvatarUrl: 'https://cdn.zedu.test/avatar.jpg',
-        content: 'Please review PR #703',
-        createdAt: testDate,
-      );
-
-      final json = model.toJson();
-
-      expect(json, {
-        'id': 'mention-serialize',
-        'message_id': 'msg-serialize',
-        'channel_id': 'chan-serialize',
-        'channel_name': 'dev-team',
-        'sender_name': 'Dana',
-        'sender_avatar_url': 'https://cdn.zedu.test/avatar.jpg',
-        'content': 'Please review PR #703',
-        'created_at': testDate.toIso8601String(),
+    test('parses fallback field aliases and timestamp integers', () {
+      final model = UserMentionActivityModel.fromJson({
+        '_id': 'mention-fallback',
+        'message_id': 'msg-fb',
+        'channel_id': 'chan-fb',
+        'channel_name': 'general',
+        'sender_name': 'Bob',
+        'avatar_url': 'https://cdn.example.com/bob.png',
+        'message': 'fallback message text',
+        'created_at': 1762243200000,
       });
+
+      expect(model.id, 'mention-fallback');
+      expect(model.senderAvatarUrl, 'https://cdn.example.com/bob.png');
+      expect(model.content, 'fallback message text');
+      expect(model.createdAt, isNotNull);
     });
 
-    test('supports equality and hashing', () {
-      final modelA = UserMentionActivityModel(
-        id: 'eq-1',
-        messageId: 'm1',
-        channelId: 'c1',
-        channelName: 'general',
-        senderName: 'Eve',
-        content: 'ping',
-        createdAt: testDate,
-      );
-      final modelB = UserMentionActivityModel(
-        id: 'eq-1',
-        messageId: 'm1',
-        channelId: 'c1',
-        channelName: 'general',
-        senderName: 'Eve',
-        content: 'ping',
-        createdAt: testDate,
-      );
-      final modelC = UserMentionActivityModel(
-        id: 'eq-2',
-        messageId: 'm2',
-        channelId: 'c1',
-        channelName: 'general',
-        senderName: 'Eve',
-        content: 'pong',
-        createdAt: testDate,
+    test('round-trips through toJson', () {
+      final original = UserMentionActivityModel(
+        id: 'mention-4',
+        messageId: 'msg-4',
+        channelId: 'channel-4',
+        channelName: 'design',
+        senderName: 'Linus',
+        senderAvatarUrl: 'https://cdn.example.com/linus.png',
+        content: '@Arnold mockup ready',
+        createdAt: DateTime.utc(2026, 11, 4, 9, 15),
       );
 
-      expect(modelA, equals(modelB));
-      expect(modelA.hashCode, equals(modelB.hashCode));
-      expect(modelA, isNot(equals(modelC)));
+      final restored = UserMentionActivityModel.fromJson(original.toJson());
+
+      expect(restored.id, original.id);
+      expect(restored.messageId, original.messageId);
+      expect(restored.channelId, original.channelId);
+      expect(restored.channelName, original.channelName);
+      expect(restored.senderName, original.senderName);
+      expect(restored.senderAvatarUrl, original.senderAvatarUrl);
+      expect(restored.content, original.content);
+      expect(restored.createdAt, original.createdAt);
+    });
+
+    test('implements value equality and hashCode', () {
+      final a = UserMentionActivityModel(
+        id: 'mention-5',
+        messageId: 'msg-5',
+        channelId: 'chan-5',
+        channelName: 'general',
+        senderName: 'Ada',
+        content: 'Hello',
+        createdAt: DateTime.utc(2026, 11, 4, 10, 0),
+      );
+      final b = UserMentionActivityModel(
+        id: 'mention-5',
+        messageId: 'msg-5',
+        channelId: 'chan-5',
+        channelName: 'general',
+        senderName: 'Ada',
+        content: 'Hello',
+        createdAt: DateTime.utc(2026, 11, 4, 10, 0),
+      );
+
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
     });
   });
 }

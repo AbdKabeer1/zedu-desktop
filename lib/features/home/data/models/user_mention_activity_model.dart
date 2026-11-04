@@ -1,3 +1,4 @@
+/// A message that mentions the signed-in user.
 class UserMentionActivityModel {
   const UserMentionActivityModel({
     required this.id,
@@ -5,9 +6,9 @@ class UserMentionActivityModel {
     required this.channelId,
     required this.channelName,
     required this.senderName,
-    this.senderAvatarUrl,
     required this.content,
-    required this.createdAt,
+    this.senderAvatarUrl,
+    this.createdAt,
   });
 
   final String id;
@@ -15,49 +16,36 @@ class UserMentionActivityModel {
   final String channelId;
   final String channelName;
   final String senderName;
-  final String? senderAvatarUrl;
   final String content;
-  final DateTime createdAt;
+  final String? senderAvatarUrl;
+  final DateTime? createdAt;
 
   factory UserMentionActivityModel.fromJson(Map<String, dynamic> json) {
-    DateTime parseDate(dynamic value) {
-      if (value is DateTime) return value;
-      if (value is int) {
-        return value > 10000000000
-            ? DateTime.fromMillisecondsSinceEpoch(value)
-            : DateTime.fromMillisecondsSinceEpoch(value * 1000);
-      }
-      if (value is String) {
-        return DateTime.tryParse(value) ?? DateTime.now();
-      }
-      return DateTime.now();
-    }
-
     return UserMentionActivityModel(
-      id: (json['id'] ?? json['_id'] ?? '') as String,
-      messageId: (json['message_id'] ?? json['messageId'] ?? '') as String,
-      channelId: (json['channel_id'] ?? json['channelId'] ?? '') as String,
-      channelName:
-          (json['channel_name'] ?? json['channelName'] ?? '') as String,
-      senderName: (json['sender_name'] ?? json['senderName'] ?? '') as String,
-      senderAvatarUrl:
-          json['sender_avatar_url'] as String? ??
-          json['senderAvatarUrl'] as String? ??
-          json['avatar_url'] as String?,
-      content: (json['content'] ?? '') as String,
-      createdAt: parseDate(json['created_at'] ?? json['createdAt']),
+      id: _asString(json['id'] ?? json['_id']),
+      messageId: _asString(json['messageId'] ?? json['message_id']),
+      channelId: _asString(json['channelId'] ?? json['channel_id']),
+      channelName: _asString(json['channelName'] ?? json['channel_name']),
+      senderName: _asString(json['senderName'] ?? json['sender_name']),
+      content: _asString(json['content'] ?? json['message']),
+      senderAvatarUrl: _asNullableString(
+        json['senderAvatarUrl'] ??
+            json['sender_avatar_url'] ??
+            json['avatar_url'],
+      ),
+      createdAt: _parseDate(json['createdAt'] ?? json['created_at']),
     );
   }
 
   Map<String, dynamic> toJson() => {
     'id': id,
-    'message_id': messageId,
-    'channel_id': channelId,
-    'channel_name': channelName,
-    'sender_name': senderName,
-    'sender_avatar_url': senderAvatarUrl,
+    'messageId': messageId,
+    'channelId': channelId,
+    'channelName': channelName,
+    'senderName': senderName,
     'content': content,
-    'created_at': createdAt.toIso8601String(),
+    if (senderAvatarUrl != null) 'senderAvatarUrl': senderAvatarUrl,
+    if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
   };
 
   @override
@@ -85,4 +73,22 @@ class UserMentionActivityModel {
     content,
     createdAt,
   );
+}
+
+String _asString(Object? value) => value?.toString() ?? '';
+
+String? _asNullableString(Object? value) {
+  final text = value?.toString();
+  return text == null || text.isEmpty ? null : text;
+}
+
+DateTime? _parseDate(Object? value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  if (value is int) {
+    return value > 10000000000
+        ? DateTime.fromMillisecondsSinceEpoch(value)
+        : DateTime.fromMillisecondsSinceEpoch(value * 1000);
+  }
+  return DateTime.tryParse(value.toString());
 }
