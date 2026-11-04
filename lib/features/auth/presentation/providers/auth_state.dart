@@ -8,6 +8,7 @@ class AuthState {
     this.user,
     this.error,
     this.isLoading = false,
+    this.sessionExpired = false,
   });
 
   final AuthStatus status;
@@ -15,11 +16,15 @@ class AuthState {
   final String? error;
   final bool isLoading;
 
+  /// True when a 401 ended a signed-in session (not a logout).
+  final bool sessionExpired;
+
   AuthState copyWith({
     AuthStatus? status,
     User? user,
     String? error,
     bool? isLoading,
+    bool? sessionExpired,
     bool clearError = false,
   }) {
     return AuthState(
@@ -27,6 +32,7 @@ class AuthState {
       user: user ?? this.user,
       error: clearError ? null : (error ?? this.error),
       isLoading: isLoading ?? this.isLoading,
+      sessionExpired: sessionExpired ?? this.sessionExpired,
     );
   }
 }
