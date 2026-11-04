@@ -163,6 +163,39 @@ void main() {
       expect(notifier.signUpCalls, 0);
     });
 
+    testWidgets('does not count leading spaces towards the length', (
+      tester,
+    ) async {
+      final notifier = FakeAuthNotifier();
+      await pumpDesktopSignUp(tester, notifier);
+      await fillValidForm(tester);
+      await tester.enterText(find.byType(TextFormField).at(2), '       a');
+
+      await tester.ensureVisible(createAccountButton);
+      await tester.tap(createAccountButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text(Validators.passwordEdgeSpaceMessage), findsOneWidget);
+      expect(notifier.signUpCalls, 0);
+    });
+
+    testWidgets('sends the password exactly as typed', (tester) async {
+      String? sentPassword;
+      await pumpDesktopSignUp(
+        tester,
+        FakeAuthNotifier(onSignUp: (_, _, password) => sentPassword = password),
+      );
+      await fillValidForm(tester);
+      await tester.enterText(find.byType(TextFormField).at(2), 'Record 123');
+
+      await tester.ensureVisible(createAccountButton);
+      await tester.tap(createAccountButton);
+      await tester.pumpAndSettle();
+
+      expect(sentPassword, 'Record 123');
+      await drainToastTimer(tester);
+    });
+
     testWidgets('stays on the form when sign-up fails', (tester) async {
       await pumpDesktopSignUp(tester, FakeAuthNotifier(failSignUp: true));
       await fillValidForm(tester);

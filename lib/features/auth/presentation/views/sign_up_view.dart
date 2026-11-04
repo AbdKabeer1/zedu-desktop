@@ -33,7 +33,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
         .signUp(
           username: _usernameController.text.trim(),
           email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
+          password: _passwordController.text,
         );
   }
 
