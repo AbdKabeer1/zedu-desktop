@@ -47,3 +47,7 @@ final fileDeletionsProvider =
     NotifierProvider<FileDeletionsNotifier, Set<String>>(
       FileDeletionsNotifier.new,
     );
+
+final fileRenamesProvider = NotifierProvider<FileRenamesNotifier, Set<String>>(
+  FileRenamesNotifier.new,
+);

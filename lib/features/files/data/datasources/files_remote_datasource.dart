@@ -32,6 +32,9 @@ abstract class FilesRemoteDataSource {
   /// Deletes file [fileId]: moves it to Deleted files, or removes it for good
   /// when [permanent].
   Future<void> deleteFile(String fileId, {bool permanent = false});
+
+  /// Renames file [fileId] to [name].
+  Future<void> renameFile(String fileId, String name);
 }
 
 /// Reads `current_page` and `total_pages_count` (or `total_pages`).
@@ -210,6 +213,14 @@ class FilesRemoteDataSourceImpl implements FilesRemoteDataSource {
     await apiBaseService.delete<dynamic>(
       path: '/files/file/$fileId',
       queryParameters: permanent ? const {'permanent': true} : null,
+    );
+  }
+
+  @override
+  Future<void> renameFile(String fileId, String name) async {
+    await apiBaseService.put<dynamic>(
+      path: '/files/file/$fileId',
+      data: {'file_name': name},
     );
   }
 }

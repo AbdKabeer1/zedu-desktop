@@ -104,4 +104,16 @@ class FilesRepositoryImpl implements FilesRepository {
       return Failure(ApiFailure(message: e.toString()));
     }
   }
+
+  @override
+  Future<Result<void>> renameFile(String fileId, String name) async {
+    try {
+      await remoteDataSource.renameFile(fileId, name);
+      return const Success(null);
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
 }
