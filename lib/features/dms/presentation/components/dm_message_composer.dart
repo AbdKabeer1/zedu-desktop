@@ -357,6 +357,20 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
 
     final key = event.logicalKey;
 
+    // Pass system-reserved shortcuts (Ctrl+S, Ctrl+P, Cmd+S, Cmd+P) through
+    // to the operating system instead of handling them in the app.
+    final modifiers = <String>{};
+    if (HardwareKeyboard.instance.isControlPressed) modifiers.add('ctrl');
+    if (HardwareKeyboard.instance.isShiftPressed) modifiers.add('shift');
+    if (HardwareKeyboard.instance.isAltPressed) modifiers.add('alt');
+    if (HardwareKeyboard.instance.isMetaPressed) modifiers.add('meta');
+
+    if (modifiers.isNotEmpty &&
+        ref.read(shortcutManagerProvider.notifier).shouldPassToSystem(key,
+            modifiers)) {
+      return KeyEventResult.ignored;
+    }
+
     if (key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.numpadEnter) {
       final hasModifier =
@@ -384,11 +398,6 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     }
 
     if (key == LogicalKeyboardKey.keyB &&
-        (HardwareKeyboard.instance.isControlPressed ||
-            HardwareKeyboard.instance.isMetaPressed)) {
-      _insertBold();
-      return KeyEventResult.handled;
-    }
 
     if (key == LogicalKeyboardKey.keyI &&
         (HardwareKeyboard.instance.isControlPressed ||
