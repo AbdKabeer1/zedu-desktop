@@ -614,15 +614,36 @@ class AuthNotifier extends Notifier<AuthState> {
 
       // 3. Wait for Google's redirect containing the authorization code
       String? grantCode;
+      String? callbackError;
       await for (final request in server.timeout(
         const Duration(seconds: 60),
         onTimeout: (sink) {
           sink.addError(TimeoutException('Google Sign-In redirect timed out'));
         },
       )) {
+        final oauthError = request.uri.queryParameters['error'];
         grantCode = request.uri.queryParameters['code'];
+        if (oauthError != null ||
+            grantCode == null ||
+            grantCode.trim().isEmpty) {
+          grantCode = null;
+          callbackError = oauthError == 'access_denied'
+              ? 'Google sign-in was cancelled.'
+              : 'Google sign-in failed. Please try again.';
+        }
+        final title = callbackError == null
+            ? 'Authentication Successful'
+            : 'Authentication Unsuccessful';
+        final heading = callbackError == null
+            ? 'Sign In Successful!'
+            : oauthError == 'access_denied'
+            ? 'Sign In Cancelled'
+            : 'Sign In Failed';
+        final message = callbackError == null
+            ? 'You have successfully authenticated with Zedu. You can now close this tab and return to the application.'
+            : '$callbackError You can close this tab and return to Zedu to try again.';
 
-        // Return a clean success page to the user in their browser
+        // Render fixed messages rather than reflecting OAuth query values.
         request.response
           ..statusCode = HttpStatus.ok
           ..headers.contentType = ContentType.html
@@ -630,18 +651,18 @@ class AuthNotifier extends Notifier<AuthState> {
             <!DOCTYPE html>
             <html>
             <head>
-              <title>Authentication Successful</title>
+              <title>$title</title>
               <style>
                 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 50px; background-color: #f9f9f9; }
                 .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: inline-block; max-width: 400px; }
-                h1 { color: #4CAF50; margin-top: 0; }
+                h1 { color: ${callbackError == null ? '#4CAF50' : 'inherit'}; margin-top: 0; }
                 p { color: #666; font-size: 16px; }
               </style>
             </head>
             <body>
               <div class="card">
-                <h1>Sign In Successful!</h1>
-                <p>You have successfully authenticated with Zedu. You can now close this tab and return to the application.</p>
+                <h1>$heading</h1>
+                <p>$message</p>
               </div>
             </body>
             </html>
@@ -655,7 +676,10 @@ class AuthNotifier extends Notifier<AuthState> {
 
       if (grantCode == null) {
         AppLogger.w('Google Sign-In aborted or code not found', tag: _tag);
-        state = state.copyWith(isLoading: false);
+        state = state.copyWith(
+          isLoading: false,
+          error: callbackError ?? 'Google sign-in failed. Please try again.',
+        );
         return;
       }
 
