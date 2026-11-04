@@ -118,8 +118,15 @@ class FoldersListNotifier extends AsyncNotifier<FoldersPage> {
 class FilesUploadOutcome {
   final int uploaded;
   final List<String> failedNames;
+  final List<String> skippedNames;
+  final bool workspaceChanged;
 
-  const FilesUploadOutcome({required this.uploaded, required this.failedNames});
+  const FilesUploadOutcome({
+    required this.uploaded,
+    required this.failedNames,
+    this.skippedNames = const [],
+    this.workspaceChanged = false,
+  });
 }
 
 /// Whether an upload or a folder creation is running.
@@ -137,8 +144,15 @@ class FilesActionsState {
 
 /// Upload File and New Folder. Each refreshes the list it changed.
 class FilesActionsNotifier extends Notifier<FilesActionsState> {
+  int _workspaceVersion = 0;
+
   @override
-  FilesActionsState build() => const FilesActionsState();
+  FilesActionsState build() {
+    ref.listen(currentOrgIdProvider, (previous, next) {
+      if (previous != next) _workspaceVersion++;
+    });
+    return const FilesActionsState();
+  }
 
   /// Uploads [files] one at a time, as the web app does, then shows the
   /// Files tab at the top level, where the server puts uploads.
@@ -147,13 +161,25 @@ class FilesActionsNotifier extends Notifier<FilesActionsState> {
       return const FilesUploadOutcome(uploaded: 0, failedNames: []);
     }
     final repository = ref.read(filesRepositoryProvider);
+    final workspace = ref.read(currentOrgIdProvider);
+    final version = _workspaceVersion;
+    bool sameWorkspace() =>
+        ref.mounted &&
+        ref.read(currentOrgIdProvider) == workspace &&
+        _workspaceVersion == version;
     var uploaded = 0;
     final failed = <String>[];
+    final skipped = <String>[];
     state = FilesActionsState(
       uploadsLeft: files.length,
       isCreatingFolder: state.isCreatingFolder,
     );
-    for (final file in files) {
+    for (var index = 0; index < files.length; index++) {
+      if (!sameWorkspace()) {
+        skipped.addAll(files.skip(index).map((file) => file.name));
+        break;
+      }
+      final file = files[index];
       final result = await repository.uploadFile(file);
       if (!ref.mounted) break;
       switch (result) {
@@ -167,7 +193,11 @@ class FilesActionsNotifier extends Notifier<FilesActionsState> {
         isCreatingFolder: state.isCreatingFolder,
       );
     }
-    if (ref.mounted && uploaded > 0) {
+    final workspaceChanged = !sameWorkspace();
+    if (ref.mounted) {
+      state = FilesActionsState(isCreatingFolder: state.isCreatingFolder);
+    }
+    if (!workspaceChanged && uploaded > 0) {
       final files = ref.read(filesProvider.notifier);
       if (ref.read(filesProvider).view == FilesScope.trash) {
         files.selectView(FilesScope.all);
@@ -178,7 +208,12 @@ class FilesActionsNotifier extends Notifier<FilesActionsState> {
         ..setPage(1);
       ref.invalidate(filesListProvider);
     }
-    return FilesUploadOutcome(uploaded: uploaded, failedNames: failed);
+    return FilesUploadOutcome(
+      uploaded: uploaded,
+      failedNames: failed,
+      skippedNames: skipped,
+      workspaceChanged: workspaceChanged,
+    );
   }
 
   /// Creates [name] inside the open folder. Returns an error message, or
