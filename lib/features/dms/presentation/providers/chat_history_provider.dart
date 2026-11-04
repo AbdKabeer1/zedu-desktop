@@ -179,6 +179,21 @@ class ChatHistoryNotifier extends ChangeNotifier {
     }
   }
 
+  /// Loads every remaining page, for views that need the whole conversation
+  /// (such as its files). Waits for a load already in flight, and stops after
+  /// [maxPages] pages or when a page fails, so it can't loop forever.
+  Future<void> loadAll({int maxPages = 50}) async {
+    for (var i = 0; i < maxPages && hasMore; i++) {
+      while (isLoading) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      if (!hasMore) break;
+      final before = page;
+      await loadMore();
+      if (page == before) break; // the page failed to load
+    }
+  }
+
   // What each message was sent with, so a retry sends it the same way.
   final Map<String, ({List<XFile>? media, bool isChannel})> _sendOptions = {};
 
