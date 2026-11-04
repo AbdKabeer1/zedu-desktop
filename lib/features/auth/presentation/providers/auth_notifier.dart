@@ -107,9 +107,11 @@ class AuthNotifier extends Notifier<AuthState> {
     _interceptor = locator<AuthInterceptor>();
     ref.onDispose(() {
       _disposed = true;
+      _interceptor.onUnauthorized = null;
     });
 
     _interceptor.onUnauthorized = () {
+      if (_disposed || !ref.mounted) return;
       AppLogger.w('Unauthorized — clearing session', tag: _tag);
       _bumpSession();
       ref.read(userMenuStateProvider.notifier).reset();
