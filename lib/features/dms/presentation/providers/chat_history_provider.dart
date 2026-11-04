@@ -182,6 +182,10 @@ class ChatHistoryNotifier extends ChangeNotifier {
   // What each message was sent with, so a retry sends it the same way.
   final Map<String, ({List<XFile>? media, bool isChannel})> _sendOptions = {};
 
+  /// Makes each optimistic message id unique, even for sends in the same
+  /// millisecond: the id keys [_sendOptions] and the message's later update.
+  int _tempIdCounter = 0;
+
   /// Deletes voice recordings this app made once their message is sent. Files
   /// the user picked are never deleted.
   Future<void> _deleteRecordings(List<XFile>? files) async {
@@ -201,7 +205,8 @@ class ChatHistoryNotifier extends ChangeNotifier {
     bool isChannel = false,
   }) async {
     _isHistoryClearedLocally = false;
-    final tempId = DateTime.now().millisecondsSinceEpoch.toString();
+    final tempId =
+        'local-${DateTime.now().millisecondsSinceEpoch}-${_tempIdCounter++}';
     final optimisticMessage = {
       "id": tempId,
       "content": content,
