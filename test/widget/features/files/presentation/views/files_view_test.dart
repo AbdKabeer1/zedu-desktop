@@ -160,6 +160,13 @@ void main() {
     expect(repository.folderRequests.last, (FilesScope.all, null));
   });
 
+  testWidgets('labels the folder item count column Items', (tester) async {
+    await _pump(tester, _FakeFilesRepository());
+
+    expect(find.text('Items'), findsOneWidget);
+    expect(find.text('Size'), findsNothing);
+  });
+
   testWidgets('the Files tab lists files with their details', (tester) async {
     await _pump(tester, _FakeFilesRepository());
 
