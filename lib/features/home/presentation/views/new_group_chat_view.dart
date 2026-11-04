@@ -484,7 +484,7 @@ class _NewGroupChatViewState extends ConsumerState<NewGroupChatView> {
       child: Row(
         children: [
           Text(
-            'New Group Chat',
+            'New message',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -506,7 +506,7 @@ class _NewGroupChatViewState extends ConsumerState<NewGroupChatView> {
       child: Row(
         children: [
           Text(
-            'With: ',
+            'To: ',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
