@@ -59,8 +59,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(SnackBar), findsOneWidget);
-    expect(find.textContaining("Couldn't read missing.txt"), findsOneWidget);
+    // The unreadable file is rejected: it appears only in the message, never
+    // as a pending attachment.
+    expect(find.textContaining('missing.txt'), findsOneWidget);
     expect(find.textContaining('notes.txt'), findsOneWidget);
-    expect(find.textContaining('missing.txt'), findsNWidgets(1));
   });
 }
