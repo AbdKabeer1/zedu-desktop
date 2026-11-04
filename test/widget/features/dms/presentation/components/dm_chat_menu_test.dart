@@ -9,15 +9,22 @@ class MockDraftStore extends Mock implements DmDraftStore {}
 
 class _FakeAuthNotifier extends AuthNotifier {
   @override
-  AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
+  AuthState build() => const AuthState();
 }
 
 void main() {
   setUp(() {
-    if (!locator.isRegistered<AppConfig>()) {
-      locator.registerSingleton<AppConfig>(
-        const AppConfig(apiBaseUrl: 'http://test', usesMockData: false),
-      );
+    if (locator.isRegistered<AppConfig>()) {
+      locator.unregister<AppConfig>();
+    }
+    locator.registerSingleton<AppConfig>(
+      const AppConfig(apiBaseUrl: 'http://test', usesMockData: false),
+    );
+  });
+
+  tearDown(() {
+    if (locator.isRegistered<AppConfig>()) {
+      locator.unregister<AppConfig>();
     }
   });
 
