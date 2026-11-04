@@ -17,6 +17,7 @@ export 'presentation/providers/pinned_files_notifier.dart';
 export 'presentation/views/files_view.dart';
 export 'presentation/widgets/create_folder_dialog.dart';
 export 'presentation/widgets/delete_file_dialog.dart';
+export 'presentation/widgets/file_info_panel.dart';
 export 'presentation/widgets/files_sidebar.dart';
 export 'presentation/widgets/files_tables.dart';
 export 'presentation/widgets/files_toolbar.dart';

@@ -597,4 +597,57 @@ void main() {
       verify(() => api.delete<dynamic>(path: '/files/file/f-1/pin')).called(1);
     });
   });
+
+  group('fetchFileDetails', () {
+    test('reads the file with its access type', () async {
+      when(
+        () => api.get<Map<String, dynamic>>(path: '/files/file/f-1'),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 200,
+          data: {
+            'data': {
+              'id': 'f-1',
+              'file_name': 'logo.png',
+              'file_type': 'png',
+              'size': 2048,
+              'folder_id': 'docs',
+              'access_type': 'Public',
+              'created_at': '2026-10-30T14:05:00Z',
+            },
+          },
+        ),
+      );
+
+      final file = await datasource.fetchFileDetails('f-1');
+
+      expect(file.name, 'logo.png');
+      expect(file.size, 2048);
+      expect(file.folderId, 'docs');
+      expect(file.accessType, 'public');
+      expect(file.createdAt, DateTime.utc(2026, 10, 30, 14, 5).toLocal());
+    });
+
+    test('a response without the file is a parsing failure', () async {
+      when(
+        () => api.get<Map<String, dynamic>>(path: '/files/file/f-1'),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 200,
+          data: {'data': null},
+        ),
+      );
+
+      expect(
+        datasource.fetchFileDetails('f-1'),
+        throwsA(
+          isA<ApiFailure>().having(
+            (f) => f.kind,
+            'kind',
+            ApiFailureKind.parsing,
+          ),
+        ),
+      );
+    });
+  });
 }

@@ -97,6 +97,31 @@ class _FakeFilesRepository implements FilesRepository {
     return shareResult;
   }
 
+  /// What `GET /files/file/{id}` returns; completes at once by default.
+  Completer<Result<WorkspaceFile>> details = Completer()
+    ..complete(
+      Success(
+        WorkspaceFile(
+          id: 'f-1',
+          name: 'logo.png',
+          fileType: 'png',
+          size: 2048,
+          userId: 'u-1',
+          sharedIn: 'general',
+          createdAt: DateTime(2026, 10, 30, 14, 5),
+          updatedAt: DateTime(2026, 11, 1, 9, 30),
+          accessType: 'private',
+        ),
+      ),
+    );
+  final detailRequests = <String>[];
+
+  @override
+  Future<Result<WorkspaceFile>> fetchFileDetails(String fileId) {
+    detailRequests.add(fileId);
+    return details.future;
+  }
+
   Set<String> pinnedIds = {};
   final pinCalls = <(String, bool)>[];
   Result<void> pinResult = const Success(null);
@@ -1016,5 +1041,107 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Pin'), findsNothing);
     expect(find.text('Unpin'), findsNothing);
+  });
+
+  Finder infoPanel() => find.byType(FileInfoPanel);
+  Finder inPanel(String text) =>
+      find.descendant(of: infoPanel(), matching: find.text(text));
+
+  testWidgets('Info shows the file details and closes', (tester) async {
+    final repository = _FakeFilesRepository();
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+
+    await chooseInMenu(tester, 'Info');
+
+    expect(repository.detailRequests, ['f-1']);
+    expect(infoPanel(), findsOneWidget);
+    expect(inPanel('Info'), findsOneWidget);
+    expect(inPanel('logo.png'), findsOneWidget);
+    expect(inPanel('PNG'), findsOneWidget);
+    expect(inPanel('Ada Lovelace'), findsOneWidget);
+    expect(inPanel('Private'), findsOneWidget);
+    expect(inPanel('Oct 30, 2026, 2:05 PM'), findsOneWidget);
+    expect(inPanel('Nov 1, 2026, 9:30 AM'), findsOneWidget);
+    expect(inPanel('general'), findsOneWidget);
+    expect(inPanel('2 KB'), findsOneWidget);
+    expect(inPanel('All files'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Close file info'));
+    await tester.pumpAndSettle();
+
+    expect(infoPanel(), findsNothing);
+    expect(find.text('logo.png'), findsOneWidget);
+  });
+
+  testWidgets('Info shows the list details when the server fails', (
+    tester,
+  ) async {
+    final repository = _FakeFilesRepository()
+      ..details = (Completer()
+        ..complete(
+          const Failure(
+            ApiFailure(message: 'offline', kind: ApiFailureKind.network),
+          ),
+        ));
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+
+    await chooseInMenu(tester, 'Info');
+
+    expect(inPanel('logo.png'), findsOneWidget);
+    expect(inPanel('2 KB'), findsOneWidget);
+    // The list does not know the access type, so it is left out.
+    expect(inPanel('Access'), findsNothing);
+    expect(
+      inPanel('Could not load the latest details. Showing what the list has.'),
+      findsOneWidget,
+    );
+
+    repository.details = Completer()
+      ..complete(
+        const Success(
+          WorkspaceFile(id: 'f-1', name: 'logo.png', accessType: 'public'),
+        ),
+      );
+    await tester.tap(inPanel('Retry'));
+    await tester.pumpAndSettle();
+
+    expect(inPanel('Public'), findsOneWidget);
+    expect(find.textContaining('Could not load'), findsNothing);
+  });
+
+  testWidgets('Info names the folder a file is in', (tester) async {
+    final repository = _FakeFilesRepository()
+      ..details = (Completer()
+        ..complete(
+          const Success(
+            WorkspaceFile(id: 'f-2', name: 'spec.pdf', folderId: 'docs'),
+          ),
+        ));
+    await _pump(tester, repository);
+
+    await tester.tap(find.text('docs'));
+    await tester.pumpAndSettle();
+    await openFilesTab(tester);
+    await tester.tap(find.byTooltip('More actions for spec.pdf'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Info'));
+    await tester.pumpAndSettle();
+
+    expect(inPanel('docs'), findsOneWidget);
+    expect(inPanel('No preview available'), findsOneWidget);
+  });
+
+  testWidgets('deleted files have no Info', (tester) async {
+    await _pump(tester, _FakeFilesRepository());
+
+    await tester.tap(find.text('Deleted files'));
+    await tester.pumpAndSettle();
+    await openFilesTab(tester);
+    await tester.tap(actionsMenu());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Info'), findsNothing);
   });
 }

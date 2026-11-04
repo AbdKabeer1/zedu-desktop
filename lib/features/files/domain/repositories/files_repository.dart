@@ -49,6 +49,9 @@ abstract class FilesRepository {
     String note = '',
   });
 
+  /// [fileId]'s current details, including its access type.
+  Future<Result<WorkspaceFile>> fetchFileDetails(String fileId);
+
   /// Ids of the files the user pinned. Pins belong to the user, not the file.
   Future<Result<Set<String>>> fetchPinnedFileIds();
 

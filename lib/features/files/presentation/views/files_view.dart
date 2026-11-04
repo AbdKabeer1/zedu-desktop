@@ -412,6 +412,15 @@ class _FilesSection extends ConsumerWidget {
           onRename: isTrash ? null : (file) => _rename(context, file),
           onMove: isTrash ? null : (file) => _move(context, file),
           onShare: isTrash ? null : (file) => _share(context, file),
+          onInfo: isTrash
+              ? null
+              : (file) => FileInfoPanel.show(
+                  context,
+                  file: file,
+                  owner: file.owner.isNotEmpty
+                      ? file.owner
+                      : ownerName(file.userId),
+                ),
           onDelete: (file) => _delete(context, file, permanent: isTrash),
           deletesPermanently: isTrash,
         );

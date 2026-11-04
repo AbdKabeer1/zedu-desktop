@@ -85,3 +85,15 @@ final pinnedFilesProvider =
     AsyncNotifierProvider<PinnedFilesNotifier, Set<String>>(
       PinnedFilesNotifier.new,
     );
+
+/// A file's current details from the server, for its Info panel.
+final fileDetailsProvider = FutureProvider.autoDispose
+    .family<WorkspaceFile, String>((ref, fileId) async {
+      final result = await ref
+          .watch(filesRepositoryProvider)
+          .fetchFileDetails(fileId);
+      return switch (result) {
+        Success(:final value) => value,
+        Failure(:final error) => throw error,
+      };
+    });
