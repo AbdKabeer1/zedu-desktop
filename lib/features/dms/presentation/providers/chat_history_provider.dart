@@ -101,6 +101,10 @@ class ChatHistoryNotifier extends ChangeNotifier {
       page = 1;
       loadFailed = false;
       _markSeen(loaded);
+      _lastPolledIds = {
+        for (final m in loaded)
+          if (m['id'] != null) m['id'].toString(),
+      };
     } catch (_) {
       loadFailed = true;
     } finally {
@@ -123,6 +127,10 @@ class ChatHistoryNotifier extends ChangeNotifier {
   /// Set of message IDs we have already seen. Used to detect truly-new messages
   /// so we don't re-fire a notification on every poll cycle.
   final Set<String> _seenIds = {};
+
+  /// The message ids the last poll (or the first load) listed. A message that
+  /// was listed then and is missing now was deleted by someone else.
+  Set<String> _lastPolledIds = {};
 
   /// Keep track of the polling timer so we can cancel it on dispose.
   // ignore: cancel_subscriptions
@@ -154,7 +162,8 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
       // A message edited elsewhere keeps its id, so it is not "new": replace
       // its text in place, without a notification or a second copy.
-      final changed = _applyEditedContent(fresh);
+      final changed =
+          _removeDeletedElsewhere(fresh) | _applyEditedContent(fresh);
 
       bool hadNew = false;
       for (final msg in fresh) {
@@ -202,6 +211,46 @@ class ChatHistoryNotifier extends ChangeNotifier {
     } catch (_) {
       // Silent — polling failures should not surface to the UI.
     }
+  }
+
+  /// Drops the loaded messages that someone else deleted, and returns whether
+  /// any were. The poll only sees the newest page, and a deleted message is
+  /// simply missing from it, so a message counts as deleted only when it is
+  /// inside that newest window, the last poll listed it, and this one does
+  /// not. An empty answer proves nothing and removes nothing, and neither does
+  /// a message still sending, failed, or being edited here.
+  bool _removeDeletedElsewhere(List<Map<String, dynamic>> fresh) {
+    final freshIds = {
+      for (final m in fresh)
+        if (m['id'] != null) m['id'].toString(),
+    };
+    final previousIds = _lastPolledIds;
+    if (fresh.isEmpty) return false;
+    _lastPolledIds = freshIds;
+
+    // Where the newest page ends in the list: older messages are not judged.
+    final windowEnd = messages.indexWhere(
+      (m) => m['id']?.toString() == fresh.last['id']?.toString(),
+    );
+    if (windowEnd < 0) return false;
+
+    final kept = <Map<String, dynamic>>[];
+    for (var i = 0; i < messages.length; i++) {
+      final m = messages[i];
+      final id = m['id']?.toString();
+      final deleted =
+          i <= windowEnd &&
+          id != null &&
+          previousIds.contains(id) &&
+          !freshIds.contains(id) &&
+          m['status'] == null &&
+          !_editsInFlight.contains(id) &&
+          editingMessageId != id;
+      if (!deleted) kept.add(m);
+    }
+    if (kept.length == messages.length) return false;
+    messages = kept;
+    return true;
   }
 
   /// Puts the server's text and attachments on every loaded message that was
