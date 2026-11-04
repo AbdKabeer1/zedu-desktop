@@ -166,8 +166,7 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
         AppToastService.show(
           context,
           type: AppToastType.info,
-          message:
-              'Everyone in your organisation is already in #$channelName.',
+          message: 'Everyone in your organisation is already in #$channelName.',
         );
       case AddEveryoneFailed(:final message):
         AppToastService.show(
