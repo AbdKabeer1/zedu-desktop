@@ -183,11 +183,23 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
     final history = ref.read(
       chatHistoryProvider(widget.conversation.channelId),
     );
+    final messages = [
+      for (final message in history.messages)
+        _SearchableMessage(
+          text: _SearchableMessage.plainText(message['content']),
+          sender: history.isMyMessage(message)
+              ? history.currentUserName
+              : widget.conversation.displayName,
+          sentAt: DateTime.tryParse(
+            message['created_at']?.toString() ?? '',
+          )?.toLocal(),
+        ),
+    ].where((message) => message.text.isNotEmpty).toList();
     await showDialog<void>(
       context: context,
       builder: (context) => _ConversationSearchDialog(
         displayName: widget.conversation.displayName,
-        messages: history.messages,
+        messages: messages,
       ),
     );
   }
@@ -548,9 +560,55 @@ class _HistoryLoadError extends StatelessWidget {
   }
 }
 
+/// A loaded message as the conversation search shows it.
+class _SearchableMessage {
+  final String text;
+  final String sender;
+  final DateTime? sentAt;
+
+  const _SearchableMessage({
+    required this.text,
+    required this.sender,
+    this.sentAt,
+  });
+
+  /// Message content is HTML. Search and show what the person actually wrote,
+  /// so tag names never match and no tags appear in the results.
+  static String plainText(Object? content) => (content?.toString() ?? '')
+      .replaceAll(RegExp(r'</?(p|div|li|ul|ol|br|blockquote|pre)\b[^>]*>'), ' ')
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&amp;', '&')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  /// "4:05 PM" for today, "Nov 3, 4:05 PM" for earlier days.
+  String? get sentAtLabel {
+    final at = sentAt;
+    if (at == null) return null;
+    final hour = at.hour > 12 ? at.hour - 12 : (at.hour == 0 ? 12 : at.hour);
+    final minute = at.minute.toString().padLeft(2, '0');
+    final period = at.hour >= 12 ? 'PM' : 'AM';
+    final time = '$hour:$minute $period';
+    final now = DateTime.now();
+    if (at.year == now.year && at.month == now.month && at.day == now.day) {
+      return time;
+    }
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[at.month - 1]} ${at.day}, $time';
+  }
+}
+
 class _ConversationSearchDialog extends StatefulWidget {
   final String displayName;
-  final List<Map<String, dynamic>> messages;
+  final List<_SearchableMessage> messages;
 
   const _ConversationSearchDialog({
     required this.displayName,
@@ -565,20 +623,6 @@ class _ConversationSearchDialog extends StatefulWidget {
 class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
   final _controller = TextEditingController();
 
-  /// Message content is HTML. Search and show what the person actually wrote,
-  /// so tag names never match and no tags appear in the results.
-  static String _plainText(Object? content) => (content?.toString() ?? '')
-      .replaceAll(RegExp(r'</?(p|div|li|ul|ol|br|blockquote|pre)\b[^>]*>'), ' ')
-      .replaceAll(RegExp(r'<[^>]*>'), '')
-      .replaceAll('&nbsp;', ' ')
-      .replaceAll('&lt;', '<')
-      .replaceAll('&gt;', '>')
-      .replaceAll('&quot;', '"')
-      .replaceAll('&#39;', "'")
-      .replaceAll('&amp;', '&')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-
   @override
   void dispose() {
     _controller.dispose();
@@ -587,10 +631,19 @@ class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final query = _controller.text.trim().toLowerCase();
-    final results = widget.messages
-        .map((message) => _plainText(message['content']))
-        .where((text) => text.toLowerCase().contains(query));
+    final colors = context.colors;
+    final textTheme = context.textTheme;
+    final rawQuery = _controller.text.trim();
+    final query = rawQuery.toLowerCase();
+    final results = query.isEmpty
+        ? const <_SearchableMessage>[]
+        : widget.messages
+              .where((message) => message.text.toLowerCase().contains(query))
+              .toList();
+    final hintStyle = textTheme.bodyMedium?.copyWith(
+      color: colors.textSecondary,
+    );
+
     return AlertDialog(
       title: Text('Search ${widget.displayName}'),
       content: SizedBox(
@@ -598,6 +651,7 @@ class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
         height: 360,
         child: Column(
           mainAxisSize: MainAxisSize.max,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
               controller: _controller,
@@ -605,18 +659,41 @@ class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
               decoration: const InputDecoration(hintText: 'Search messages'),
               onChanged: (_) => setState(() {}),
             ),
+            const SizedBox(height: 6),
+            Text(
+              'Searches the messages loaded in this conversation.',
+              style: textTheme.bodySmall?.copyWith(color: colors.textHint),
+            ),
             const SizedBox(height: 12),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                children: query.isEmpty
-                    ? const [Text('Enter a search term')]
-                    : results
-                          .map(
-                            (text) => ListTile(dense: true, title: Text(text)),
-                          )
-                          .toList(),
-              ),
+            Expanded(
+              child: query.isEmpty
+                  ? Text('Enter a search term', style: hintStyle)
+                  : results.isEmpty
+                  ? Text('No messages match "$rawQuery"', style: hintStyle)
+                  : ListView.builder(
+                      itemCount: results.length,
+                      itemBuilder: (context, index) {
+                        final message = results[index];
+                        final sentAt = message.sentAtLabel;
+                        return ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            message.text,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            sentAt == null
+                                ? message.sender
+                                : '${message.sender} · $sentAt',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
