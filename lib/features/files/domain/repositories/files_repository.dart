@@ -49,6 +49,13 @@ abstract class FilesRepository {
     String note = '',
   });
 
+  /// [file]'s contents for a preview of [kind], or a client failure when it
+  /// is too large for that.
+  Future<Result<Uint8List>> fetchFilePreview(
+    WorkspaceFile file,
+    FilePreviewKind kind,
+  );
+
   /// [fileId]'s current details, including its access type.
   Future<Result<WorkspaceFile>> fetchFileDetails(String fileId);
 

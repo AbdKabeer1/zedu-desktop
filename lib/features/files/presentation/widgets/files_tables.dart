@@ -221,6 +221,7 @@ class FilesTable extends StatelessWidget {
     required this.ownerNameOf,
     required this.onOpen,
     this.onDownload,
+    this.onPreview,
     this.onRename,
     this.onMove,
     this.onShare,
@@ -239,6 +240,9 @@ class FilesTable extends StatelessWidget {
   /// Downloads a file. When null, as in Deleted files, the menu has no
   /// Download.
   final ValueChanged<WorkspaceFile>? onDownload;
+
+  /// Previews a file in the app. When null, the menu has no Preview.
+  final ValueChanged<WorkspaceFile>? onPreview;
 
   /// Renames a file. When null, as in Deleted files, the menu has no Rename.
   final ValueChanged<WorkspaceFile>? onRename;
@@ -277,6 +281,7 @@ class FilesTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final download = onDownload;
+    final preview = onPreview;
     final rename = onRename;
     final move = onMove;
     final share = onShare;
@@ -285,6 +290,7 @@ class FilesTable extends StatelessWidget {
     final delete = onDelete;
     final hasActions =
         download != null ||
+        preview != null ||
         rename != null ||
         move != null ||
         share != null ||
@@ -347,6 +353,7 @@ class FilesTable extends StatelessWidget {
                 isDownloading: downloads.containsKey(file.id),
                 progress: downloads[file.id],
                 onDownload: download == null ? null : () => download(file),
+                onPreview: preview == null ? null : () => preview(file),
                 onRename: rename == null ? null : () => rename(file),
                 onMove: move == null ? null : () => move(file),
                 onShare: share == null ? null : () => share(file),
@@ -365,7 +372,7 @@ class FilesTable extends StatelessWidget {
   }
 }
 
-enum _FileAction { download, pin, share, rename, move, info, delete }
+enum _FileAction { download, preview, pin, share, rename, move, info, delete }
 
 /// The ⋮ menu of a file row, holding the actions on that file. While the file
 /// downloads it shows a progress ring instead.
@@ -375,6 +382,7 @@ class _FileActionsMenu extends StatelessWidget {
     required this.isDownloading,
     required this.progress,
     required this.onDownload,
+    required this.onPreview,
     required this.onRename,
     required this.onMove,
     required this.onShare,
@@ -389,6 +397,7 @@ class _FileActionsMenu extends StatelessWidget {
   final bool isDownloading;
   final double? progress;
   final VoidCallback? onDownload;
+  final VoidCallback? onPreview;
   final VoidCallback? onRename;
   final VoidCallback? onMove;
   final VoidCallback? onShare;
@@ -463,6 +472,7 @@ class _FileActionsMenu extends StatelessWidget {
       icon: Icon(Icons.more_vert, color: colors.textSecondary),
       onSelected: (action) => switch (action) {
         _FileAction.download => onDownload?.call(),
+        _FileAction.preview => onPreview?.call(),
         _FileAction.pin => onTogglePin?.call(),
         _FileAction.share => onShare?.call(),
         _FileAction.rename => onRename?.call(),
@@ -473,6 +483,8 @@ class _FileActionsMenu extends StatelessWidget {
       itemBuilder: (context) => [
         if (onDownload != null)
           item(_FileAction.download, Icons.download_outlined, 'Download'),
+        if (onPreview != null)
+          item(_FileAction.preview, Icons.visibility_outlined, 'Preview'),
         if (onTogglePin != null)
           item(
             _FileAction.pin,

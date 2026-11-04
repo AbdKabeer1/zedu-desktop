@@ -283,4 +283,55 @@ void main() {
       );
     });
   });
+
+  group('fetchFilePreview', () {
+    test('a file larger than the preview limit is not fetched', () async {
+      final result = await repository.fetchFilePreview(
+        const WorkspaceFile(
+          id: 'f-1',
+          name: 'huge.txt',
+          link: 'https://x.test/huge.txt',
+          size: 3 * 1024 * 1024,
+        ),
+        FilePreviewKind.text,
+      );
+
+      expect(
+        result,
+        isA<Failure<Uint8List>>().having(
+          (f) => f.error.message,
+          'message',
+          'This file is too large to preview.',
+        ),
+      );
+      verifyNever(
+        () => remote.fetchFileBytes(
+          url: any(named: 'url'),
+          maxBytes: any(named: 'maxBytes'),
+        ),
+      );
+    });
+
+    test('looks the link up when the list has none', () async {
+      when(
+        () => remote.fetchFileLink('f-1'),
+      ).thenAnswer((_) async => 'https://x.test/a.txt');
+      when(
+        () => remote.fetchFileBytes(
+          url: 'https://x.test/a.txt',
+          maxBytes: FilePreviewKind.text.maxBytes,
+        ),
+      ).thenAnswer((_) async => Uint8List.fromList([1, 2]));
+
+      final result = await repository.fetchFilePreview(
+        const WorkspaceFile(id: 'f-1', name: 'a.txt'),
+        FilePreviewKind.text,
+      );
+
+      expect(
+        result,
+        isA<Success<Uint8List>>().having((s) => s.value, 'value', [1, 2]),
+      );
+    });
+  });
 }

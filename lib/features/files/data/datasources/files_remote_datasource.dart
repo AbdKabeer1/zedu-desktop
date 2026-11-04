@@ -49,6 +49,13 @@ abstract class FilesRemoteDataSource {
     String note = '',
   });
 
+  /// The contents at [url], for a preview. Fails with a client error when
+  /// they are larger than [maxBytes].
+  Future<Uint8List> fetchFileBytes({
+    required String url,
+    required int maxBytes,
+  });
+
   /// File [fileId] as `GET /files/file/{id}` reports it now.
   Future<WorkspaceFile> fetchFileDetails(String fileId);
 
@@ -279,6 +286,39 @@ class FilesRemoteDataSourceImpl implements FilesRemoteDataSource {
         ? FileShareResult.fromJson(Map<String, dynamic>.from(data))
         : const FileShareResult();
   }
+
+  @override
+  Future<Uint8List> fetchFileBytes({
+    required String url,
+    required int maxBytes,
+  }) async {
+    final cancel = CancelToken();
+    try {
+      final response = await downloadClient.get<List<int>>(
+        url,
+        cancelToken: cancel,
+        options: Options(responseType: ResponseType.bytes),
+        onReceiveProgress: (received, _) {
+          if (received > maxBytes) cancel.cancel(_tooLarge);
+        },
+      );
+      final data = response.data ?? const <int>[];
+      if (data.length > maxBytes) throw _tooLargeFailure();
+      return data is Uint8List ? data : Uint8List.fromList(data);
+    } on DioException catch (error) {
+      if (CancelToken.isCancel(error) && error.error == _tooLarge) {
+        throw _tooLargeFailure();
+      }
+      throw ApiFailure.fromDioException(error);
+    }
+  }
+
+  static const _tooLarge = 'too-large';
+
+  static ApiFailure _tooLargeFailure() => const ApiFailure(
+    message: 'This file is too large to preview.',
+    kind: ApiFailureKind.client,
+  );
 
   @override
   Future<WorkspaceFile> fetchFileDetails(String fileId) async {

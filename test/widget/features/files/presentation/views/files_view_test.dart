@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
@@ -95,6 +96,19 @@ class _FakeFilesRepository implements FilesRepository {
   }) async {
     shares.add((fileId, recipientIds, permission, access, note));
     return shareResult;
+  }
+
+  final previews = <(String, FilePreviewKind)>[];
+  Result<Uint8List> Function(WorkspaceFile file) preview = (_) =>
+      Success(Uint8List.fromList(utf8.encode('hello from the file')));
+
+  @override
+  Future<Result<Uint8List>> fetchFilePreview(
+    WorkspaceFile file,
+    FilePreviewKind kind,
+  ) async {
+    previews.add((file.id, kind));
+    return preview(file);
   }
 
   /// What `GET /files/file/{id}` returns; completes at once by default.
@@ -1143,5 +1157,187 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Info'), findsNothing);
+  });
+
+  // A 1×1 PNG.
+  final png = base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+  );
+  Finder previewDialog() => find.byType(FilePreviewDialog);
+  Finder inPreview(String text) =>
+      find.descendant(of: previewDialog(), matching: find.text(text));
+
+  testWidgets('clicking a text file previews its contents', (tester) async {
+    final repository = _FakeFilesRepository()
+      ..moreFiles = [
+        const WorkspaceFile(id: 'f-3', name: 'notes.txt', fileType: 'txt'),
+      ];
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+
+    await tester.tap(find.text('notes.txt'));
+    await tester.pumpAndSettle();
+
+    expect(repository.previews, [('f-3', FilePreviewKind.text)]);
+    expect(inPreview('notes.txt'), findsOneWidget);
+    expect(inPreview('hello from the file'), findsOneWidget);
+    // Text has no zoom.
+    expect(find.byTooltip('Zoom in'), findsNothing);
+
+    await tester.tap(find.byTooltip('Close preview (Esc)'));
+    await tester.pumpAndSettle();
+    expect(previewDialog(), findsNothing);
+  });
+
+  testWidgets('Preview shows an image that can be zoomed', (tester) async {
+    final repository = _FakeFilesRepository()..preview = (_) => Success(png);
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+
+    await chooseInMenu(tester, 'Preview');
+
+    expect(repository.previews, [('f-1', FilePreviewKind.image)]);
+    expect(
+      find.descendant(of: previewDialog(), matching: find.byType(Image)),
+      findsOneWidget,
+    );
+    expect(inPreview('100%'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Zoom in'));
+    await tester.pumpAndSettle();
+    expect(inPreview('125%'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Fit to window'));
+    await tester.pumpAndSettle();
+    expect(inPreview('100%'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(previewDialog(), findsNothing);
+  });
+
+  testWidgets('files that cannot be previewed say so and offer Download', (
+    tester,
+  ) async {
+    final repository = _FakeFilesRepository()
+      ..moreFiles = [
+        const WorkspaceFile(id: 'f-4', name: 'deck.pptx', fileType: 'pptx'),
+      ];
+    await _pump(tester, repository, savePath: '/Users/ada/Downloads/deck.pptx');
+    await openFilesTab(tester);
+
+    await tester.tap(find.text('deck.pptx'));
+    await tester.pumpAndSettle();
+
+    expect(repository.previews, isEmpty);
+    expect(inPreview('No preview available'), findsOneWidget);
+    expect(
+      inPreview(
+        'Preview isn’t available for .pptx files. '
+        'Download it or open it in your browser.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: previewDialog(),
+        matching: find.widgetWithText(OutlinedButton, 'Download'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(previewDialog(), findsNothing);
+    expect(repository.downloads, [('f-4', '/Users/ada/Downloads/deck.pptx')]);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a failed preview can be retried', (tester) async {
+    var fail = true;
+    final repository = _FakeFilesRepository()
+      ..moreFiles = [
+        const WorkspaceFile(id: 'f-3', name: 'notes.txt', fileType: 'txt'),
+      ]
+      ..preview = (_) => fail
+          ? const Failure(
+              ApiFailure(message: 'offline', kind: ApiFailureKind.network),
+            )
+          : Success(Uint8List.fromList(utf8.encode('back online')));
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+
+    await tester.tap(find.text('notes.txt'));
+    await tester.pumpAndSettle();
+    expect(inPreview('Could not load the preview'), findsOneWidget);
+    expect(
+      inPreview('No internet connection. Check your network and try again.'),
+      findsOneWidget,
+    );
+
+    fail = false;
+    await tester.tap(inPreview('Retry'));
+    await tester.pumpAndSettle();
+
+    expect(inPreview('back online'), findsOneWidget);
+    expect(repository.previews, hasLength(2));
+  });
+
+  testWidgets('a file too large to preview offers Download only', (
+    tester,
+  ) async {
+    final repository = _FakeFilesRepository()
+      ..preview = (_) => const Failure(
+        ApiFailure(
+          message: 'This file is too large to preview.',
+          kind: ApiFailureKind.client,
+        ),
+      );
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+
+    await chooseInMenu(tester, 'Preview');
+
+    expect(
+      inPreview('This file is too large to preview. Download it instead.'),
+      findsOneWidget,
+    );
+    expect(inPreview('Retry'), findsNothing);
+  });
+
+  testWidgets('deleted files have no Preview', (tester) async {
+    await _pump(tester, _FakeFilesRepository());
+
+    await tester.tap(find.text('Deleted files'));
+    await tester.pumpAndSettle();
+    await openFilesTab(tester);
+    await tester.tap(actionsMenu());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Preview'), findsNothing);
+  });
+
+  testWidgets('PDFs are not previewed yet and can open in the browser', (
+    tester,
+  ) async {
+    final repository = _FakeFilesRepository()
+      ..moreFiles = [
+        const WorkspaceFile(id: 'f-5', name: 'report.pdf', fileType: 'pdf'),
+      ];
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+
+    await tester.tap(find.text('report.pdf'));
+    await tester.pumpAndSettle();
+
+    expect(repository.previews, isEmpty);
+    expect(inPreview('No preview available'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: previewDialog(),
+        matching: find.widgetWithText(TextButton, 'Open in browser'),
+      ),
+      findsOneWidget,
+    );
   });
 }
