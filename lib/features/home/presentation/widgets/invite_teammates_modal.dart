@@ -129,10 +129,11 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
     if (!mounted) return;
 
     if (successCount > 0) {
-      AppToastService.show(
-        context,
-        type: AppToastType.success,
-        message: 'Successfully invited $successCount teammates.',
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Successfully invited $successCount teammates.'),
+          backgroundColor: context.colors.success,
+        ),
       );
       Navigator.pop(context);
     } else if (lastError != null) {
@@ -155,11 +156,13 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
 
     switch (result) {
       case AddEveryoneAdded(:final count, :final channelName):
-        AppToastService.show(
-          context,
-          type: AppToastType.success,
-          message:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
               'Added $count ${count == 1 ? 'person' : 'people'} to #$channelName.',
+            ),
+            backgroundColor: context.colors.success,
+          ),
         );
         Navigator.pop(context);
       case AddEveryoneNobodyToAdd(:final channelName):
@@ -359,10 +362,13 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
                         if (link != null && context.mounted) {
                           await Clipboard.setData(ClipboardData(text: link));
                           if (context.mounted) {
-                            AppToastService.show(
-                              context,
-                              type: AppToastType.success,
-                              message: 'Invite link copied to clipboard!',
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text(
+                                  'Invite link copied to clipboard!',
+                                ),
+                                backgroundColor: colors.success,
+                              ),
                             );
                           }
                         } else if (context.mounted) {
