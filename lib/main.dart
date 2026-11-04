@@ -6,6 +6,10 @@ Future<void> main() async {
   await windowManager.ensureInitialized();
   await loadAppEnv();
   setupLocator();
+  await WindowBoundsController(
+    window: windowManager,
+    storage: locator<SecureStorageService>(),
+  ).restore();
 
   runApp(const ProviderScope(child: App()));
 }
