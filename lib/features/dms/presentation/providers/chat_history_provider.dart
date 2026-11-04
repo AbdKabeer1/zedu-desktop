@@ -204,25 +204,44 @@ class ChatHistoryNotifier extends ChangeNotifier {
     }
   }
 
-  /// Puts the server's text on every loaded message whose content changed
-  /// since it was loaded. Skips messages being edited here, and returns whether
-  /// anything changed.
+  /// Puts the server's text and attachments on every loaded message that was
+  /// changed elsewhere since it was loaded. Skips messages being edited here
+  /// and messages still sending or failed, which the server has not seen, and
+  /// returns whether anything changed.
   bool _applyEditedContent(List<Map<String, dynamic>> fresh) {
-    final latest = <String, Object?>{
+    final latest = <String, Map<String, dynamic>>{
       for (final m in fresh)
-        if (m['id'] != null && !_isDeleted(m)) m['id'].toString(): m['content'],
+        if (m['id'] != null && !_isDeleted(m)) m['id'].toString(): m,
     };
     var changed = false;
     messages = messages.map((m) {
       final id = m['id']?.toString();
       if (id == null || !latest.containsKey(id)) return m;
       if (_editsInFlight.contains(id) || editingMessageId == id) return m;
-      final content = latest[id];
-      if (content == null || content == m['content']) return m;
+      if (m['status'] != null) return m;
+      final server = latest[id]!;
+      final content = server['content'];
+      final media = server['media'];
+      final contentChanged = content != null && content != m['content'];
+      // A message edited elsewhere can come back with other attachments, so
+      // the file name and link shown must follow the server's.
+      final mediaChanged = media is List && !_sameMedia(media, m['media']);
+      if (!contentChanged && !mediaChanged) return m;
       changed = true;
-      return Map<String, dynamic>.from(m)..['content'] = content;
+      final updated = Map<String, dynamic>.from(m);
+      if (contentChanged) updated['content'] = content;
+      if (mediaChanged) updated['media'] = media;
+      return updated;
     }).toList();
     return changed;
+  }
+
+  bool _sameMedia(List<dynamic> server, Object? local) {
+    if (local is! List || local.length != server.length) return false;
+    for (var i = 0; i < server.length; i++) {
+      if (server[i].toString() != local[i].toString()) return false;
+    }
+    return true;
   }
 
   @override
