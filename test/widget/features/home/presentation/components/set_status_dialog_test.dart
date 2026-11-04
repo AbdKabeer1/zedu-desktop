@@ -243,6 +243,19 @@ void main() {
       expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isFalse);
     });
 
+    testWidgets('pressing Enter on status input saves status', (
+      tester,
+    ) async {
+      final notifier = _FakeAuthNotifier();
+      await _pumpDialog(tester, notifier: () => notifier);
+
+      await tester.enterText(find.byType(TextField), 'Deep work');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(notifier.savedTimeout, isNotNull);
+    });
+
     testWidgets('saving without changes keeps the saved settings', (
       tester,
     ) async {
