@@ -101,6 +101,19 @@ class ChannelRepositoryImpl implements ChannelRepository {
   }
 
   @override
+  Future<Result<List<DmParticipant>>> fetchChannelMembers(
+    String channelId,
+  ) async {
+    try {
+      return Success(await remoteDataSource.fetchChannelMembers(channelId));
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
   Future<Result<void>> addMembersToChannel({
     required String channelId,
     required List<String> userIds,
