@@ -19,6 +19,7 @@ abstract class ChannelRemoteDataSource {
   Future<void> archiveChannel(String channelId, bool archived);
   Future<List<String>> fetchOrganisationMemberIds(String orgId);
   Future<List<String>> fetchChannelMemberIds(String channelId);
+  Future<List<DmParticipant>> fetchChannelMembers(String channelId);
   Future<void> addMembersToChannel({
     required String channelId,
     required List<String> userIds,
@@ -136,6 +137,22 @@ class ChannelRemoteDataSourceImpl implements ChannelRemoteDataSource {
   }
 
   @override
+  Future<List<DmParticipant>> fetchChannelMembers(String channelId) async {
+    final members = await _fetchAllMembers('/channels/$channelId/users');
+    return [
+      for (final member in members)
+        if ((member['id'] as String? ?? '').isNotEmpty &&
+            (member['username'] as String? ?? '').isNotEmpty)
+          DmParticipant(
+            userId: member['id'] as String,
+            username: member['username'] as String,
+            email: member['email'] as String? ?? '',
+            avatarUrl: member['avatar_url'] as String?,
+          ),
+    ];
+  }
+
+  @override
   Future<void> addMembersToChannel({
     required String channelId,
     required List<String> userIds,
@@ -162,19 +179,24 @@ class ChannelRemoteDataSourceImpl implements ChannelRemoteDataSource {
   }
 
   Future<List<String>> _fetchAllMemberIds(String path) async {
-    final ids = <String>[];
+    final members = await _fetchAllMembers(path);
+    return [
+      for (final member in members)
+        if ((member['id'] as String? ?? '').isNotEmpty) member['id'] as String,
+    ];
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchAllMembers(String path) async {
+    final members = <Map<String, dynamic>>[];
     for (var page = 1; page <= maxMemberPages; page++) {
       final response = await apiBaseService.get<Map<String, dynamic>>(
         path: path,
         queryParameters: {'page': page, 'limit': memberPageSize},
       );
       final data = response.data['data'] as List?;
-      if (data == null || data.isEmpty) return ids;
-      for (final item in data) {
-        final id = (item as Map<String, dynamic>)['id'] as String?;
-        if (id != null && id.isNotEmpty) ids.add(id);
-      }
-      if (data.length < memberPageSize) return ids;
+      if (data == null || data.isEmpty) return members;
+      members.addAll(data.cast<Map<String, dynamic>>());
+      if (data.length < memberPageSize) return members;
     }
     // Every page was full, so the list may go on. Fail rather than act on
     // part of it.
