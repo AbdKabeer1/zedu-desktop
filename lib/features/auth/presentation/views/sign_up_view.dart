@@ -17,8 +17,18 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  late final _loginLink = TapGestureRecognizer()
+    ..onTap = () => context.go(AppRouter.login);
+  late final _termsLink = TapGestureRecognizer()
+    ..onTap = () => launchUrl(_termsUrl);
+  late final _privacyLink = TapGestureRecognizer()
+    ..onTap = () => launchUrl(_privacyUrl);
+
   @override
   void dispose() {
+    _loginLink.dispose();
+    _termsLink.dispose();
+    _privacyLink.dispose();
     _emailController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
@@ -98,8 +108,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                         color: context.colors.primary,
                         fontFamily: FontFamily.roboto,
                       ),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () => context.go(AppRouter.login),
+                      recognizer: _loginLink,
                     ),
                   ],
                 ),
@@ -252,8 +261,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                         style: context.textTheme.bodySmall?.copyWith(
                           color: context.colors.primary,
                         ),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () => launchUrl(_termsUrl),
+                        recognizer: _termsLink,
                       ),
                       const TextSpan(text: ' and '),
                       TextSpan(
@@ -261,8 +269,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                         style: context.textTheme.bodySmall?.copyWith(
                           color: context.colors.primary,
                         ),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () => launchUrl(_privacyUrl),
+                        recognizer: _privacyLink,
                       ),
                     ],
                   ),
