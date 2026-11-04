@@ -126,84 +126,29 @@ Future<void> showEditAccountDialog(
   timezoneCtrl.dispose();
 }
 
-/// Dialog for changing password. It stays open while [onSave] runs and closes
-/// only when [onSave] succeeds; a failure is shown in the dialog.
+/// Dialog for changing password.
 Future<void> showChangePasswordDialog(
   BuildContext context,
-  Future<Result<void>> Function({
+  Future<void> Function({
     required String currentPassword,
     required String newPassword,
   })
   onSave,
-) {
-  return showDialog<void>(
+) async {
+  final currentCtrl = TextEditingController();
+  final newCtrl = TextEditingController();
+  final confirmCtrl = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+  bool hasAttemptedSubmit = false;
+
+  await showDialog<void>(
     context: context,
-    builder: (_) => _ChangePasswordDialog(onSave: onSave),
-  );
-}
-
-class _ChangePasswordDialog extends StatefulWidget {
-  const _ChangePasswordDialog({required this.onSave});
-
-  final Future<Result<void>> Function({
-    required String currentPassword,
-    required String newPassword,
-  })
-  onSave;
-
-  @override
-  State<_ChangePasswordDialog> createState() => _ChangePasswordDialogState();
-}
-
-class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
-  final _currentCtrl = TextEditingController();
-  final _newCtrl = TextEditingController();
-  final _confirmCtrl = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-  bool _hasAttemptedSubmit = false;
-  bool _isSubmitting = false;
-  String? _submitError;
-
-  @override
-  void dispose() {
-    _currentCtrl.dispose();
-    _newCtrl.dispose();
-    _confirmCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    setState(() => _hasAttemptedSubmit = true);
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-
-    setState(() {
-      _isSubmitting = true;
-      _submitError = null;
-    });
-    final result = await widget.onSave(
-      currentPassword: _currentCtrl.text,
-      newPassword: _newCtrl.text,
-    );
-    if (!mounted) return;
-    setState(() {
-      _isSubmitting = false;
-      if (result case Failure(:final error)) {
-        _submitError = error.friendlyMessage;
-      }
-    });
-    if (result is Success) Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      // The dialog closes only once the request has finished.
-      canPop: !_isSubmitting,
-      child: AlertDialog(
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setDialogState) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
           'Change password',
-          style: context.textTheme.titleMedium?.copyWith(
+          style: ctx.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -211,53 +156,43 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
           width: 480,
           child: SingleChildScrollView(
             child: Form(
-              key: _formKey,
+              key: formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   AppTextField(
                     label: 'Current Password',
-                    controller: _currentCtrl,
+                    controller: currentCtrl,
                     hint: 'Enter current password',
                     isPassword: true,
                     validator: (v) =>
                         (v == null || v.isEmpty) ? 'Required' : null,
                   ),
-                  if (_submitError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        _submitError!,
-                        style: context.textTheme.bodySmall?.copyWith(
-                          color: context.colors.error,
-                        ),
-                      ),
-                    ),
                   const SizedBox(height: 16),
                   AppTextField(
                     label: 'New Password',
-                    controller: _newCtrl,
+                    controller: newCtrl,
                     hint: 'Enter new password',
                     isPassword: true,
                     onChanged: (_) {
-                      setState(() {});
-                      if (_hasAttemptedSubmit) {
-                        _formKey.currentState?.validate();
+                      setDialogState(() {});
+                      if (hasAttemptedSubmit) {
+                        formKey.currentState?.validate();
                       }
                     },
-                    validator: (v) => Validators.validatePassword(context, v),
+                    validator: (v) => Validators.validatePassword(ctx, v),
                   ),
                   const SizedBox(height: 10),
                   Text(
                     'Password requirements',
-                    style: context.textTheme.bodySmall?.copyWith(
-                      color: context.colors.textSecondary,
+                    style: ctx.textTheme.bodySmall?.copyWith(
+                      color: ctx.colors.textSecondary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ...Validators.passwordRequirements(_newCtrl.text).map(
+                  ...Validators.passwordRequirements(newCtrl.text).map(
                     (requirement) => Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Row(
@@ -269,15 +204,15 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
                                 : Icons.circle_outlined,
                             size: 16,
                             color: requirement.isMet
-                                ? context.colors.primary
-                                : context.colors.textSecondary,
+                                ? ctx.colors.primary
+                                : ctx.colors.textSecondary,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               requirement.label,
-                              style: context.textTheme.bodySmall?.copyWith(
-                                color: context.colors.textSecondary,
+                              style: ctx.textTheme.bodySmall?.copyWith(
+                                color: ctx.colors.textSecondary,
                               ),
                             ),
                           ),
@@ -288,34 +223,34 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
                   const SizedBox(height: 10),
                   AppTextField(
                     label: 'Confirm New Password',
-                    controller: _confirmCtrl,
+                    controller: confirmCtrl,
                     hint: 'Re-enter new password',
                     isPassword: true,
                     onChanged: (_) {
-                      setState(() {});
-                      if (_hasAttemptedSubmit) {
-                        _formKey.currentState?.validate();
+                      setDialogState(() {});
+                      if (hasAttemptedSubmit) {
+                        formKey.currentState?.validate();
                       }
                     },
                     validator: (v) {
                       if (v == null || v.isEmpty) {
                         return 'Please confirm your new password';
                       }
-                      if (v != _newCtrl.text) {
+                      if (v != newCtrl.text) {
                         return 'Passwords do not match';
                       }
                       return null;
                     },
                   ),
-                  if (!_hasAttemptedSubmit &&
-                      _confirmCtrl.text.isNotEmpty &&
-                      _confirmCtrl.text != _newCtrl.text)
+                  if (!hasAttemptedSubmit &&
+                      confirmCtrl.text.isNotEmpty &&
+                      confirmCtrl.text != newCtrl.text)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         'Passwords do not match',
-                        style: context.textTheme.bodySmall?.copyWith(
-                          color: context.colors.textSecondary,
+                        style: ctx.textTheme.bodySmall?.copyWith(
+                          color: ctx.colors.textSecondary,
                         ),
                       ),
                     ),
@@ -326,20 +261,35 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
         ),
         actions: [
           TextButton(
-            onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
           AppButton(
             label: 'Update Password',
             expand: false,
             height: 40,
-            loading: _isSubmitting,
-            onPressed: _submit,
+            onPressed: () async {
+              setDialogState(() {
+                hasAttemptedSubmit = true;
+              });
+
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(ctx);
+                await onSave(
+                  currentPassword: currentCtrl.text,
+                  newPassword: newCtrl.text,
+                );
+              }
+            },
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+
+  currentCtrl.dispose();
+  newCtrl.dispose();
+  confirmCtrl.dispose();
 }
 
 /// Dialog for editing organization information.

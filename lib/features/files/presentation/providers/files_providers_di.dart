@@ -20,11 +20,6 @@ final filesListProvider = AsyncNotifierProvider<FilesListNotifier, FilesPage>(
 );
 
 final foldersListProvider =
-    AsyncNotifierProvider<FoldersListNotifier, FoldersPage>(
+    AsyncNotifierProvider<FoldersListNotifier, List<FileFolder>>(
       FoldersListNotifier.new,
-    );
-
-final filesActionsProvider =
-    NotifierProvider<FilesActionsNotifier, FilesActionsState>(
-      FilesActionsNotifier.new,
     );

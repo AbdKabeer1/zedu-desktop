@@ -1,15 +1,6 @@
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
-/// Shortens [text] for a notification banner: over 80 characters, it keeps the
-/// first 77 and adds "...". It counts characters as people see them (grapheme
-/// clusters), so an emoji or accented letter at the cut is never split.
-String notificationPreview(String text) {
-  final characters = text.characters;
-  if (characters.length <= 80) return text;
-  return '${characters.take(77)}...';
-}
-
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   return NotificationService(ref);
 });
@@ -120,7 +111,9 @@ class NotificationService {
       }
     }
 
-    contentPreview = notificationPreview(contentPreview);
+    if (contentPreview.length > 80) {
+      contentPreview = '${contentPreview.substring(0, 77)}...';
+    }
 
     final notification = LocalNotification(
       title: 'New DM from $senderName',

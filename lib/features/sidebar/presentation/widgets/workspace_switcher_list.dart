@@ -258,7 +258,7 @@ class _WorkspaceListItem extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      avatarInitial(workspace.name, fallback: 'W'),
+                      workspace.name.substring(0, 1).toUpperCase(),
                       style: TextStyle(
                         color: colors.onPrimary,
                         fontWeight: FontWeight.bold,

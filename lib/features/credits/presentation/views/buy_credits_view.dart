@@ -149,7 +149,11 @@ class _BuyCreditsViewState extends ConsumerState<BuyCreditsView> {
 
   Future<void> _onPurchase(BuildContext context, CreditPackage package) async {
     if (package.name.toLowerCase() == 'enterprise') {
-      await _openContactSales(context);
+      AppToastService.show(
+        context,
+        type: AppToastType.success,
+        message: 'Contacting Sales... We will reach out to you shortly!',
+      );
       return;
     }
 
@@ -189,25 +193,6 @@ class _BuyCreditsViewState extends ConsumerState<BuyCreditsView> {
           message: 'Error launching payment page: $e',
         );
       }
-    }
-  }
-
-  Future<void> _openContactSales(BuildContext context) async {
-    var opened = false;
-    try {
-      opened = await launchUrl(
-        Uri.parse(locator<AppConfig>().contactSalesUrl),
-        mode: LaunchMode.platformDefault,
-      );
-    } catch (_) {
-      opened = false;
-    }
-    if (!opened && context.mounted) {
-      AppToastService.show(
-        context,
-        type: AppToastType.error,
-        message: 'Could not open the Contact Sales page.',
-      );
     }
   }
 }

@@ -20,10 +20,7 @@ class FilesToolbar extends ConsumerWidget {
             spacing: 12,
             runSpacing: 12,
             children: [
-              FilesSearchField(
-                value: state.search,
-                onChanged: notifier.setSearch,
-              ),
+              FilesSearchField(onChanged: notifier.setSearch),
               FilesDropdown<FileCategory>(
                 placeholder: 'File Type',
                 value: state.category,
@@ -58,16 +55,10 @@ class FilesToolbar extends ConsumerWidget {
   }
 }
 
-/// Search box that reports what was typed once typing pauses, and follows
-/// [value] when the search changes from elsewhere.
+/// Search box that reports what was typed once typing pauses.
 class FilesSearchField extends StatefulWidget {
-  const FilesSearchField({
-    super.key,
-    required this.value,
-    required this.onChanged,
-  });
+  const FilesSearchField({super.key, required this.onChanged});
 
-  final String value;
   final ValueChanged<String> onChanged;
 
   @override
@@ -75,37 +66,20 @@ class FilesSearchField extends StatefulWidget {
 }
 
 class _FilesSearchFieldState extends State<FilesSearchField> {
-  late final _controller = TextEditingController(text: widget.value);
-  late String _lastReported = widget.value;
   Timer? _debounce;
-
-  @override
-  void didUpdateWidget(FilesSearchField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // [value] catching up with what was typed must not disturb further typing.
-    if (widget.value == oldWidget.value || widget.value == _lastReported) {
-      return;
-    }
-    _debounce?.cancel();
-    _lastReported = widget.value;
-    _controller.text = widget.value;
-  }
 
   @override
   void dispose() {
     _debounce?.cancel();
-    _controller.dispose();
     super.dispose();
-  }
-
-  void _report(String value) {
-    _lastReported = value;
-    widget.onChanged(value);
   }
 
   void _onChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () => _report(value));
+    _debounce = Timer(
+      const Duration(milliseconds: 400),
+      () => widget.onChanged(value),
+    );
   }
 
   @override
@@ -116,11 +90,10 @@ class _FilesSearchFieldState extends State<FilesSearchField> {
       width: 280,
       height: 40,
       child: TextField(
-        controller: _controller,
         onChanged: _onChanged,
         onSubmitted: (value) {
           _debounce?.cancel();
-          _report(value);
+          widget.onChanged(value);
         },
         style: context.textTheme.bodyMedium?.copyWith(
           fontSize: 13,

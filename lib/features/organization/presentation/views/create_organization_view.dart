@@ -16,8 +16,23 @@ class _CreateOrganizationViewState
   final _typeController = TextEditingController();
   String? _selectedCountry;
 
-  // Complete list of countries from central registry
-  static const List<String> _countries = [...kCountries, 'Other'];
+  // Predefined list of countries
+  final List<String> _countries = [
+    'United States',
+    'United Kingdom',
+    'Canada',
+    'Australia',
+    'Nigeria',
+    'India',
+    'Germany',
+    'France',
+    'South Africa',
+    'Kenya',
+    'Brazil',
+    'Japan',
+    'Singapore',
+    'Other',
+  ];
 
   @override
   void dispose() {

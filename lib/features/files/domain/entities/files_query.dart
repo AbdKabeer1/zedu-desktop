@@ -15,17 +15,11 @@ enum FilesScope {
   final String apiMode;
 }
 
-/// The web app's File Type options, in its order.
 enum FileCategory {
   documents('Documents', 'documents'),
-  spreadsheets('Spreadsheets', 'spreadsheets'),
-  presentations('Presentations', 'presentations'),
   images('Images', 'images'),
   videos('Videos', 'videos'),
-  music('Music', 'music'),
-  audio('Audio', 'audio'),
-  archives('Archives', 'archives'),
-  code('Code', 'code');
+  music('Music', 'music');
 
   const FileCategory(this.label, this.apiValue);
 
@@ -125,19 +119,6 @@ class FilesQuery {
     page,
     limit,
   );
-}
-
-/// One page of folders and how many pages there are.
-class FoldersPage {
-  final List<FileFolder> folders;
-  final int currentPage;
-  final int totalPages;
-
-  const FoldersPage({
-    required this.folders,
-    this.currentPage = 1,
-    this.totalPages = 1,
-  });
 }
 
 /// One page of files and how many pages there are.

@@ -3,13 +3,6 @@ import 'package:zedu/features/features.dart';
 
 enum _UserManagementTab { members, invites }
 
-/// `Nov 3, 2026` in local time for a server timestamp; anything else, such as
-/// `Pending`, stays as it is.
-String _formatDateJoined(String value) {
-  final date = DateTime.tryParse(value);
-  return date == null ? value : formatFileDate(date.toLocal());
-}
-
 class UserManagementSection extends StatefulWidget {
   const UserManagementSection({
     super.key,
@@ -69,13 +62,6 @@ class _UserManagementSectionState extends State<UserManagementSection> {
         widget.members
             .where((m) => m.status == TeamMemberStatus.pending)
             .toList();
-    // The selected role stays listed after its last member is removed, since a
-    // dropdown can't hold a value it has no item for.
-    final roleOptions = {
-      for (final member in widget.members)
-        if (member.role.isNotEmpty) member.role,
-      if (_roleFilter != 'All Roles') _roleFilter,
-    }.toList()..sort();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,13 +143,20 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                       DropdownButton<String>(
                         value: _roleFilter,
                         underline: const SizedBox(),
-                        items: [
-                          const DropdownMenuItem(
+                        items: const [
+                          DropdownMenuItem(
                             value: 'All Roles',
                             child: Text('All Roles'),
                           ),
-                          for (final role in roleOptions)
-                            DropdownMenuItem(value: role, child: Text(role)),
+                          DropdownMenuItem(
+                            value: 'Administrator',
+                            child: Text('Administrator'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Manager',
+                            child: Text('Manager'),
+                          ),
+                          DropdownMenuItem(value: 'User', child: Text('User')),
                         ],
                         onChanged: (value) => setState(() {
                           _roleFilter = value ?? 'All Roles';
@@ -245,9 +238,7 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                             cells: [
                               DataCell(_MemberIdentity(email: member.email)),
                               DataCell(Text(member.role)),
-                              DataCell(
-                                Text(_formatDateJoined(member.dateJoined)),
-                              ),
+                              DataCell(Text(member.dateJoined)),
                               DataCell(
                                 ProfileStatusPill(status: member.status.name),
                               ),
@@ -257,7 +248,6 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                                   children: [
                                     SquareIconButton(
                                       icon: Icons.edit_outlined,
-                                      tooltip: 'Edit member',
                                       size: 28,
                                       onTap: () => _showMemberDialog(
                                         context,
@@ -268,7 +258,6 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                                     const SizedBox(width: 8),
                                     SquareIconButton(
                                       icon: Icons.delete_outline,
-                                      tooltip: 'Remove member',
                                       size: 28,
                                       onTap: () => _confirmRemove(
                                         context,
@@ -395,9 +384,7 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                             cells: [
                               DataCell(_MemberIdentity(email: invite.email)),
                               DataCell(Text(invite.role)),
-                              DataCell(
-                                Text(_formatDateJoined(invite.dateJoined)),
-                              ),
+                              DataCell(Text(invite.dateJoined)),
                               DataCell(
                                 ProfileStatusPill(status: invite.status.name),
                               ),
@@ -407,7 +394,6 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                                   children: [
                                     SquareIconButton(
                                       icon: Icons.delete_outline,
-                                      tooltip: 'Remove invite',
                                       size: 28,
                                       onTap: () => _confirmRemove(
                                         context,

@@ -23,7 +23,7 @@ A lean Flutter app using Clean Architecture, Material 3, and Riverpod. The codeb
 │   ├── core/
 │   │   ├── core.dart
 │   │   ├── api_utils/        # ApiBaseService, failures, auth interceptor
-│   │   ├── config/           # AppConfig, env loader
+│   │   ├── config/           # AppConfig, env loader, flavor
 │   │   ├── locator/
 │   │   ├── navigator/        # GoRouter (e.g. login route)
 │   │   ├── secure_storage/
@@ -115,23 +115,25 @@ Env keys are read from **dotenv** after `loadAppEnv()` in `main.dart`. The repo 
 ```txt
 API_BASE_URL=https://api.staging.zedu.chat/api/v1/
 USE_MOCK_DATA=false
+APP_FLAVOR=development
 ```
 
-`USE_MOCK_DATA` accepts `true` / `false` (also `1` / `0`, `yes` / `no`).
+`USE_MOCK_DATA` accepts `true` / `false` (also `1` / `0`, `yes` / `no`). `APP_FLAVOR` accepts `development`, `staging`, or `production` (case-insensitive).
 
 ### Overrides for CI or release builds
 
 `--dart-define` overrides dotenv when you need non-file config:
 
 ```sh
-flutter run --dart-define=API_BASE_URL=https://api.example.com --dart-define=USE_MOCK_DATA=false
+flutter run --dart-define=API_BASE_URL=https://api.example.com --dart-define=USE_MOCK_DATA=false --dart-define=APP_FLAVOR=production
 ```
 
-Defaults when neither `.env` / `.env.example` nor defines set a value (see `AppConfig.fromEnvironment`):
+Defaults when neither `.env` / `.env.example` nor defines set a value (see `AppConfig.fromEnvironment` and `AppFlavorConfig`):
 
 ```txt
 API_BASE_URL=https://api.staging.zedu.chat/api/v1/
 USE_MOCK_DATA=false
+APP_FLAVOR=development
 ```
 
 ## Clone
