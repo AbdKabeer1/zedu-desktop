@@ -101,4 +101,60 @@ void main() {
       expect(find.text('Date Invited'), findsOneWidget);
     });
   });
+
+  group('UserManagementSection Date Joined (Ziki #2392)', () {
+    const timestamp = '2026-11-03T12:06:34.098981Z';
+
+    testWidgets('shows a member timestamp as a readable date', (tester) async {
+      await tester.pumpWidget(
+        buildUnderTest(const [
+          TeamMember(
+            id: '1',
+            email: 'active@example.com',
+            name: 'Active User',
+            role: 'Administrator',
+            dateJoined: timestamp,
+            status: TeamMemberStatus.active,
+          ),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nov 3, 2026'), findsOneWidget);
+      expect(find.text(timestamp), findsNothing);
+    });
+
+    testWidgets('formats an invite timestamp and keeps "Pending"', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildUnderTest(const [
+          TeamMember(
+            id: '1',
+            email: 'sent@example.com',
+            name: 'Sent',
+            role: 'User',
+            dateJoined: timestamp,
+            status: TeamMemberStatus.pending,
+          ),
+          TeamMember(
+            id: '2',
+            email: 'unsent@example.com',
+            name: 'Unsent',
+            role: 'User',
+            dateJoined: 'Pending',
+            status: TeamMemberStatus.pending,
+          ),
+        ]),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Invites'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nov 3, 2026'), findsOneWidget);
+      // The unsent invite's date, plus both invites' status pills.
+      expect(find.text('Pending'), findsNWidgets(3));
+      expect(find.text(timestamp), findsNothing);
+    });
+  });
 }

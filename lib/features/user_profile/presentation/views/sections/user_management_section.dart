@@ -3,6 +3,13 @@ import 'package:zedu/features/features.dart';
 
 enum _UserManagementTab { members, invites }
 
+/// `Nov 3, 2026` in local time for a server timestamp; anything else, such as
+/// `Pending`, stays as it is.
+String _formatDateJoined(String value) {
+  final date = DateTime.tryParse(value);
+  return date == null ? value : formatFileDate(date.toLocal());
+}
+
 class UserManagementSection extends StatefulWidget {
   const UserManagementSection({
     super.key,
@@ -238,7 +245,9 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                             cells: [
                               DataCell(_MemberIdentity(email: member.email)),
                               DataCell(Text(member.role)),
-                              DataCell(Text(member.dateJoined)),
+                              DataCell(
+                                Text(_formatDateJoined(member.dateJoined)),
+                              ),
                               DataCell(
                                 ProfileStatusPill(status: member.status.name),
                               ),
@@ -386,7 +395,9 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                             cells: [
                               DataCell(_MemberIdentity(email: invite.email)),
                               DataCell(Text(invite.role)),
-                              DataCell(Text(invite.dateJoined)),
+                              DataCell(
+                                Text(_formatDateJoined(invite.dateJoined)),
+                              ),
                               DataCell(
                                 ProfileStatusPill(status: invite.status.name),
                               ),
