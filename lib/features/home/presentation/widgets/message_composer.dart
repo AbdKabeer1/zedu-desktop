@@ -1,5 +1,6 @@
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
+import 'package:zedu/features/dms/presentation/components/composer/rich_text_controller.dart';
 
 class MessageComposer extends ConsumerStatefulWidget {
   final ActiveChatState activeChat;
@@ -16,7 +17,7 @@ class MessageComposer extends ConsumerStatefulWidget {
 }
 
 class _MessageComposerState extends ConsumerState<MessageComposer> {
-  final TextEditingController _controller = TextEditingController();
+  final RichTextController _controller = RichTextController();
   final FocusNode _focusNode = FocusNode();
   bool _isFocused = false;
   bool _isRecording = false;
