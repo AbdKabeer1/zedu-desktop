@@ -332,7 +332,9 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
   Future<void> retryMessage(String messageId) async {
     final idx = messages.indexWhere((m) => m['id'] == messageId);
-    if (idx == -1) return;
+    // Status changes to sending synchronously below, so repeated callbacks
+    // cannot start another request for this message before the view rebuilds.
+    if (idx == -1 || messages[idx]['status'] != 'failed') return;
 
     final failedMsg = Map<String, dynamic>.from(messages[idx]);
     final content = failedMsg['content'] as String? ?? '';
@@ -517,7 +519,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
   }
 }
 
-final chatHistoryProvider =
-    ChangeNotifierProvider.autoDispose.family<ChatHistoryNotifier, String>(
+final chatHistoryProvider = ChangeNotifierProvider.autoDispose
+    .family<ChatHistoryNotifier, String>(
       (ref, channelId) => ChatHistoryNotifier(channelId, ref),
     );
