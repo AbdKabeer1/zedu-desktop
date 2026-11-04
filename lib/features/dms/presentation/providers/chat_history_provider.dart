@@ -509,17 +509,19 @@ class ChatHistoryNotifier extends ChangeNotifier {
     }
   }
 
-  Future<void> saveEdit(String messageId, String newContent) {
+  /// Saves an edit. Completes with false when the request failed, in which
+  /// case the message already shows its previous text again.
+  Future<bool> saveEdit(String messageId, String newContent) {
     final previous = _saveEditChains[messageId] ?? Future<void>.value();
     final task = previous.then((_) => _runSaveEdit(messageId, newContent));
-    _saveEditChains[messageId] = task.catchError((_) {});
+    _saveEditChains[messageId] = task.then<void>((_) {}).catchError((_) {});
     return task;
   }
 
-  Future<void> _runSaveEdit(String messageId, String newContent) async {
+  Future<bool> _runSaveEdit(String messageId, String newContent) async {
     if (newContent.trim().isEmpty) {
       cancelEditing();
-      return;
+      return true;
     }
 
     final original = messages.firstWhere(
@@ -551,6 +553,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
         content: newContent,
         threadId: threadId,
       );
+      return true;
     } catch (_) {
       messages = messages.map((m) {
         if (m['id'] == messageId && m['content'] == newContent) {
@@ -561,6 +564,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
         return m;
       }).toList();
       notifyListeners();
+      return false;
     } finally {
       _editsInFlight.remove(messageId);
     }
