@@ -176,7 +176,14 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
       if (hadNew) {
         // Prepend only the genuinely new messages at the top.
-        final existingIds = messages.map((m) => m['id']?.toString()).toSet();
+        // A message just sent keeps its local id and stores the server's id as
+        // thread_id, so match on both or the poll adds a second copy of it.
+        final existingIds = <String?>{
+          for (final m in messages) ...[
+            m['id']?.toString(),
+            if (m['thread_id'] != null) m['thread_id'].toString(),
+          ],
+        };
         final newOnly = fresh
             .where(
               (m) =>
@@ -278,7 +285,11 @@ class ChatHistoryNotifier extends ChangeNotifier {
   }
 
   // What each message was sent with, so a retry sends it the same way.
-  final Map<String, ({List<XFile>? media, bool isChannel})> _sendOptions = {};
+  final Map<
+    String,
+    ({List<XFile>? media, List<dynamic>? mentions, bool isChannel})
+  >
+  _sendOptions = {};
 
   /// Makes each optimistic message id unique, even for sends in the same
   /// millisecond: the id keys [_sendOptions] and the message's later update.
@@ -322,7 +333,11 @@ class ChatHistoryNotifier extends ChangeNotifier {
         ],
     };
 
-    _sendOptions[tempId] = (media: media, isChannel: isChannel);
+    _sendOptions[tempId] = (
+      media: media,
+      mentions: mentions,
+      isChannel: isChannel,
+    );
     messages = [optimisticMessage, ...messages];
     notifyListeners();
 
@@ -380,6 +395,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
         channelId,
         content,
         media: options?.media,
+        mentions: options?.mentions,
         isChannel:
             failedMsg['is_channel'] as bool? ?? options?.isChannel ?? false,
       );
