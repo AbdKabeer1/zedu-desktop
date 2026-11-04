@@ -18,13 +18,15 @@ void main() {
     );
   }
 
-  String? tooltipOf(WidgetTester tester, IconData icon) {
-    final button = find.ancestor(
-      of: find.byIcon(icon),
-      matching: find.byType(IconButton),
-    );
-    return tester.widget<IconButton>(button).tooltip;
-  }
+  Finder buttonWith(IconData icon) =>
+      find.ancestor(of: find.byIcon(icon), matching: find.byType(IconButton));
+
+  String? tooltipOf(WidgetTester tester, IconData icon) =>
+      tester.widget<IconButton>(buttonWith(icon)).tooltip;
+
+  /// What a screen reader announces for the button.
+  String semanticNameOf(WidgetTester tester, IconData icon) =>
+      tester.getSemantics(buttonWith(icon)).getSemanticsData().tooltip;
 
   testWidgets('the close and edit buttons have tooltips', (tester) async {
     await pumpPanel(tester);
@@ -42,5 +44,21 @@ void main() {
     await tester.pump();
 
     expect(tooltipOf(tester, Icons.check), 'Save group name');
+  });
+
+  testWidgets('a screen reader gets a distinct name for each button', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await pumpPanel(tester);
+
+    expect(semanticNameOf(tester, Icons.close), 'Close group details');
+    expect(semanticNameOf(tester, Icons.edit), 'Edit group name');
+
+    await tester.tap(find.byIcon(Icons.edit));
+    await tester.pump();
+
+    expect(semanticNameOf(tester, Icons.check), 'Save group name');
+    semantics.dispose();
   });
 }
