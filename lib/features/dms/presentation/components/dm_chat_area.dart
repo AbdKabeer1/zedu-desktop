@@ -342,6 +342,8 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
                                       )
                                     : DmProfileCard(
                                         conversation: widget.conversation,
+                                        onViewProfile: () =>
+                                            _handleMenuAction('view_profile'),
                                       ),
                               ),
                           ],
