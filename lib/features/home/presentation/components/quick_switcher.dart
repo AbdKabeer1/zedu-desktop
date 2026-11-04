@@ -42,10 +42,14 @@ class QuickSwitcherDialog extends StatefulWidget {
   final List<QuickSwitcherEntry> entries;
   final ValueChanged<QuickSwitcherEntry> onSelected;
 
+  /// Whether more entries are still on their way.
+  final bool loading;
+
   const QuickSwitcherDialog({
     super.key,
     required this.entries,
     required this.onSelected,
+    this.loading = false,
   });
 
   @override
@@ -61,6 +65,25 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(QuickSwitcherDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (identical(widget.entries, oldWidget.entries)) return;
+
+    // Entries arriving must not move the highlight to a different row, or
+    // Enter would open something the user didn't pick.
+    final highlighted = _results.isEmpty ? null : _results[_highlighted];
+    _results = filterQuickSwitcherEntries(widget.entries, _controller.text);
+    final kept = highlighted == null
+        ? -1
+        : _results.indexWhere(
+            (entry) =>
+                entry.label == highlighted.label &&
+                entry.isChannel == highlighted.isChannel,
+          );
+    _highlighted = kept < 0 ? 0 : kept;
   }
 
   void _onQueryChanged(String query) {
@@ -124,7 +147,7 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
                     ? Padding(
                         padding: const EdgeInsets.all(24),
                         child: Text(
-                          'No matches',
+                          widget.loading ? 'Loading…' : 'No matches',
                           style: TextStyle(color: colors.textHint),
                         ),
                       )
@@ -138,6 +161,14 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
                         ),
                       ),
               ),
+              if (widget.loading && _results.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(
+                    'Loading…',
+                    style: TextStyle(color: colors.textHint),
+                  ),
+                ),
             ],
           ),
         ),
