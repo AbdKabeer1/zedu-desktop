@@ -111,7 +111,125 @@ Future<void> _pressCtrlK(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _pressCtrlSlash(WidgetTester tester) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+  await tester.sendKeyEvent(LogicalKeyboardKey.slash);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  await tester.pumpAndSettle();
+}
+
 void main() {
+  group('Keyboard shortcuts list', () {
+    testWidgets('Ctrl+/ opens it, even with a text field focused', (
+      tester,
+    ) async {
+      await _pump(tester);
+
+      await _pressCtrlSlash(tester);
+
+      expect(find.byType(KeyboardShortcutsDialog), findsOneWidget);
+      expect(find.text('Keyboard shortcuts'), findsOneWidget);
+      expect(find.text('Jump to a channel or conversation'), findsOneWidget);
+      expect(find.text('Bold'), findsOneWidget);
+    });
+
+    testWidgets('Cmd+/ opens it', (tester) async {
+      await _pump(tester);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.slash);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(KeyboardShortcutsDialog), findsOneWidget);
+    });
+
+    testWidgets('Escape closes it', (tester) async {
+      await _pump(tester);
+      await _pressCtrlSlash(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(KeyboardShortcutsDialog), findsNothing);
+    });
+
+    testWidgets('the close button closes it', (tester) async {
+      await _pump(tester);
+      await _pressCtrlSlash(tester);
+
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(KeyboardShortcutsDialog), findsNothing);
+    });
+
+    testWidgets('pressing it again does not open a second list', (
+      tester,
+    ) async {
+      await _pump(tester);
+
+      await _pressCtrlSlash(tester);
+      await _pressCtrlSlash(tester);
+
+      expect(find.byType(KeyboardShortcutsDialog), findsOneWidget);
+    });
+
+    testWidgets('does not open over the quick switcher', (tester) async {
+      await _pump(tester);
+
+      await _pressCtrlK(tester);
+      await _pressCtrlSlash(tester);
+
+      expect(find.byType(QuickSwitcherDialog), findsOneWidget);
+      expect(find.byType(KeyboardShortcutsDialog), findsNothing);
+    });
+
+    testWidgets('does nothing when signed out', (tester) async {
+      await _pump(tester, status: AuthStatus.unauthenticated);
+
+      await _pressCtrlSlash(tester);
+
+      expect(find.byType(KeyboardShortcutsDialog), findsNothing);
+    });
+
+    for (final (platform, modifier, other) in [
+      (TargetPlatform.windows, 'Ctrl', 'Cmd'),
+      (TargetPlatform.linux, 'Ctrl', 'Cmd'),
+      (TargetPlatform.macOS, 'Cmd', 'Ctrl'),
+    ]) {
+      testWidgets('shows $modifier on ${platform.name}', (tester) async {
+        debugDefaultTargetPlatformOverride = platform;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: const KeyboardShortcutsDialog(),
+          ),
+        );
+
+        expect(find.text(modifier), findsWidgets);
+        expect(find.text(other), findsNothing);
+        debugDefaultTargetPlatformOverride = null;
+      });
+    }
+
+    testWidgets('fits and scrolls in a short window', (tester) async {
+      tester.view.physicalSize = const Size(640, 300);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const KeyboardShortcutsDialog(),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(SingleChildScrollView), findsOneWidget);
+    });
+  });
+
   group('QuickSwitcherShortcut', () {
     testWidgets(
       'Ctrl+K opens the switcher with channels and DMs, not archived channels',

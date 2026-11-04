@@ -2,7 +2,8 @@ import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
 /// Opens the [QuickSwitcherDialog] on Cmd+K (macOS) or Ctrl+K (Windows,
-/// Linux) from any screen once the user is signed in.
+/// Linux), and the [KeyboardShortcutsDialog] on Cmd+/ or Ctrl+/, from any
+/// screen once the user is signed in.
 class QuickSwitcherShortcut extends ConsumerStatefulWidget {
   final Widget child;
 
@@ -81,6 +82,23 @@ class _QuickSwitcherShortcutState extends ConsumerState<QuickSwitcherShortcut> {
     }
   }
 
+  Future<void> _showShortcuts() async {
+    final signedIn =
+        ref.read(authNotifierProvider).status == AuthStatus.authenticated;
+    final navigatorContext = _router.routerDelegate.navigatorKey.currentContext;
+    if (_open || !signedIn || navigatorContext == null) return;
+
+    _open = true;
+    try {
+      await showDialog<void>(
+        context: navigatorContext,
+        builder: (_) => const KeyboardShortcutsDialog(),
+      );
+    } finally {
+      _open = false;
+    }
+  }
+
   void _openEntry(QuickSwitcherEntry entry) {
     final conversation = entry.conversation;
     if (conversation == null) {
@@ -105,6 +123,10 @@ class _QuickSwitcherShortcutState extends ConsumerState<QuickSwitcherShortcut> {
             _showSwitcher,
         const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
             _showSwitcher,
+        const SingleActivator(LogicalKeyboardKey.slash, control: true):
+            _showShortcuts,
+        const SingleActivator(LogicalKeyboardKey.slash, meta: true):
+            _showShortcuts,
       },
       child: widget.child,
     );
