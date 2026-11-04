@@ -1,35 +1,52 @@
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
-/// A list of common timezone labels for the timezone dropdown.
-const List<String> _kTimezones = [
-  '(UTC-12:00) International Date Line West',
-  '(UTC-11:00) Midway Island, Samoa',
-  '(UTC-10:00) Hawaii',
-  '(UTC-09:00) Alaska',
-  '(UTC-08:00) Pacific Time (US & Canada)',
-  '(UTC-07:00) Mountain Time (US & Canada)',
-  '(UTC-06:00) Central Time (US & Canada)',
-  '(UTC-05:00) Eastern Time (US & Canada)',
-  '(UTC-04:00) Atlantic Time (Canada)',
-  '(UTC-03:00) Buenos Aires, Georgetown',
-  '(UTC-02:00) Mid-Atlantic',
-  '(UTC-01:00) Azores, Cape Verde Islands',
-  '(UTC+00:00) London, Dublin, Lisbon',
-  '(UTC+01:00) West Central Africa',
-  '(UTC+02:00) Cairo, Helsinki, Bucharest',
-  '(UTC+03:00) Moscow, Nairobi, Baghdad',
-  '(UTC+04:00) Abu Dhabi, Muscat',
-  '(UTC+05:00) Islamabad, Karachi',
-  '(UTC+05:30) Chennai, Kolkata, Mumbai',
-  '(UTC+06:00) Almaty, Dhaka',
-  '(UTC+07:00) Bangkok, Hanoi, Jakarta',
-  '(UTC+08:00) Beijing, Singapore, Perth',
-  '(UTC+09:00) Tokyo, Seoul, Osaka',
-  '(UTC+10:00) Sydney, Guam, Vladivostok',
-  '(UTC+11:00) Solomon Islands, New Caledonia',
-  '(UTC+12:00) Auckland, Wellington, Fiji',
-];
+/// Common timezones for the dropdown: the IANA id the account stores, mapped
+/// to the label shown to the user.
+const Map<String, String> _kTimezones = {
+  'Etc/GMT+12': '(UTC-12:00) International Date Line West',
+  'Pacific/Pago_Pago': '(UTC-11:00) Midway Island, Samoa',
+  'Pacific/Honolulu': '(UTC-10:00) Hawaii',
+  'America/Anchorage': '(UTC-09:00) Alaska',
+  'America/Los_Angeles': '(UTC-08:00) Pacific Time (US & Canada)',
+  'America/Denver': '(UTC-07:00) Mountain Time (US & Canada)',
+  'America/Chicago': '(UTC-06:00) Central Time (US & Canada)',
+  'America/New_York': '(UTC-05:00) Eastern Time (US & Canada)',
+  'America/Halifax': '(UTC-04:00) Atlantic Time (Canada)',
+  'America/Argentina/Buenos_Aires': '(UTC-03:00) Buenos Aires, Georgetown',
+  'Atlantic/South_Georgia': '(UTC-02:00) Mid-Atlantic',
+  'Atlantic/Azores': '(UTC-01:00) Azores, Cape Verde Islands',
+  'Europe/London': '(UTC+00:00) London, Dublin, Lisbon',
+  'Africa/Lagos': '(UTC+01:00) West Central Africa',
+  'Africa/Cairo': '(UTC+02:00) Cairo, Helsinki, Bucharest',
+  'Europe/Moscow': '(UTC+03:00) Moscow, Nairobi, Baghdad',
+  'Asia/Dubai': '(UTC+04:00) Abu Dhabi, Muscat',
+  'Asia/Karachi': '(UTC+05:00) Islamabad, Karachi',
+  'Asia/Kolkata': '(UTC+05:30) Chennai, Kolkata, Mumbai',
+  'Asia/Dhaka': '(UTC+06:00) Almaty, Dhaka',
+  'Asia/Bangkok': '(UTC+07:00) Bangkok, Hanoi, Jakarta',
+  'Asia/Singapore': '(UTC+08:00) Beijing, Singapore, Perth',
+  'Asia/Tokyo': '(UTC+09:00) Tokyo, Seoul, Osaka',
+  'Australia/Sydney': '(UTC+10:00) Sydney, Guam, Vladivostok',
+  'Pacific/Guadalcanal': '(UTC+11:00) Solomon Islands, New Caledonia',
+  'Pacific/Auckland': '(UTC+12:00) Auckland, Wellington, Fiji',
+};
+
+/// Used when the account has no timezone (matches the profile default).
+const String _kDefaultTimezone = 'Africa/Lagos';
+
+/// The IANA id to select for a saved timezone: the id itself, the id of a
+/// label saved by older builds, or [_kDefaultTimezone] when empty. Unknown
+/// ids are kept so saving the profile does not overwrite them.
+String normalizeProfileTimezone(String saved) {
+  final value = saved.trim();
+  if (value.isEmpty) return _kDefaultTimezone;
+  if (_kTimezones.containsKey(value)) return value;
+  for (final entry in _kTimezones.entries) {
+    if (entry.value == value) return entry.key;
+  }
+  return value;
+}
 
 String _canonicalCountryName(String value) {
   final trimmedValue = value.trim();
@@ -87,9 +104,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
       text: widget.account.namePronunciation,
     );
 
-    selectedTimezone = widget.account.timezone.isNotEmpty
-        ? widget.account.timezone
-        : _kTimezones.first;
+    selectedTimezone = normalizeProfileTimezone(widget.account.timezone);
     selectedCountry = widget.account.country;
   }
 
@@ -237,10 +252,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                             ProfileFieldLabel('Timezone'),
                             const SizedBox(height: 6),
                             DropdownButtonFormField<String>(
-                              initialValue:
-                                  _kTimezones.contains(selectedTimezone)
-                                  ? selectedTimezone
-                                  : _kTimezones.first,
+                              initialValue: selectedTimezone,
                               isExpanded: true,
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(
@@ -256,18 +268,27 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                                   vertical: 14,
                                 ),
                               ),
-                              items: _kTimezones
-                                  .map(
-                                    (tz) => DropdownMenuItem(
-                                      value: tz,
-                                      child: Text(
-                                        tz,
-                                        style: context.textTheme.bodySmall,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                              items: [
+                                if (!_kTimezones.containsKey(selectedTimezone))
+                                  DropdownMenuItem(
+                                    value: selectedTimezone,
+                                    child: Text(
+                                      selectedTimezone,
+                                      style: context.textTheme.bodySmall,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  )
-                                  .toList(),
+                                  ),
+                                ..._kTimezones.entries.map(
+                                  (tz) => DropdownMenuItem(
+                                    value: tz.key,
+                                    child: Text(
+                                      tz.value,
+                                      style: context.textTheme.bodySmall,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                              ],
                               onChanged: (v) => setState(
                                 () => selectedTimezone = v ?? selectedTimezone,
                               ),
