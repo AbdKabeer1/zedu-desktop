@@ -89,7 +89,9 @@ void main() {
     expect(find.text('2024-02-01'), findsOneWidget);
   });
 
-  testWidgets('Shows empty payment history state when no records', (tester) async {
+  testWidgets('Shows empty payment history state when no records', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         child: buildTestMaterialApp(
@@ -104,6 +106,9 @@ void main() {
     );
 
     expect(find.text('No payment history found.'), findsOneWidget);
-    expect(find.textContaining('Your payment and transaction history'), findsOneWidget);
+    expect(
+      find.textContaining('Your payment and transaction history'),
+      findsOneWidget,
+    );
   });
 }
