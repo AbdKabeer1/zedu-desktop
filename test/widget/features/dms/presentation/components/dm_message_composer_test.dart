@@ -326,6 +326,134 @@ void main() {
     });
   });
 
+  group('DmMessageComposer turning a format off', () {
+    /// Types [typed] at the caret, as the keyboard would.
+    Future<void> typeAtCaret(WidgetTester tester, String typed) async {
+      final controller = composerController(tester);
+      final caret = controller.selection.start;
+      final text = controller.text;
+      controller.value = TextEditingValue(
+        text: text.substring(0, caret) + typed + text.substring(caret),
+        selection: TextSelection.collapsed(offset: caret + typed.length),
+      );
+      await tester.pump();
+    }
+
+    Future<void> tapFormat(WidgetTester tester, String tooltip) async {
+      await tester.tap(find.byTooltip(tooltip));
+      await tester.pump();
+    }
+
+    const formats = [
+      (tooltip: 'Bold (Ctrl+B)', marker: '**'),
+      (tooltip: 'Italic (Ctrl+I)', marker: '*'),
+      (tooltip: 'Strikethrough', marker: '~~'),
+      (tooltip: 'Inline code', marker: '`'),
+    ];
+
+    for (final format in formats) {
+      final m = format.marker;
+
+      testWidgets('${format.tooltip}: a second click ends the run', (
+        tester,
+      ) async {
+        await tester.pumpWidget(buildComposerUnderTest());
+        await typeAndSelect(
+          tester,
+          '',
+          selection: const TextSelection.collapsed(offset: 0),
+        );
+
+        await tapFormat(tester, format.tooltip);
+        await typeAtCaret(tester, 'word');
+        await tapFormat(tester, format.tooltip);
+        await typeAtCaret(tester, ' plain');
+
+        final controller = composerController(tester);
+        expect(controller.text, '${m}word$m plain');
+        expect(
+          controller.selection,
+          TextSelection.collapsed(offset: '${m}word$m plain'.length),
+        );
+        controller.clear();
+        await tester.pump(const Duration(milliseconds: 300));
+      });
+
+      testWidgets('${format.tooltip}: two clicks in a row leave no markers', (
+        tester,
+      ) async {
+        await tester.pumpWidget(buildComposerUnderTest());
+        await typeAndSelect(
+          tester,
+          'hi ',
+          selection: const TextSelection.collapsed(offset: 3),
+        );
+
+        await tapFormat(tester, format.tooltip);
+        await tapFormat(tester, format.tooltip);
+
+        final controller = composerController(tester);
+        expect(controller.text, 'hi ');
+        expect(controller.selection, const TextSelection.collapsed(offset: 3));
+        controller.clear();
+        await tester.pump(const Duration(milliseconds: 300));
+      });
+    }
+
+    testWidgets('closes a run that has no closing marker yet', (tester) async {
+      await tester.pumpWidget(buildComposerUnderTest());
+      await typeAndSelect(
+        tester,
+        '**bold',
+        selection: const TextSelection.collapsed(offset: 6),
+      );
+
+      await tapFormat(tester, 'Bold (Ctrl+B)');
+      await typeAtCaret(tester, ' plain');
+
+      final controller = composerController(tester);
+      expect(controller.text, '**bold** plain');
+      controller.clear();
+      await tester.pump(const Duration(milliseconds: 300));
+    });
+
+    testWidgets('Italic inside a bold run still starts an italic pair', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildComposerUnderTest());
+      await typeAndSelect(
+        tester,
+        '**bold**',
+        selection: const TextSelection.collapsed(offset: 6),
+      );
+
+      await tapFormat(tester, 'Italic (Ctrl+I)');
+
+      final controller = composerController(tester);
+      expect(controller.text, '**bold****');
+      expect(controller.selection, const TextSelection.collapsed(offset: 7));
+      controller.clear();
+      await tester.pump(const Duration(milliseconds: 300));
+    });
+
+    testWidgets('Ctrl+B also ends the bold run', (tester) async {
+      await tester.pumpWidget(buildComposerUnderTest());
+      await typeAndSelect(
+        tester,
+        '**bold**',
+        selection: const TextSelection.collapsed(offset: 6),
+      );
+
+      await pressShortcut(tester, LogicalKeyboardKey.keyB);
+
+      final controller = composerController(tester);
+      expect(controller.text, '**bold**');
+      expect(controller.selection, const TextSelection.collapsed(offset: 8));
+      controller.clear();
+      await tester.pump(const Duration(milliseconds: 300));
+    });
+  });
+
   group('DmMessageComposer drafts with no channel yet', () {
     testWidgets('each person keeps their own draft', (tester) async {
       final draftKey = ValueNotifier('new-dm:ada');

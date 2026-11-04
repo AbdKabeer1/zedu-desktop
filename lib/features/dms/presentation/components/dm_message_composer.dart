@@ -217,11 +217,29 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     }
     final before = text.substring(0, sel.baseOffset);
     setState(() {
-      _isBold = '**'.allMatches(before).length % 2 != 0;
-      _isItalic = RegExp(r'(?<!\*)\*(?!\*)').allMatches(before).length % 2 != 0;
-      _isStrikethrough = '~~'.allMatches(before).length % 2 != 0;
-      _isCode = '`'.allMatches(before).length % 2 != 0;
+      _isBold = _isMarkerOpen(before, '**');
+      _isItalic = _isMarkerOpen(before, '*');
+      _isStrikethrough = _isMarkerOpen(before, '~~');
+      _isCode = _isMarkerOpen(before, '`');
     });
+  }
+
+  static final _loneAsterisk = RegExp(r'(?<!\*)\*(?!\*)');
+
+  /// Whether [textBefore] leaves a [marker] run open, so text typed next is
+  /// inside it. A lone `*` is italic; the `*`s of `**` belong to bold.
+  static bool _isMarkerOpen(String textBefore, String marker) {
+    final count = marker == '*'
+        ? _loneAsterisk.allMatches(textBefore).length
+        : marker.allMatches(textBefore).length;
+    return count.isOdd;
+  }
+
+  /// Whether [textAfter] starts with [marker] as its own token: for italic,
+  /// a `*` that is not part of `**`.
+  static bool _startsWithMarker(String textAfter, String marker) {
+    if (marker == '*') return textAfter.startsWith(_loneAsterisk);
+    return textAfter.startsWith(marker);
   }
 
   void _updateMentionSuggestions() {
@@ -435,7 +453,11 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
 
     if (!sel.isValid) return;
 
-    if (sel.isCollapsed) {
+    if (sel.isCollapsed &&
+        before == after &&
+        _isMarkerOpen(text.substring(0, sel.start), before)) {
+      _endMarkerRun(before);
+    } else if (sel.isCollapsed) {
       final insert = '$before$after';
       final newText =
           text.substring(0, sel.start) + insert + text.substring(sel.end);
@@ -457,6 +479,36 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
       );
     }
     _focusNode.requestFocus();
+  }
+
+  /// Ends the [marker] run the caret is in, so a second click on Bold (or
+  /// Italic, Strikethrough, Code) turns the format off instead of inserting
+  /// another, empty pair of markers.
+  void _endMarkerRun(String marker) {
+    final text = _controller.text;
+    final caret = _controller.selection.start;
+    final head = text.substring(0, caret);
+    final tail = text.substring(caret);
+
+    if (head.endsWith(marker) && _startsWithMarker(tail, marker)) {
+      // Nothing typed between the markers yet: drop the empty pair.
+      final start = caret - marker.length;
+      _controller.value = TextEditingValue(
+        text: text.substring(0, start) + tail.substring(marker.length),
+        selection: TextSelection.collapsed(offset: start),
+      );
+    } else if (_startsWithMarker(tail, marker)) {
+      // Step over the closing marker so the next text is plain.
+      _controller.selection = TextSelection.collapsed(
+        offset: caret + marker.length,
+      );
+    } else {
+      // The run has no closing marker yet: close it here.
+      _controller.value = TextEditingValue(
+        text: head + marker + tail,
+        selection: TextSelection.collapsed(offset: caret + marker.length),
+      );
+    }
   }
 
   void _insertBold() => _wrapSelection('**');
