@@ -9,6 +9,7 @@ class MockDmRepository extends Mock implements DmRepository {}
 void main() {
   _deleteTests();
   _retryTests();
+  _loadErrorTests();
   group('ChatHistoryNotifier.saveEdit', () {
     late MockDmRepository mockRepository;
     late ProviderContainer container;
@@ -256,6 +257,90 @@ void _deleteTests() {
       await notifier.deleteMessage('m1');
 
       expect(notifier.messages.map((m) => m['id']), ['m1', 'm2']);
+    });
+  });
+}
+
+void _loadErrorTests() {
+  group('ChatHistoryNotifier load errors', () {
+    late MockDmRepository mockRepository;
+    late ProviderContainer container;
+
+    List<Map<String, dynamic>> page(int count, String prefix) => [
+      for (var i = 0; i < count; i++)
+        {'id': '$prefix$i', 'content': 'msg $i', 'user_id': 'u1'},
+    ];
+
+    setUp(() {
+      mockRepository = MockDmRepository();
+      container = ProviderContainer(
+        overrides: [dmRepositoryProvider.overrideWithValue(mockRepository)],
+      );
+    });
+
+    tearDown(() => container.dispose());
+
+    test('flags a failed first load and clears it on retry', () async {
+      var fail = true;
+      when(
+        () => mockRepository.getMessages(any(), page: any(named: 'page')),
+      ).thenAnswer((_) async {
+        if (fail) throw Exception('network error');
+        return page(2, 'm');
+      });
+
+      final notifier = container.read(chatHistoryProvider('ch-1'));
+      await pumpEventQueue();
+
+      expect(notifier.loadFailed, isTrue);
+      expect(notifier.isLoading, isFalse);
+      expect(notifier.messages, isEmpty);
+
+      fail = false;
+      await notifier.retryLoad();
+
+      expect(notifier.loadFailed, isFalse);
+      expect(notifier.messages.map((m) => m['id']), ['m0', 'm1']);
+    });
+
+    test('a successful first load reports no error', () async {
+      when(
+        () => mockRepository.getMessages(any(), page: any(named: 'page')),
+      ).thenAnswer((_) async => page(2, 'm'));
+
+      final notifier = container.read(chatHistoryProvider('ch-1'));
+      await pumpEventQueue();
+
+      expect(notifier.loadFailed, isFalse);
+      expect(notifier.loadMoreFailed, isFalse);
+    });
+
+    test('a failed loadMore keeps hasMore and can be retried', () async {
+      var failNextPage = true;
+      when(
+        () => mockRepository.getMessages(any(), page: 1),
+      ).thenAnswer((_) async => page(DmRepository.pageSize, 'a'));
+      when(() => mockRepository.getMessages(any(), page: 2)).thenAnswer((
+        _,
+      ) async {
+        if (failNextPage) throw Exception('network error');
+        return page(1, 'b');
+      });
+
+      final notifier = container.read(chatHistoryProvider('ch-1'));
+      await pumpEventQueue();
+      await notifier.loadMore();
+
+      expect(notifier.loadMoreFailed, isTrue);
+      expect(notifier.hasMore, isTrue);
+      expect(notifier.page, 1);
+
+      failNextPage = false;
+      await notifier.loadMore();
+
+      expect(notifier.loadMoreFailed, isFalse);
+      expect(notifier.page, 2);
+      expect(notifier.messages.last['id'], 'b0');
     });
   });
 }
