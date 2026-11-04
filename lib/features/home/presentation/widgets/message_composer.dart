@@ -293,10 +293,12 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                     onKeyEvent: (node, event) {
                       if (event is! KeyDownEvent) return KeyEventResult.ignored;
                       final key = event.logicalKey;
-                      // Allow submitting with Ctrl/Cmd+Enter like the DM composer.
-                      if (key == LogicalKeyboardKey.enter &&
-                          (HardwareKeyboard.instance.isControlPressed ||
-                              HardwareKeyboard.instance.isMetaPressed)) {
+                      if (key == LogicalKeyboardKey.enter ||
+                          key == LogicalKeyboardKey.numpadEnter) {
+                        // Shift+Enter falls through so the default newline is inserted.
+                        if (HardwareKeyboard.instance.isShiftPressed) {
+                          return KeyEventResult.ignored;
+                        }
                         _handleSend();
                         return KeyEventResult.handled;
                       }
@@ -342,6 +344,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                         onPressed: _stopRecording,
                         icon: Icon(Icons.stop_circle, color: colors.error),
                         splashRadius: 20,
+                        tooltip: 'Stop recording',
                       ),
                     ],
                   )
@@ -350,6 +353,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                     onPressed: _handleSend,
                     icon: Icon(Icons.send, color: colors.primary),
                     splashRadius: 20,
+                    tooltip: 'Send message',
                   ),
               ],
             ),
