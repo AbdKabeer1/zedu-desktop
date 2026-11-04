@@ -380,7 +380,7 @@ class HomeChatArea extends ConsumerWidget {
 
     return Column(
       children: [
-        _buildChatHeader(context, channelName),
+        _buildChatHeader(context, channelName, selected),
         Expanded(
           child: channelId.isEmpty
               ? welcome
@@ -401,7 +401,11 @@ class HomeChatArea extends ConsumerWidget {
     );
   }
 
-  Widget _buildChatHeader(BuildContext context, String channelName) {
+  Widget _buildChatHeader(
+    BuildContext context,
+    String channelName,
+    Channel? channel,
+  ) {
     final colors = context.colors;
 
     return Container(
@@ -432,7 +436,10 @@ class HomeChatArea extends ConsumerWidget {
             child: Icon(Icons.person, size: 18, color: colors.onPrimary),
           ),
           const SizedBox(width: 8),
-          Icon(Icons.more_vert, color: colors.textHint),
+          if (channel == null)
+            Icon(Icons.more_vert, color: colors.textHint)
+          else
+            _ChannelHeaderMenu(channel: channel),
         ],
       ),
     );
@@ -466,6 +473,97 @@ class HomeChatArea extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// The channel header's "more" menu.
+class _ChannelHeaderMenu extends ConsumerWidget {
+  final Channel channel;
+
+  const _ChannelHeaderMenu({required this.channel});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.colors;
+
+    return PopupMenuButton<String>(
+      key: const ValueKey('channel-header-menu'),
+      tooltip: 'Channel options',
+      position: PopupMenuPosition.under,
+      icon: Icon(Icons.more_vert, color: colors.textHint),
+      onSelected: (value) {
+        if (value == 'leave') _confirmLeave(context, ref);
+      },
+      itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'leave',
+          child: Row(
+            children: [
+              Icon(Icons.logout, size: 18, color: colors.error),
+              const SizedBox(width: 12),
+              Text('Leave channel', style: TextStyle(color: colors.error)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmLeave(BuildContext context, WidgetRef ref) async {
+    final colors = context.colors;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Leave #${channel.name}?'),
+        content: Text(
+          channel.isPrivate
+              ? 'You will stop getting its messages, and someone will need to '
+                    'add you again to rejoin.'
+              : 'You will stop getting its messages. You can join it again '
+                    'from the channel directory.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text('Leave', style: TextStyle(color: colors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final result = await ref
+        .read(channelProvider.notifier)
+        .leaveChannel(channel.id);
+
+    switch (result) {
+      case Success<void>():
+        // Open another channel so the header never shows one we left.
+        final remaining = ref.read(channelProvider).value ?? const <Channel>[];
+        ref
+            .read(activeChatProvider.notifier)
+            .selectChannel(
+              remaining.isEmpty ? 'general' : remaining.first.name,
+            );
+        AppToastService.showWith(
+          overlay,
+          type: AppToastType.success,
+          message: 'You left #${channel.name}',
+        );
+      case Failure<void>(:final error):
+        AppToastService.showWith(
+          overlay,
+          type: AppToastType.error,
+          message: error.message.isEmpty
+              ? 'Could not leave #${channel.name}'
+              : error.message,
+        );
+    }
   }
 }
 
