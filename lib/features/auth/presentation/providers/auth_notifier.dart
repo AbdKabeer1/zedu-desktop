@@ -109,6 +109,17 @@ class AuthNotifier extends Notifier<AuthState> {
       _disposed = true;
     });
 
+    // Signing out or in must never show the other session's data, however
+    // the session changed (logout, expired token, login, magic link, Google).
+    listenSelf((previous, next) {
+      final changedSession =
+          (previous?.status == AuthStatus.authenticated &&
+              next.status == AuthStatus.unauthenticated) ||
+          (previous?.status == AuthStatus.unauthenticated &&
+              next.status == AuthStatus.authenticated);
+      if (changedSession) _resetSessionData();
+    });
+
     _interceptor.onUnauthorized = () {
       AppLogger.w('Unauthorized — clearing session', tag: _tag);
       _bumpSession();
@@ -117,6 +128,29 @@ class AuthNotifier extends Notifier<AuthState> {
     };
     _restoreSession();
     return const AuthState(status: AuthStatus.unknown);
+  }
+
+  /// Rebuilds everything that belongs to one signed-in session. These providers
+  /// live in the root scope, so they otherwise outlast sign-out.
+  void _resetSessionData() {
+    ref
+      ..invalidate(workspaceProvider)
+      ..invalidate(userProfileNotifierProvider)
+      ..invalidate(creditsNotifierProvider)
+      ..invalidate(channelProvider)
+      ..invalidate(dmListProvider)
+      ..invalidate(selectedDmProvider)
+      ..invalidate(dmConversationActionsProvider)
+      ..invalidate(chatHistoryProvider)
+      ..invalidate(activeChatProvider)
+      ..invalidate(activeCallProvider)
+      ..invalidate(groupDmProvider)
+      ..invalidate(homeSidebarProvider)
+      ..invalidate(personalProfilePanelProvider)
+      ..invalidate(notificationSettingsProvider)
+      ..invalidate(filesProvider)
+      ..invalidate(filesListProvider)
+      ..invalidate(foldersListProvider);
   }
 
   /// Invalidates every in-flight status request and releases the presence
