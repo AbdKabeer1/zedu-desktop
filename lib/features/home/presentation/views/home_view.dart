@@ -510,9 +510,32 @@ class _ChannelHeaderMenu extends ConsumerWidget {
       position: PopupMenuPosition.under,
       icon: Icon(Icons.more_vert, color: colors.textHint),
       onSelected: (value) {
+        if (value == 'notifications') {
+          ChannelNotificationDialog.show(context, channel);
+        }
         if (value == 'leave') _confirmLeave(context, ref);
       },
       itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'notifications',
+          child: Row(
+            children: [
+              Icon(
+                Icons.notifications_outlined,
+                size: 18,
+                color: colors.textPrimary,
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  'Notification settings',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: colors.textPrimary),
+                ),
+              ),
+            ],
+          ),
+        ),
         PopupMenuItem(
           value: 'leave',
           child: Row(
