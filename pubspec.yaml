@@ -51,6 +51,7 @@ flutter:
     - .env.example
     - assets/pngs/
     - assets/svgs/
+    - assets/sounds/
   fonts:
     - family: Roboto
       fonts:
