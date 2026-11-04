@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart'
     show AudioPlayer, DeviceFileSource;
 
 import 'package:zedu/core/core.dart';
+import 'package:zedu/core/utils/shortcut_manager.dart';
 import 'package:zedu/features/features.dart';
 
 import 'composer/composer.dart';
@@ -398,6 +399,11 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     }
 
     if (key == LogicalKeyboardKey.keyB &&
+        (HardwareKeyboard.instance.isControlPressed ||
+            HardwareKeyboard.instance.isMetaPressed)) {
+      _insertBold();
+      return KeyEventResult.handled;
+    }
 
     if (key == LogicalKeyboardKey.keyI &&
         (HardwareKeyboard.instance.isControlPressed ||
