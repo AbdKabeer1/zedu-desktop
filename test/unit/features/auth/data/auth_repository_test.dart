@@ -91,6 +91,27 @@ void main() {
         expect(user.email, mockUser.email);
       });
 
+      test('keeps the status from /profile on the restored user', () async {
+        final profile = ProfileModel.fromJson({
+          ...LoginResponseModel.mockLoginResponse['user']
+              as Map<String, dynamic>,
+          'icon': '🌴',
+          'text': 'Vacationing',
+          'status_timeout': 'dont-clear',
+          'online': false,
+        });
+        when(() => mockDatasource.me()).thenAnswer((_) async => profile);
+
+        final result = await repository.getCurrentUser();
+
+        final status = (result as Success<User>).value.status;
+        expect(status.emoji, '🌴');
+        expect(status.text, 'Vacationing');
+        expect(status.expiresAt, isNull);
+        expect(status.online, isFalse);
+        expect(status.hasCustomStatus, isTrue);
+      });
+
       test('returns Failure when datasource throws ApiFailure', () async {
         when(() => mockDatasource.me()).thenThrow(
           const ApiFailure(

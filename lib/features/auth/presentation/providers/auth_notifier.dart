@@ -550,10 +550,10 @@ class AuthNotifier extends Notifier<AuthState> {
           // org: keep the locally newer status and take only the fresh profile fields.
           adopted = fresh._withStatus(current.status);
         } else {
-          // On a same-organisation refresh, the profile response supplies
-          // presence but not custom-status fields. Preserve those locally
-          // confirmed fields while adopting the server's latest presence.
-          // Do not carry them into a different organisation.
+          // On a same-organisation refresh, keep the custom status this
+          // session already holds (loaded from the profile at sign-in, or
+          // confirmed since) while adopting the server's latest presence.
+          // Do not carry it into a different organisation.
           adopted = orgChanged
               ? fresh
               : fresh._withStatus(
