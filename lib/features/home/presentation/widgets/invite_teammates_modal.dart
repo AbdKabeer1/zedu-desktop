@@ -94,11 +94,10 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
     if (!_addEmailFromInput()) return;
 
     if (_invites.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please enter at least one email address.'),
-          backgroundColor: context.colors.error,
-        ),
+      AppToastService.show(
+        context,
+        type: AppToastType.error,
+        message: 'Please enter at least one email address.',
       );
       return;
     }
@@ -130,22 +129,20 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
     if (!mounted) return;
 
     if (successCount > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Successfully invited $successCount teammates.'),
-          backgroundColor: context.colors.success,
-        ),
+      AppToastService.show(
+        context,
+        type: AppToastType.success,
+        message: 'Successfully invited $successCount teammates.',
       );
       Navigator.pop(context);
     } else if (lastError != null) {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(lastError),
-          backgroundColor: context.colors.error,
-        ),
+      AppToastService.show(
+        context,
+        type: AppToastType.error,
+        message: lastError,
       );
     }
   }
@@ -156,30 +153,27 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
     if (!mounted) return;
     setState(() => _isAddingEveryone = false);
 
-    final colors = context.colors;
-    final messenger = ScaffoldMessenger.of(context);
     switch (result) {
       case AddEveryoneAdded(:final count, :final channelName):
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
+        AppToastService.show(
+          context,
+          type: AppToastType.success,
+          message:
               'Added $count ${count == 1 ? 'person' : 'people'} to #$channelName.',
-            ),
-            backgroundColor: colors.success,
-          ),
         );
         Navigator.pop(context);
       case AddEveryoneNobodyToAdd(:final channelName):
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
+        AppToastService.show(
+          context,
+          type: AppToastType.info,
+          message:
               'Everyone in your organisation is already in #$channelName.',
-            ),
-          ),
         );
       case AddEveryoneFailed(:final message):
-        messenger.showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: colors.error),
+        AppToastService.show(
+          context,
+          type: AppToastType.error,
+          message: message,
         );
     }
   }
@@ -366,21 +360,17 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
                         if (link != null && context.mounted) {
                           await Clipboard.setData(ClipboardData(text: link));
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text(
-                                  'Invite link copied to clipboard!',
-                                ),
-                                backgroundColor: colors.success,
-                              ),
+                            AppToastService.show(
+                              context,
+                              type: AppToastType.success,
+                              message: 'Invite link copied to clipboard!',
                             );
                           }
                         } else if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Failed to generate link'),
-                              backgroundColor: colors.error,
-                            ),
+                          AppToastService.show(
+                            context,
+                            type: AppToastType.error,
+                            message: 'Failed to generate link',
                           );
                         }
                       },
