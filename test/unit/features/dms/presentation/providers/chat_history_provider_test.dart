@@ -164,8 +164,11 @@ void main() {
 
   _deleteTests();
   _retryTests();
+  _deleteTests();
+  _retryTests();
   _clearHistoryTests();
   _loadErrorTests();
+  _disposalTests();
   group('ChatHistoryNotifier.saveEdit', () {
     late MockDmRepository mockRepository;
     late ProviderContainer container;
@@ -573,6 +576,112 @@ void _loadErrorTests() {
       expect(notifier.loadMoreFailed, isFalse);
       expect(notifier.page, 2);
       expect(notifier.messages.last['id'], 'b0');
+    });
+  });
+}
+
+void _disposalTests() {
+  group('ChatHistoryNotifier disposal guards', () {
+    test(
+      'an edit that completes after dispose notifies no one and does not crash',
+      () async {
+        final mockRepository = MockDmRepository();
+        when(
+          () => mockRepository.getMessages(any(), page: any(named: 'page')),
+        ).thenAnswer(
+          (_) async => [
+            {'id': 'm1', 'content': 'hello', 'user_id': 'u1'},
+          ],
+        );
+        final editRequest = Completer<void>();
+        when(
+          () => mockRepository.editMessage(
+            any(),
+            content: any(named: 'content'),
+            threadId: any(named: 'threadId'),
+          ),
+        ).thenAnswer((_) => editRequest.future);
+
+        final container = ProviderContainer(
+          overrides: [dmRepositoryProvider.overrideWithValue(mockRepository)],
+        );
+        var disposed = false;
+        void disposeOnce() {
+          if (!disposed) {
+            disposed = true;
+            container.dispose();
+          }
+        }
+
+        addTearDown(disposeOnce);
+        // An active listener keeps the autoDispose provider alive until we
+        // deliberately dispose it below.
+        container.listen(chatHistoryProvider('ch-1'), (_, _) {});
+        final notifier = container.read(chatHistoryProvider('ch-1'));
+        await pumpEventQueue();
+
+        // Detach and dispose the notifier while the edit request is in flight,
+        // as happens when the user switches to another conversation.
+        notifier.startEditing('m1');
+        final edit = notifier.saveEdit('m1', 'edited');
+        await pumpEventQueue();
+        disposeOnce();
+
+        editRequest.completeError(Exception('network error'));
+        // Staging's saveEdit reports the failure to its caller; the guarded
+        // continuation must not notify anyone even though the notifier is
+        // disposed.
+        await edit.catchError((_) {});
+        await pumpEventQueue();
+
+        // Without the disposal guard, the late continuation would call
+        // notifyListeners on the disposed notifier and crash here.
+      },
+    );
+
+    test('a delete that completes after dispose does not crash', () async {
+      final mockRepository = MockDmRepository();
+      when(
+        () => mockRepository.getMessages(any(), page: any(named: 'page')),
+      ).thenAnswer(
+        (_) async => [
+          {'id': 'm1', 'content': 'hello', 'user_id': 'u1'},
+        ],
+      );
+      final deleteRequest = Completer<void>();
+      when(
+        () => mockRepository.deleteMessage(
+          threadId: any(named: 'threadId'),
+          channelId: any(named: 'channelId'),
+        ),
+      ).thenAnswer((_) => deleteRequest.future);
+
+      final container = ProviderContainer(
+        overrides: [dmRepositoryProvider.overrideWithValue(mockRepository)],
+      );
+      var disposed = false;
+      void disposeOnce() {
+        if (!disposed) {
+          disposed = true;
+          container.dispose();
+        }
+      }
+
+      addTearDown(disposeOnce);
+      // An active listener keeps the autoDispose provider alive until we
+      // deliberately dispose it below.
+      container.listen(chatHistoryProvider('ch-1'), (_, _) {});
+      final notifier = container.read(chatHistoryProvider('ch-1'));
+      await pumpEventQueue();
+
+      // Fire the delete, then dispose the notifier before the HTTP request
+      // resolves; with the guard the failing continuation stays a no-op.
+      unawaited(notifier.deleteMessage('m1'));
+      await pumpEventQueue();
+      disposeOnce();
+
+      deleteRequest.completeError(Exception('network error'));
+      await pumpEventQueue();
     });
   });
 }
