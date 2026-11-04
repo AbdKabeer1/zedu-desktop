@@ -90,6 +90,7 @@ void main() {
       ).thenAnswer((_) async => const Success<List<CreditPackage>>([_package]));
       when(
         () => repo.purchaseCredits(
+          packageId: any(named: 'packageId'),
           planId: any(named: 'planId'),
           email: any(named: 'email'),
         ),
@@ -116,7 +117,7 @@ void main() {
     },
   );
 
-  test('a failed load still falls back to the signed-in balance', () async {
+  test('a failed load shows no balance for another workspace', () async {
     when(() => repo.getPackages()).thenAnswer(
       (_) async =>
           const Failure<List<CreditPackage>>(ApiFailure(message: 'down')),
@@ -128,6 +129,7 @@ void main() {
 
     await container.read(creditsNotifierProvider.notifier).load(orgId: 'org-2');
 
-    expect(container.read(orgCreditBalanceProvider), 10);
+    // The signed-in balance belongs to org-1, not the selected org-2.
+    expect(container.read(orgCreditBalanceProvider), 0);
   });
 }

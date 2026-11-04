@@ -174,7 +174,9 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     }
   }
 
-  Future<void> changePassword({
+  /// Returns the outcome so the change password dialog can stay open and show
+  /// a failure itself, which is why a failure doesn't also set the state error.
+  Future<Result<void>> changePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
@@ -194,11 +196,9 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
           successMessage: 'Password updated successfully.',
         );
       case Failure<void>():
-        state = state.copyWith(
-          isSaving: false,
-          error: result.error.friendlyMessage,
-        );
+        state = state.copyWith(isSaving: false);
     }
+    return result;
   }
 
   Future<void> updateOrganization(OrganizationProfile organization) async {
@@ -207,10 +207,18 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
       clearError: true,
       clearSuccess: true,
     );
+    final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
     final result = await _repository.updateOrganization(
       organization,
-      orgId: ref.read(workspaceProvider).selectedWorkspace?.id,
+      orgId: orgId,
     );
+    if (!ref.mounted) return;
+    // The workspace changed while saving, so this response isn't about the
+    // organization on screen any more.
+    if (ref.read(workspaceProvider).selectedWorkspace?.id != orgId) {
+      state = state.copyWith(isSaving: false);
+      return;
+    }
     switch (result) {
       case Success<OrganizationProfile>():
         state = state.copyWith(
@@ -218,6 +226,11 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
           isSaving: false,
           successMessage: 'Organization information saved successfully.',
         );
+        if (orgId != null) {
+          ref
+              .read(workspaceProvider.notifier)
+              .renameWorkspace(orgId, result.value.name);
+        }
       case Failure<OrganizationProfile>():
         state = state.copyWith(
           isSaving: false,
@@ -327,20 +340,75 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     }
   }
 
-  Future<String> _getRoleId(String? orgId) async {
+  /// Fetches the organisation's roles from `/organisations/{orgId}/roles`.
+  ///
+  /// Returns the raw role records so callers can resolve a role the user picked
+  /// in the UI to its backend `id` *and* keep the human-readable `name` for
+  /// display. The backend returns records shaped like
+  /// `{"id": "<uuid>", "name": "Manager", ...}`.
+  Future<List<Map<String, dynamic>>> _fetchOrganisationRoles(
+    String? orgId,
+  ) async {
+    if (orgId == null || orgId.isEmpty) return const [];
     try {
-      if (orgId == null) return '019700d8-9085-7f7b-839a-fcbd08b9e26d';
       final api = locator<ApiBaseService>();
       final response = await api.get<Map<String, dynamic>>(
         path: '/organisations/$orgId/roles',
       );
       final data = response.data['data'] as List<dynamic>?;
-      if (data != null && data.isNotEmpty) {
-        return data.last['id']
-            as String; // Just pick a valid role ID to avoid 404
-      }
+      if (data == null) return const [];
+      return data
+          .whereType<Map<dynamic, dynamic>>()
+          .map((role) => role.cast<String, dynamic>())
+          .toList();
     } catch (e) {
-      // ignore
+      return const [];
+    }
+  }
+
+  /// Resolves the role the user picked in the invite dialog to the backend
+  /// role `id`, without discarding the selected role name.
+  ///
+  /// Matching order:
+  /// 1. exact `id` (selection already carries an id),
+  /// 2. case-insensitive `name` (the invite dialog passes a role label),
+  /// 3. the role stored in local state that shares the label.
+  ///
+  /// Returns `null` when nothing matches so callers can surface a visible error
+  /// instead of silently assigning an arbitrary role.
+  String? _resolveRoleId(
+    List<Map<String, dynamic>> roles,
+    String selectedRole,
+  ) {
+    final trimmed = selectedRole.trim();
+    if (trimmed.isEmpty) return null;
+
+    for (final role in roles) {
+      if (role['id']?.toString() == trimmed) return trimmed;
+    }
+
+    final lower = trimmed.toLowerCase();
+    for (final role in roles) {
+      final name = role['name']?.toString();
+      if (name != null && name.toLowerCase() == lower) {
+        return role['id']?.toString();
+      }
+    }
+
+    for (final role in state.rolesAndPermissions) {
+      if (role.role.toLowerCase() == lower) return role.role;
+    }
+
+    return null;
+  }
+
+  Future<String> _getRoleId(String? orgId) async {
+    final roles = await _fetchOrganisationRoles(orgId);
+    if (roles.isNotEmpty) {
+      final id = roles.last['id']?.toString();
+      if (id != null && id.isNotEmpty) {
+        return id;
+      }
     }
     return '019700d8-9085-7f7b-839a-fcbd08b9e26d';
   }
@@ -395,13 +463,27 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
       orgId = '019700db-4e22-7f90-a20e-f9116291ef24';
     }
 
-    // Map human readable role to a valid UUID role_id by fetching from backend
-    String roleId = await _getRoleId(orgId);
-
     if (orgId == null) {
       state = state.copyWith(
         isSaving: false,
         error: 'No active workspace selected to invite members.',
+      );
+      return;
+    }
+
+    // Resolve the role the user actually selected to the backend role id.
+    // `role` is the human-readable label from the invite dialog; the request
+    // contract requires a role UUID (`role_id`).
+    final roles = await _fetchOrganisationRoles(orgId);
+    final roleName = role.trim();
+    final roleId = _resolveRoleId(roles, roleName);
+
+    if (roleId == null) {
+      state = state.copyWith(
+        isSaving: false,
+        error: roleName.isEmpty
+            ? 'Select a role before inviting a member.'
+            : 'Could not assign the selected role. Refresh roles and try again.',
       );
       return;
     }
@@ -413,7 +495,12 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     );
     switch (result) {
       case Success<TeamMember>():
-        final newTeamMembers = [...state.teamMembers, result.value];
+        final newTeamMembers = [
+          ...state.teamMembers,
+          // Keep the human-readable role name for the table instead of the
+          // backend UUID returned by the invitation response.
+          result.value.copyWith(role: roleName.isEmpty ? roleId : roleName),
+        ];
         state = state.copyWith(
           teamMembers: newTeamMembers,
           isSaving: false,
