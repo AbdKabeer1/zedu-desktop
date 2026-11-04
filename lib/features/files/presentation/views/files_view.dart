@@ -214,10 +214,30 @@ class _FoldersSection extends ConsumerWidget {
 class _FilesSection extends ConsumerWidget {
   const _FilesSection();
 
-  Future<void> _open(WorkspaceFile file) async {
-    final uri = Uri.tryParse(file.link);
-    if (uri != null && await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+  Future<void> _open(BuildContext context, WorkspaceFile file) async {
+    var opened = false;
+    try {
+      final uri = Uri.tryParse(file.link.trim());
+      if (uri != null && uri.hasScheme && await canLaunchUrl(uri)) {
+        opened = await launchUrl(uri);
+      }
+    } catch (_) {
+      // Launcher errors can contain private paths; show only safe feedback.
+    }
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text('Could not open this file. Please try again.'),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () {
+                if (context.mounted) _open(context, file);
+              },
+            ),
+          ),
+        );
     }
   }
 
@@ -251,7 +271,7 @@ class _FilesSection extends ConsumerWidget {
               files: sort.apply(page.files),
               ownerNameOf: (file) =>
                   file.owner.isNotEmpty ? file.owner : ownerName(file.userId),
-              onOpen: _open,
+              onOpen: (file) => _open(context, file),
             ),
             if (page.totalPages > 1) _Pagination(page: page),
           ],
