@@ -139,11 +139,16 @@ Widget _cellText(BuildContext context, String text) => Text(
   ),
 );
 
-Widget _nameCell(BuildContext context, Widget icon, String name) => Row(
+Widget _nameCell(
+  BuildContext context,
+  Widget icon,
+  String name, {
+  Widget? trailing,
+}) => Row(
   children: [
     icon,
     const SizedBox(width: 14),
-    Expanded(
+    Flexible(
       child: Text(
         name,
         maxLines: 1,
@@ -154,6 +159,7 @@ Widget _nameCell(BuildContext context, Widget icon, String name) => Row(
         ),
       ),
     ),
+    if (trailing != null) ...[const SizedBox(width: 6), trailing],
   ],
 );
 
@@ -209,6 +215,8 @@ class FilesTable extends StatelessWidget {
     this.onRename,
     this.onMove,
     this.onShare,
+    this.onTogglePin,
+    this.pinnedIds = const {},
     this.onDelete,
     this.deletesPermanently = false,
     this.downloads = const {},
@@ -233,6 +241,13 @@ class FilesTable extends StatelessWidget {
   /// the menu has no Share.
   final ValueChanged<WorkspaceFile>? onShare;
 
+  /// Pins a file, or unpins it when it is in [pinnedIds]. When null, as in
+  /// Deleted files, the menu has neither.
+  final ValueChanged<WorkspaceFile>? onTogglePin;
+
+  /// Ids of the pinned files, marked with a pin by their name.
+  final Set<String> pinnedIds;
+
   /// Deletes a file. When null, the menu has no Delete.
   final ValueChanged<WorkspaceFile>? onDelete;
 
@@ -251,12 +266,14 @@ class FilesTable extends StatelessWidget {
     final rename = onRename;
     final move = onMove;
     final share = onShare;
+    final togglePin = onTogglePin;
     final delete = onDelete;
     final hasActions =
         download != null ||
         rename != null ||
         move != null ||
         share != null ||
+        togglePin != null ||
         delete != null;
 
     return _Table(
@@ -291,6 +308,16 @@ class FilesTable extends StatelessWidget {
               ),
             ),
             file.name,
+            trailing: pinnedIds.contains(file.id)
+                ? Tooltip(
+                    message: 'Pinned',
+                    child: Icon(
+                      Icons.push_pin,
+                      size: 14,
+                      color: colors.primary,
+                    ),
+                  )
+                : null,
           ),
           _cellText(context, file.sharedIn.isEmpty ? '—' : file.sharedIn),
           _cellText(context, ownerNameOf(file)),
@@ -307,6 +334,8 @@ class FilesTable extends StatelessWidget {
                 onRename: rename == null ? null : () => rename(file),
                 onMove: move == null ? null : () => move(file),
                 onShare: share == null ? null : () => share(file),
+                onTogglePin: togglePin == null ? null : () => togglePin(file),
+                isPinned: pinnedIds.contains(file.id),
                 onDelete: delete == null ? null : () => delete(file),
                 deleteLabel: deletesPermanently
                     ? 'Delete permanently'
@@ -319,7 +348,7 @@ class FilesTable extends StatelessWidget {
   }
 }
 
-enum _FileAction { download, share, rename, move, delete }
+enum _FileAction { download, pin, share, rename, move, delete }
 
 /// The ⋮ menu of a file row, holding the actions on that file. While the file
 /// downloads it shows a progress ring instead.
@@ -332,6 +361,8 @@ class _FileActionsMenu extends StatelessWidget {
     required this.onRename,
     required this.onMove,
     required this.onShare,
+    required this.onTogglePin,
+    required this.isPinned,
     required this.onDelete,
     required this.deleteLabel,
   });
@@ -343,6 +374,8 @@ class _FileActionsMenu extends StatelessWidget {
   final VoidCallback? onRename;
   final VoidCallback? onMove;
   final VoidCallback? onShare;
+  final VoidCallback? onTogglePin;
+  final bool isPinned;
   final VoidCallback? onDelete;
   final String deleteLabel;
 
@@ -411,6 +444,7 @@ class _FileActionsMenu extends StatelessWidget {
       icon: Icon(Icons.more_vert, color: colors.textSecondary),
       onSelected: (action) => switch (action) {
         _FileAction.download => onDownload?.call(),
+        _FileAction.pin => onTogglePin?.call(),
         _FileAction.share => onShare?.call(),
         _FileAction.rename => onRename?.call(),
         _FileAction.move => onMove?.call(),
@@ -419,6 +453,12 @@ class _FileActionsMenu extends StatelessWidget {
       itemBuilder: (context) => [
         if (onDownload != null)
           item(_FileAction.download, Icons.download_outlined, 'Download'),
+        if (onTogglePin != null)
+          item(
+            _FileAction.pin,
+            isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+            isPinned ? 'Unpin' : 'Pin',
+          ),
         if (onShare != null)
           item(_FileAction.share, Icons.share_outlined, 'Share'),
         if (onRename != null)

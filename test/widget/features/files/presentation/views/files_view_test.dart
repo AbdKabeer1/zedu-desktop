@@ -97,6 +97,26 @@ class _FakeFilesRepository implements FilesRepository {
     return shareResult;
   }
 
+  Set<String> pinnedIds = {};
+  final pinCalls = <(String, bool)>[];
+  Result<void> pinResult = const Success(null);
+
+  @override
+  Future<Result<Set<String>>> fetchPinnedFileIds() async =>
+      Success({...pinnedIds});
+
+  @override
+  Future<Result<void>> pinFile(String fileId) async {
+    pinCalls.add((fileId, true));
+    return pinResult;
+  }
+
+  @override
+  Future<Result<void>> unpinFile(String fileId) async {
+    pinCalls.add((fileId, false));
+    return pinResult;
+  }
+
   Result<void> renameResult = const Success(null);
 
   @override
@@ -153,10 +173,14 @@ class _FakeFilesRepository implements FilesRepository {
             sharedIn: 'general',
             updatedAt: DateTime(2026, 11, 1),
           ),
+          ...moreFiles,
         ],
       ),
     );
   }
+
+  /// Files listed after logo.png on the main list.
+  List<WorkspaceFile> moreFiles = [];
 
   @override
   Future<Result<FoldersPage>> fetchFolders({
@@ -907,5 +931,90 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Share'), findsNothing);
+  });
+
+  Finder pinMarker() => find.byTooltip('Pinned');
+
+  testWidgets('pins a file under Pinned files', (tester) async {
+    final repository = _FakeFilesRepository()
+      ..moreFiles = [const WorkspaceFile(id: 'f-3', name: 'notes.txt')];
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+
+    expect(find.text('Pinned files'), findsNothing);
+    expect(pinMarker(), findsNothing);
+
+    await chooseInMenu(tester, 'Pin');
+
+    expect(repository.pinCalls, [('f-1', true)]);
+    expect(find.text('Pinned files'), findsOneWidget);
+    expect(pinMarker(), findsOneWidget);
+    // The pinned file comes first, above the others.
+    expect(
+      tester.getTopLeft(find.text('logo.png')).dy,
+      lessThan(tester.getTopLeft(find.text('notes.txt')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('Pinned files')).dy,
+      lessThan(tester.getTopLeft(find.text('logo.png')).dy),
+    );
+  });
+
+  testWidgets('pins kept on the server show when the page opens', (
+    tester,
+  ) async {
+    final repository = _FakeFilesRepository()..pinnedIds = {'f-1'};
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+
+    expect(find.text('Pinned files'), findsOneWidget);
+    expect(pinMarker(), findsOneWidget);
+
+    await tester.tap(actionsMenu());
+    await tester.pumpAndSettle();
+    expect(find.text('Pin'), findsNothing);
+    await tester.tap(find.text('Unpin'));
+    await tester.pumpAndSettle();
+
+    expect(repository.pinCalls, [('f-1', false)]);
+    expect(find.text('Pinned files'), findsNothing);
+    expect(pinMarker(), findsNothing);
+  });
+
+  testWidgets('a failed pin is undone with the reason', (tester) async {
+    final repository = _FakeFilesRepository()
+      ..pinResult = const Failure(
+        ApiFailure(message: 'offline', kind: ApiFailureKind.network),
+      );
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+
+    await chooseInMenu(tester, 'Pin');
+
+    expect(find.text('Pinned files'), findsNothing);
+    expect(pinMarker(), findsNothing);
+    expect(
+      find.text(
+        'Could not pin logo.png. '
+        'No internet connection. Check your network and try again.',
+      ),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('deleted files cannot be pinned', (tester) async {
+    await _pump(tester, _FakeFilesRepository()..pinnedIds = {'f-1'});
+
+    await tester.tap(find.text('Deleted files'));
+    await tester.pumpAndSettle();
+    await openFilesTab(tester);
+
+    expect(find.text('Pinned files'), findsNothing);
+    await tester.tap(actionsMenu());
+    await tester.pumpAndSettle();
+    expect(find.text('Pin'), findsNothing);
+    expect(find.text('Unpin'), findsNothing);
   });
 }

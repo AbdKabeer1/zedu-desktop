@@ -330,6 +330,17 @@ class _FilesSection extends ConsumerWidget {
     );
   }
 
+  Future<void> _togglePin(
+    BuildContext context,
+    WidgetRef ref,
+    WorkspaceFile file,
+  ) async {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final error = await ref.read(pinnedFilesProvider.notifier).toggle(file);
+    if (error == null || !overlay.mounted) return;
+    AppToastService.showWith(overlay, type: AppToastType.error, message: error);
+  }
+
   Future<void> _delete(
     BuildContext context,
     WorkspaceFile file, {
@@ -363,6 +374,11 @@ class _FilesSection extends ConsumerWidget {
     final sort = ref.watch(filesProvider.select((s) => s.sort));
     final scope = ref.watch(filesProvider.select((s) => s.view));
     final downloads = ref.watch(fileDownloadsProvider);
+    final isTrash = scope == FilesScope.trash;
+    // Deleted files can't be pinned, so they show no pins either.
+    final pinnedIds = isTrash
+        ? const <String>{}
+        : ref.watch(pinnedFilesProvider).value ?? const <String>{};
     final ownerName = _ownerNames(ref);
 
     return page.when(
@@ -382,31 +398,45 @@ class _FilesSection extends ConsumerWidget {
                 'Files in this list, or that match your filters, appear here.',
           );
         }
+        Widget table(List<WorkspaceFile> files) => FilesTable(
+          files: files,
+          ownerNameOf: (file) =>
+              file.owner.isNotEmpty ? file.owner : ownerName(file.userId),
+          onOpen: (file) => _open(context, file),
+          downloads: downloads,
+          pinnedIds: pinnedIds,
+          onDownload: isTrash ? null : (file) => _download(context, ref, file),
+          onTogglePin: isTrash
+              ? null
+              : (file) => _togglePin(context, ref, file),
+          onRename: isTrash ? null : (file) => _rename(context, file),
+          onMove: isTrash ? null : (file) => _move(context, file),
+          onShare: isTrash ? null : (file) => _share(context, file),
+          onDelete: (file) => _delete(context, file, permanent: isTrash),
+          deletesPermanently: isTrash,
+        );
+
+        // Pinned files on this page come first, under their own heading, as
+        // on web.
+        final files = sort.apply(page.files);
+        final pinned = [
+          for (final f in files)
+            if (pinnedIds.contains(f.id)) f,
+        ];
+        final others = [
+          for (final f in files)
+            if (!pinnedIds.contains(f.id)) f,
+        ];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            FilesTable(
-              files: sort.apply(page.files),
-              ownerNameOf: (file) =>
-                  file.owner.isNotEmpty ? file.owner : ownerName(file.userId),
-              onOpen: (file) => _open(context, file),
-              downloads: downloads,
-              onDownload: scope == FilesScope.trash
-                  ? null
-                  : (file) => _download(context, ref, file),
-              onRename: scope == FilesScope.trash
-                  ? null
-                  : (file) => _rename(context, file),
-              onMove: scope == FilesScope.trash
-                  ? null
-                  : (file) => _move(context, file),
-              onShare: scope == FilesScope.trash
-                  ? null
-                  : (file) => _share(context, file),
-              onDelete: (file) =>
-                  _delete(context, file, permanent: scope == FilesScope.trash),
-              deletesPermanently: scope == FilesScope.trash,
-            ),
+            if (pinned.isNotEmpty) ...[
+              const _PinnedHeading(),
+              const SizedBox(height: 8),
+              table(pinned),
+              if (others.isNotEmpty) const SizedBox(height: 24),
+            ],
+            if (others.isNotEmpty) table(others),
             if (page.totalPages > 1)
               _Pagination(
                 current: page.currentPage,
@@ -623,6 +653,30 @@ class _Message extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// "Pinned files", over the files the user pinned.
+class _PinnedHeading extends StatelessWidget {
+  const _PinnedHeading();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Row(
+      children: [
+        Icon(Icons.push_pin_outlined, size: 16, color: colors.textSecondary),
+        const SizedBox(width: 6),
+        Text(
+          'Pinned files',
+          style: context.textTheme.bodyMedium?.copyWith(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: colors.textSecondary,
+          ),
+        ),
+      ],
     );
   }
 }

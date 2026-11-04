@@ -80,3 +80,8 @@ final moveTargetFoldersProvider = FutureProvider.autoDispose<List<FileFolder>>((
 final fileSharesProvider = NotifierProvider<FileSharesNotifier, Set<String>>(
   FileSharesNotifier.new,
 );
+
+final pinnedFilesProvider =
+    AsyncNotifierProvider<PinnedFilesNotifier, Set<String>>(
+      PinnedFilesNotifier.new,
+    );

@@ -48,4 +48,11 @@ abstract class FilesRepository {
     required FileShareAccess access,
     String note = '',
   });
+
+  /// Ids of the files the user pinned. Pins belong to the user, not the file.
+  Future<Result<Set<String>>> fetchPinnedFileIds();
+
+  Future<Result<void>> pinFile(String fileId);
+
+  Future<Result<void>> unpinFile(String fileId);
 }

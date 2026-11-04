@@ -48,6 +48,13 @@ abstract class FilesRemoteDataSource {
     required FileShareAccess access,
     String note = '',
   });
+
+  /// Ids of the files the user pinned, from `GET /files/favorites`.
+  Future<Set<String>> fetchPinnedFileIds();
+
+  Future<void> pinFile(String fileId);
+
+  Future<void> unpinFile(String fileId);
 }
 
 /// Reads `current_page` and `total_pages_count` (or `total_pages`).
@@ -268,5 +275,35 @@ class FilesRemoteDataSourceImpl implements FilesRemoteDataSource {
     return data is Map
         ? FileShareResult.fromJson(Map<String, dynamic>.from(data))
         : const FileShareResult();
+  }
+
+  @override
+  Future<Set<String>> fetchPinnedFileIds() async {
+    final response = await apiBaseService.get<Map<String, dynamic>>(
+      path: '/files/favorites',
+    );
+    final raw = response.data['data'];
+    return {
+      if (raw is List)
+        for (final item in raw.whereType<Map<dynamic, dynamic>>())
+          ?_pinnedFileId(item),
+    };
+  }
+
+  /// Each entry is `{pinned_file_id, file: {id, ...}}`.
+  static String? _pinnedFileId(Map<dynamic, dynamic> item) {
+    final file = item['file'];
+    final id = (file is Map ? file['id'] : item['file_id'])?.toString().trim();
+    return id == null || id.isEmpty ? null : id;
+  }
+
+  @override
+  Future<void> pinFile(String fileId) async {
+    await apiBaseService.post<dynamic>(path: '/files/file/$fileId/pin');
+  }
+
+  @override
+  Future<void> unpinFile(String fileId) async {
+    await apiBaseService.delete<dynamic>(path: '/files/file/$fileId/pin');
   }
 }
