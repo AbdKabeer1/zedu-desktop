@@ -55,6 +55,10 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   bool _isPreviewPlaying = false;
   String? _editingMessageId;
 
+  /// What the composer held when edit mode started: an unsent reply that edit
+  /// mode must give back when it ends.
+  TextEditingValue? _textBeforeEdit;
+
   bool _isBold = false;
   bool _isItalic = false;
   bool _isStrikethrough = false;
@@ -129,6 +133,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
         _showEmojiPicker = false;
         _isEditMode = false;
         _editingMessageId = null;
+        _textBeforeEdit = null;
       });
       _controller.clear();
       _restoreDraft();
@@ -280,7 +285,11 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
       ref
           .read(chatHistoryProvider(widget.channelId))
           .saveEdit(_editingMessageId!, text);
+      // An edit sends nothing new: the unsent reply and its draft come back,
+      // and a waiting voice note or file is kept.
       _exitEditMode();
+      _focusNode.requestFocus();
+      return;
     } else {
       ref
           .read(chatHistoryProvider(widget.channelId))
@@ -315,6 +324,13 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
       _enterEditMode(messageId, content);
 
   void _enterEditMode(String messageId, String content) {
+    if (!_isEditMode) {
+      // Keep the unsent reply, and save it now in case the debounced save
+      // hasn't run yet: edit-mode text is never saved as a draft.
+      _textBeforeEdit = _controller.value;
+      _draftSaveDebounce?.cancel();
+      _drafts.save(widget.channelId, _controller.text);
+    }
     setState(() {
       _isEditMode = true;
       _editingMessageId = messageId;
@@ -326,11 +342,13 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   }
 
   void _exitEditMode() {
+    final restored = _textBeforeEdit ?? TextEditingValue.empty;
+    _textBeforeEdit = null;
     setState(() {
       _isEditMode = false;
       _editingMessageId = null;
     });
-    _controller.clear();
+    _controller.value = restored;
     ref.read(chatHistoryProvider(widget.channelId)).cancelEditing();
   }
 
