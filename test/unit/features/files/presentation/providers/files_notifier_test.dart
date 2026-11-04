@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
@@ -5,6 +7,11 @@ import '../../../../../helpers/helpers.dart';
 
 const _docs = FileFolder(id: 'docs', name: 'docs');
 const _drafts = FileFolder(id: 'drafts', name: 'drafts');
+
+/// A file in the temp folder. On desktop XFile takes its name from the
+/// path, split on the platform's separator, so the path must use it.
+XFile _file(String name) =>
+    XFile('${Directory.systemTemp.path}${Platform.pathSeparator}$name');
 
 void main() {
   late ProviderContainer container;
@@ -88,11 +95,7 @@ void main() {
     test('uploads each file and reports the failures', () async {
       final outcome = await uploads
           .read(filesActionsProvider.notifier)
-          .uploadFiles([
-            XFile('/tmp/a.png', name: 'a.png'),
-            XFile('/tmp/bad.pdf', name: 'bad.pdf'),
-            XFile('/tmp/c.txt', name: 'c.txt'),
-          ]);
+          .uploadFiles([_file('a.png'), _file('bad.pdf'), _file('c.txt')]);
 
       expect(repository.uploaded, ['a.png', 'bad.pdf', 'c.txt']);
       expect(outcome.uploaded, 2);
@@ -107,7 +110,7 @@ void main() {
         ..setTab(FilesTab.folders);
 
       await uploads.read(filesActionsProvider.notifier).uploadFiles([
-        XFile('/tmp/a.png', name: 'a.png'),
+        _file('a.png'),
       ]);
 
       final state = uploads.read(filesProvider);

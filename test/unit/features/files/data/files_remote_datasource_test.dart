@@ -168,7 +168,10 @@ void main() {
     setUp(() {
       final dir = Directory.systemTemp.createTempSync('files_upload_test');
       addTearDown(() => dir.deleteSync(recursive: true));
-      file = File('${dir.path}/notes.txt')..writeAsStringSync('hello');
+      // The platform's separator, so XFile.name reads `notes.txt` on Windows
+      // too.
+      file = File('${dir.path}${Platform.pathSeparator}notes.txt')
+        ..writeAsStringSync('hello');
     });
 
     test('posts the file as the files part and reads the result', () async {
