@@ -1146,6 +1146,16 @@ class _AttachmentBubbleList extends StatelessWidget {
     }
   }
 
+  void _openImage(BuildContext context, String imageUrl, String fileName) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) =>
+            ImageAttachmentViewer(imageUrl: imageUrl, fileName: fileName),
+      ),
+    );
+  }
+
   Widget _buildGenericFile(
     String fileName,
     String fileLink,
@@ -1217,7 +1227,7 @@ class _AttachmentBubbleList extends StatelessWidget {
           final isNetwork = fileLink.startsWith('http');
 
           return GestureDetector(
-            onTap: () => _launchUrl(fileLink),
+            onTap: () => _openImage(context, fileLink, fileName),
             child: Container(
               width: 250,
               height: 200,
