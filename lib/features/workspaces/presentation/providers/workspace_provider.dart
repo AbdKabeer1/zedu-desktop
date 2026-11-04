@@ -65,7 +65,12 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
         error: e,
         stackTrace: stackTrace,
       );
-      state = const WorkspaceState(errorMessage: loadErrorMessage);
+      // A failed refresh keeps what's already loaded.
+      state = WorkspaceState(
+        workspaces: state.workspaces,
+        selectedWorkspace: state.selectedWorkspace,
+        errorMessage: loadErrorMessage,
+      );
     }
   }
 

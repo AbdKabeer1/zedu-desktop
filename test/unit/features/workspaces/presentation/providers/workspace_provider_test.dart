@@ -130,6 +130,32 @@ void main() {
       expect(state.errorMessage, WorkspaceNotifier.loadErrorMessage);
     });
 
+    test('a failed refresh keeps the list and the selection', () async {
+      registerConfig(usesMockData: false);
+      stubOrganisations([
+        {'id': 'org-1', 'name': 'Riverside Academy', 'logo_url': ''},
+        {'id': 'org-2', 'name': 'Hillside School', 'logo_url': ''},
+      ]);
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await loadWorkspaces(container);
+      final notifier = container.read(workspaceProvider.notifier);
+      await notifier.switchWorkspace(
+        container.read(workspaceProvider).workspaces.last,
+      );
+
+      when(
+        () => mockApi.get<Map<String, dynamic>>(path: '/users/organisations'),
+      ).thenThrow(Exception('network down'));
+      await notifier.fetchWorkspaces();
+
+      final state = container.read(workspaceProvider);
+      expect(state.workspaces.map((w) => w.id), ['org-1', 'org-2']);
+      expect(state.selectedWorkspace?.id, 'org-2');
+      expect(state.isLoading, isFalse);
+      expect(state.errorMessage, WorkspaceNotifier.loadErrorMessage);
+    });
+
     test('a successful retry clears the error', () async {
       registerConfig(usesMockData: false);
       when(
