@@ -31,6 +31,34 @@ class _FakeProfileNotifier extends UserProfileNotifier {
   Future<void> load() async {}
 }
 
+class _FakePeopleRepository implements PeopleRepository {
+  static const members = [
+    OrgMember(id: 'u-2', name: 'Grace Hopper', email: 'grace@zedu.test'),
+    OrgMember(id: 'u-3', name: 'Alan Turing', email: 'alan@zedu.test'),
+  ];
+
+  @override
+  Future<Result<MembersPage>> fetchMembers({
+    required String orgId,
+    int page = 1,
+    String search = '',
+  }) async {
+    final query = search.toLowerCase();
+    final found = [
+      for (final m in members)
+        if (m.name.toLowerCase().contains(query)) m,
+    ];
+    return Success(
+      MembersPage(
+        members: found,
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: found.length,
+      ),
+    );
+  }
+}
+
 class _FakeFilesRepository implements FilesRepository {
   _FakeFilesRepository({this.failFolders = false, this.failCreate = false});
 
@@ -49,6 +77,24 @@ class _FakeFilesRepository implements FilesRepository {
   Future<Result<void>> moveFile(String fileId, String folderId) async {
     moves.add((fileId, folderId));
     return moveResult;
+  }
+
+  final shares =
+      <(String, List<String>, FileSharePermission, FileShareAccess, String)>[];
+  Result<FileShareResult> shareResult = const Success(
+    FileShareResult(sentTo: ['u-2']),
+  );
+
+  @override
+  Future<Result<FileShareResult>> shareFile({
+    required String fileId,
+    required List<String> recipientIds,
+    required FileSharePermission permission,
+    required FileShareAccess access,
+    String note = '',
+  }) async {
+    shares.add((fileId, recipientIds, permission, access, note));
+    return shareResult;
   }
 
   Result<void> renameResult = const Success(null);
@@ -174,6 +220,7 @@ Future<void> _pump(
         workspaceProvider.overrideWith(_FakeWorkspaceNotifier.new),
         userProfileNotifierProvider.overrideWith(_FakeProfileNotifier.new),
         filesRepositoryProvider.overrideWithValue(repository),
+        peopleRepositoryProvider.overrideWithValue(_FakePeopleRepository()),
         saveLocationPickerProvider.overrideWithValue((_) async => savePath),
       ],
       child: buildTestMaterialApp(
@@ -709,5 +756,156 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Move'), findsNothing);
+  });
+
+  Finder peopleField() => find.byKey(const ValueKey('share-people-field'));
+  Finder sendButton() => find.widgetWithText(FilledButton, 'Send');
+
+  Future<void> addPerson(
+    WidgetTester tester,
+    String search,
+    String name,
+  ) async {
+    await tester.enterText(peopleField(), search);
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(name));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('shares a file with a member by direct message', (tester) async {
+    final repository = _FakeFilesRepository();
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+
+    await chooseInMenu(tester, 'Share');
+    expect(find.text('Share logo.png'), findsOneWidget);
+    expect(tester.widget<FilledButton>(sendButton()).onPressed, isNull);
+
+    await addPerson(tester, 'gra', 'Grace Hopper');
+    await tester.tap(find.text('Can view'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Can edit').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('share-note-field')),
+      'For the review',
+    );
+    await tester.tap(sendButton());
+    await tester.pumpAndSettle();
+
+    final (fileId, recipientIds, permission, access, note) =
+        repository.shares.single;
+    expect(fileId, 'f-1');
+    expect(recipientIds, ['u-2']);
+    expect(permission, FileSharePermission.edit);
+    expect(access, FileShareAccess.invited);
+    expect(note, 'For the review');
+    expect(find.text('Share logo.png'), findsNothing);
+    expect(
+      find.text('Shared logo.png with Grace Hopper by direct message.'),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a picked member can be removed before sending', (tester) async {
+    await _pump(tester, _FakeFilesRepository());
+    await openFilesTab(tester);
+    await chooseInMenu(tester, 'Share');
+
+    await addPerson(tester, 'gra', 'Grace Hopper');
+    expect(find.byType(InputChip), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Remove Grace Hopper'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(InputChip), findsNothing);
+    expect(tester.widget<FilledButton>(sendButton()).onPressed, isNull);
+  });
+
+  testWidgets('says when nobody in the workspace matches', (tester) async {
+    await _pump(tester, _FakeFilesRepository());
+    await openFilesTab(tester);
+    await chooseInMenu(tester, 'Share');
+
+    await tester.enterText(peopleField(), 'nobody');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    expect(find.text('No workspace member matches.'), findsOneWidget);
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'No workspace member matches "nobody". '
+        'Only workspace members can receive shared files.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('reports people the file could not be sent to', (tester) async {
+    final repository = _FakeFilesRepository()
+      ..shareResult = const Success(
+        FileShareResult(
+          sentTo: ['u-2'],
+          recipients: [
+            FileShareRecipientResult(userId: 'u-2', success: true),
+            FileShareRecipientResult(userId: 'u-3', error: 'DM blocked'),
+          ],
+        ),
+      );
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+    await chooseInMenu(tester, 'Share');
+
+    await addPerson(tester, 'gra', 'Grace Hopper');
+    await addPerson(tester, 'ala', 'Alan Turing');
+    await tester.tap(sendButton());
+    await tester.pumpAndSettle();
+
+    expect(repository.shares.single.$2, ['u-2', 'u-3']);
+    expect(
+      find.text('Shared logo.png with 1 of 2 people. Alan Turing: DM blocked.'),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a failed share keeps the dialog open with the reason', (
+    tester,
+  ) async {
+    final repository = _FakeFilesRepository()
+      ..shareResult = const Failure(
+        ApiFailure(message: 'Access denied', kind: ApiFailureKind.forbidden),
+      );
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+    await chooseInMenu(tester, 'Share');
+
+    await addPerson(tester, 'gra', 'Grace Hopper');
+    await tester.tap(sendButton());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Share logo.png'), findsOneWidget);
+    expect(
+      find.text('Could not share logo.png. Only its owner can share it.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('deleted files cannot be shared', (tester) async {
+    await _pump(tester, _FakeFilesRepository());
+
+    await tester.tap(find.text('Deleted files'));
+    await tester.pumpAndSettle();
+    await openFilesTab(tester);
+    await tester.tap(actionsMenu());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Share'), findsNothing);
   });
 }

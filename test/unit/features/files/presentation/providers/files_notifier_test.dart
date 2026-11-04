@@ -170,4 +170,13 @@ class _UploadRepository implements FilesRepository {
   @override
   Future<Result<void>> moveFile(String fileId, String folderId) async =>
       const Success(null);
+
+  @override
+  Future<Result<FileShareResult>> shareFile({
+    required String fileId,
+    required List<String> recipientIds,
+    required FileSharePermission permission,
+    required FileShareAccess access,
+    String note = '',
+  }) async => const Success(FileShareResult());
 }

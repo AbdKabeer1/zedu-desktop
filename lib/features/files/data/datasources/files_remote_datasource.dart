@@ -38,6 +38,16 @@ abstract class FilesRemoteDataSource {
 
   /// Moves file [fileId] into folder [folderId].
   Future<void> moveFile(String fileId, String folderId);
+
+  /// Shares file [fileId] with [recipientIds], sending it to each of them by
+  /// direct message, as the web app does.
+  Future<FileShareResult> shareFile({
+    required String fileId,
+    required List<String> recipientIds,
+    required FileSharePermission permission,
+    required FileShareAccess access,
+    String note = '',
+  });
 }
 
 /// Reads `current_page` and `total_pages_count` (or `total_pages`).
@@ -233,5 +243,30 @@ class FilesRemoteDataSourceImpl implements FilesRemoteDataSource {
       path: '/files/$fileId/move',
       data: {'folder_id': folderId},
     );
+  }
+
+  @override
+  Future<FileShareResult> shareFile({
+    required String fileId,
+    required List<String> recipientIds,
+    required FileSharePermission permission,
+    required FileShareAccess access,
+    String note = '',
+  }) async {
+    final response = await apiBaseService.post<Map<String, dynamic>>(
+      path: '/files/$fileId/share',
+      data: {
+        'file_id': fileId,
+        'access_type': access.apiValue,
+        'permission_type': permission.apiValue,
+        'note': note,
+        'share_via_dm': true,
+        'recipient_ids': recipientIds,
+      },
+    );
+    final data = response.data['data'];
+    return data is Map
+        ? FileShareResult.fromJson(Map<String, dynamic>.from(data))
+        : const FileShareResult();
   }
 }

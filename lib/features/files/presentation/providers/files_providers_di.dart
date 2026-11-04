@@ -76,3 +76,7 @@ final moveTargetFoldersProvider = FutureProvider.autoDispose<List<FileFolder>>((
     if (value.folders.isEmpty || page >= value.totalPages) return folders;
   }
 });
+
+final fileSharesProvider = NotifierProvider<FileSharesNotifier, Set<String>>(
+  FileSharesNotifier.new,
+);
