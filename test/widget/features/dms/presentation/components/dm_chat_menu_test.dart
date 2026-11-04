@@ -7,12 +7,27 @@ class MockChatHistory extends Mock implements ChatHistoryNotifier {}
 
 class MockDraftStore extends Mock implements DmDraftStore {}
 
-class FakeAuthNotifier extends AuthNotifier {
+class _FakeAuthNotifier extends AuthNotifier {
   @override
-  AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
+  AuthState build() => const AuthState();
 }
 
 void main() {
+  setUp(() {
+    if (locator.isRegistered<AppConfig>()) {
+      locator.unregister<AppConfig>();
+    }
+    locator.registerSingleton<AppConfig>(
+      const AppConfig(apiBaseUrl: 'http://test', usesMockData: false),
+    );
+  });
+
+  tearDown(() {
+    if (locator.isRegistered<AppConfig>()) {
+      locator.unregister<AppConfig>();
+    }
+  });
+
   testWidgets('DM menu uses a white surface and opens the selected action', (
     tester,
   ) async {
@@ -31,7 +46,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authNotifierProvider.overrideWith(FakeAuthNotifier.new),
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
           chatHistoryProvider('chat-1').overrideWith((ref) => history),
           dmDraftStoreProvider.overrideWith((ref) => drafts),
         ],
