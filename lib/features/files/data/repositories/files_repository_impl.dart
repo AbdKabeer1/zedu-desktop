@@ -116,4 +116,16 @@ class FilesRepositoryImpl implements FilesRepository {
       return Failure(ApiFailure(message: e.toString()));
     }
   }
+
+  @override
+  Future<Result<void>> moveFile(String fileId, String folderId) async {
+    try {
+      await remoteDataSource.moveFile(fileId, folderId);
+      return const Success(null);
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
 }

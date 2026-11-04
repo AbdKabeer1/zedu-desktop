@@ -430,4 +430,27 @@ void main() {
       ).called(1);
     });
   });
+
+  group('moveFile', () {
+    test('sends the target folder', () async {
+      when(
+        () => api.put<dynamic>(
+          path: any(named: 'path'),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async =>
+            const ApiResponseModel<dynamic>(statusCode: 200, data: null),
+      );
+
+      await datasource.moveFile('f-1', 'docs');
+
+      verify(
+        () => api.put<dynamic>(
+          path: '/files/f-1/move',
+          data: {'folder_id': 'docs'},
+        ),
+      ).called(1);
+    });
+  });
 }

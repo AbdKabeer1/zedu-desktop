@@ -206,4 +206,27 @@ void main() {
       );
     });
   });
+
+  group('moveFile', () {
+    test('passes the request on and succeeds', () async {
+      when(() => remote.moveFile('f-1', 'docs')).thenAnswer((_) async {});
+
+      expect(await repository.moveFile('f-1', 'docs'), isA<Success<void>>());
+    });
+
+    test('returns the failure when the server refuses', () async {
+      when(() => remote.moveFile('f-1', 'docs')).thenThrow(
+        const ApiFailure(message: 'nope', kind: ApiFailureKind.forbidden),
+      );
+
+      expect(
+        await repository.moveFile('f-1', 'docs'),
+        isA<Failure<void>>().having(
+          (f) => f.error.kind,
+          'kind',
+          ApiFailureKind.forbidden,
+        ),
+      );
+    });
+  });
 }

@@ -308,6 +308,17 @@ class _FilesSection extends ConsumerWidget {
     );
   }
 
+  Future<void> _move(BuildContext context, WorkspaceFile file) async {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final folder = await MoveFileDialog.show(context, file: file);
+    if (folder == null || !overlay.mounted) return;
+    AppToastService.showWith(
+      overlay,
+      type: AppToastType.success,
+      message: 'Moved ${file.name} to ${folder.name}.',
+    );
+  }
+
   Future<void> _delete(
     BuildContext context,
     WorkspaceFile file, {
@@ -375,6 +386,9 @@ class _FilesSection extends ConsumerWidget {
               onRename: scope == FilesScope.trash
                   ? null
                   : (file) => _rename(context, file),
+              onMove: scope == FilesScope.trash
+                  ? null
+                  : (file) => _move(context, file),
               onDelete: (file) =>
                   _delete(context, file, permanent: scope == FilesScope.trash),
               deletesPermanently: scope == FilesScope.trash,

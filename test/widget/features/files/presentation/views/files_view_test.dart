@@ -42,6 +42,15 @@ class _FakeFilesRepository implements FilesRepository {
   final downloads = <(String, String)>[];
   final deletes = <(String, bool)>[];
   final renames = <(String, String)>[];
+  final moves = <(String, String)>[];
+  Result<void> moveResult = const Success(null);
+
+  @override
+  Future<Result<void>> moveFile(String fileId, String folderId) async {
+    moves.add((fileId, folderId));
+    return moveResult;
+  }
+
   Result<void> renameResult = const Success(null);
 
   @override
@@ -82,7 +91,7 @@ class _FakeFilesRepository implements FilesRepository {
     if (query.folderId == 'docs') {
       return const Success(
         FilesPage(
-          files: [WorkspaceFile(id: 'f-2', name: 'spec.pdf')],
+          files: [WorkspaceFile(id: 'f-2', name: 'spec.pdf', folderId: 'docs')],
         ),
       );
     }
@@ -609,5 +618,96 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Rename'), findsNothing);
+  });
+
+  Finder moveButton() => find.widgetWithText(FilledButton, 'Move');
+
+  testWidgets('moves a file into a folder', (tester) async {
+    final repository = _FakeFilesRepository();
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+    final fileLoads = repository.queries.length;
+
+    await chooseInMenu(tester, 'Move');
+    expect(find.text('Move logo.png'), findsOneWidget);
+    // Nothing is chosen yet.
+    expect(tester.widget<FilledButton>(moveButton()).onPressed, isNull);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(MoveFileDialog),
+        matching: find.text('docs'),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(moveButton());
+    await tester.pumpAndSettle();
+
+    expect(repository.moves, [('f-1', 'docs')]);
+    expect(find.text('Move logo.png'), findsNothing);
+    expect(find.text('Moved logo.png to docs.'), findsOneWidget);
+    expect(repository.queries.length, fileLoads + 1);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a failed move keeps the dialog open with the reason', (
+    tester,
+  ) async {
+    final repository = _FakeFilesRepository()
+      ..moveResult = const Failure(
+        ApiFailure(message: 'nope', kind: ApiFailureKind.forbidden),
+      );
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+
+    await chooseInMenu(tester, 'Move');
+    await tester.tap(
+      find.descendant(
+        of: find.byType(MoveFileDialog),
+        matching: find.text('docs'),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(moveButton());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Move logo.png'), findsOneWidget);
+    expect(
+      find.text(
+        'Could not move logo.png. You don\'t have permission to do that.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the folder a file is in is not offered', (tester) async {
+    final repository = _FakeFilesRepository();
+    await _pump(tester, repository);
+
+    // spec.pdf is inside docs, the only folder.
+    await tester.tap(find.text('docs'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('More actions for spec.pdf'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Move'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No other folders yet. Create one first.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('deleted files cannot be moved', (tester) async {
+    await _pump(tester, _FakeFilesRepository());
+
+    await tester.tap(find.text('Deleted files'));
+    await tester.pumpAndSettle();
+    await openFilesTab(tester);
+    await tester.tap(actionsMenu());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Move'), findsNothing);
   });
 }

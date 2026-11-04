@@ -35,6 +35,9 @@ abstract class FilesRemoteDataSource {
 
   /// Renames file [fileId] to [name].
   Future<void> renameFile(String fileId, String name);
+
+  /// Moves file [fileId] into folder [folderId].
+  Future<void> moveFile(String fileId, String folderId);
 }
 
 /// Reads `current_page` and `total_pages_count` (or `total_pages`).
@@ -221,6 +224,14 @@ class FilesRemoteDataSourceImpl implements FilesRemoteDataSource {
     await apiBaseService.put<dynamic>(
       path: '/files/file/$fileId',
       data: {'file_name': name},
+    );
+  }
+
+  @override
+  Future<void> moveFile(String fileId, String folderId) async {
+    await apiBaseService.put<dynamic>(
+      path: '/files/$fileId/move',
+      data: {'folder_id': folderId},
     );
   }
 }

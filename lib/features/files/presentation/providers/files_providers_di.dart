@@ -51,3 +51,28 @@ final fileDeletionsProvider =
 final fileRenamesProvider = NotifierProvider<FileRenamesNotifier, Set<String>>(
   FileRenamesNotifier.new,
 );
+
+final fileMovesProvider = NotifierProvider<FileMovesNotifier, Set<String>>(
+  FileMovesNotifier.new,
+);
+
+/// The folders a file can be moved into: the top-level folders of all files,
+/// across every page.
+final moveTargetFoldersProvider = FutureProvider.autoDispose<List<FileFolder>>((
+  ref,
+) async {
+  final repository = ref.watch(filesRepositoryProvider);
+  final folders = <FileFolder>[];
+  for (var page = 1; ; page++) {
+    final result = await repository.fetchFolders(
+      view: FilesScope.all,
+      page: page,
+    );
+    final value = switch (result) {
+      Success(:final value) => value,
+      Failure(:final error) => throw error,
+    };
+    folders.addAll(value.folders);
+    if (value.folders.isEmpty || page >= value.totalPages) return folders;
+  }
+});

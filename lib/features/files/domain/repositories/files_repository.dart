@@ -36,4 +36,7 @@ abstract class FilesRepository {
 
   /// Renames [fileId] to [name].
   Future<Result<void>> renameFile(String fileId, String name);
+
+  /// Moves [fileId] into folder [folderId].
+  Future<Result<void>> moveFile(String fileId, String folderId);
 }
