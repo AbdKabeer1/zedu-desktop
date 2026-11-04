@@ -235,4 +235,24 @@ void main() {
       expect(find.text('2/4/2026'), findsOneWidget);
     });
   });
+
+  group('avatar initial', () {
+    testWidgets('skips leading whitespace in the name', (tester) async {
+      await tester.pumpWidget(
+        buildTileUnderTest(buildConversation(username: ' ada')),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('A'), findsOneWidget);
+    });
+
+    testWidgets('shows ? for a whitespace-only name', (tester) async {
+      await tester.pumpWidget(
+        buildTileUnderTest(buildConversation(username: '   ')),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('?'), findsOneWidget);
+    });
+  });
 }
