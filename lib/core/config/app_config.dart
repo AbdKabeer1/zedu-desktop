@@ -28,12 +28,16 @@ const String kProductionApiBaseUrl = 'https://api.zedu.chat/api/v1/';
 String defaultApiBaseUrl({required bool isRelease}) =>
     isRelease ? kProductionApiBaseUrl : kStagingApiBaseUrl;
 
+/// The website's Contact Sales page, opened from the Enterprise plan.
+const String kDefaultContactSalesUrl = 'https://zedu.chat/contact-sales';
+
 class AppConfig {
   const AppConfig({
     required this.apiBaseUrl,
     required this.usesMockData,
     this.googleClientId = kDefaultDesktopGoogleClientId,
     this.googleClientSecret = '',
+    this.contactSalesUrl = kDefaultContactSalesUrl,
   });
 
   /// Resolves config after [loadAppEnv] has run in [main] (root `.env` /
@@ -98,6 +102,7 @@ class AppConfig {
   final bool usesMockData;
   final String googleClientId;
   final String googleClientSecret;
+  final String contactSalesUrl;
 }
 
 bool _parseBool(String raw, {required bool defaultValue}) {
