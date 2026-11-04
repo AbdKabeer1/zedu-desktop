@@ -605,9 +605,7 @@ class _DmChatHeader extends StatelessWidget {
       ),
     );
 
-    final participantInitial = conversation.displayName.trim().isEmpty
-        ? '?'
-        : conversation.displayName.trim()[0].toUpperCase();
+    final participantInitial = avatarInitial(conversation.displayName);
 
     return Container(
       height: 58,
@@ -950,9 +948,7 @@ class _MessageBubble extends ConsumerWidget {
         ? history.currentUserAvatarUrl
         : conversation.effectiveAvatarUrl;
 
-    final senderInitial = senderName.isNotEmpty
-        ? senderName[0].toUpperCase()
-        : '?';
+    final senderInitial = avatarInitial(senderName);
 
     final List<dynamic> media = (message['media'] as List<dynamic>?) ?? [];
 
