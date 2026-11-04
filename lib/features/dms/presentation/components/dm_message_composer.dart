@@ -395,7 +395,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     if (key == LogicalKeyboardKey.keyV &&
         (HardwareKeyboard.instance.isControlPressed ||
             HardwareKeyboard.instance.isMetaPressed)) {
-      _handlePaste();
+      handlePaste();
       return KeyEventResult.ignored;
     }
 
@@ -784,27 +784,93 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     );
   }
 
-  Future<void> _handlePaste() async {
-    final reader = await SystemClipboard.instance?.read();
-    if (reader == null || !reader.canProvide(Formats.png)) return;
+  Future<bool> handlePaste({DataReader? reader}) async {
+    final clipReader = reader ?? await SystemClipboard.instance?.read();
+    if (clipReader == null) return false;
 
-    reader.getFile(Formats.png, (file) async {
-      final stream = file.getStream();
-      final bytesBuilder = <int>[];
-      await for (final chunk in stream) {
-        bytesBuilder.addAll(chunk);
-      }
-      final bytes = Uint8List.fromList(bytesBuilder);
-      if (bytes.isNotEmpty) {
-        addFiles([
-          XFile.fromData(
-            bytes,
-            mimeType: 'image/png',
-            name: 'Pasted Image.png',
-          ),
-        ]);
-      }
-    });
+    SimpleFileFormat? matchedFormat;
+    String ext = 'png';
+    String mime = 'image/png';
+
+    if (clipReader.canProvide(Formats.png)) {
+      matchedFormat = Formats.png;
+      ext = 'png';
+      mime = 'image/png';
+    } else if (clipReader.canProvide(Formats.jpeg)) {
+      matchedFormat = Formats.jpeg;
+      ext = 'jpg';
+      mime = 'image/jpeg';
+    } else if (clipReader.canProvide(Formats.webp)) {
+      matchedFormat = Formats.webp;
+      ext = 'webp';
+      mime = 'image/webp';
+    } else if (clipReader.canProvide(Formats.gif)) {
+      matchedFormat = Formats.gif;
+      ext = 'gif';
+      mime = 'image/gif';
+    }
+
+    if (matchedFormat != null) {
+      final completer = Completer<bool>();
+      clipReader.getFile(
+        matchedFormat,
+        (file) async {
+          try {
+            final bytes = await file.readAll();
+            if (bytes.isNotEmpty) {
+              final fileName =
+                  'pasted_image_${DateTime.now().millisecondsSinceEpoch}.$ext';
+              try {
+                final tempPath =
+                    '${Directory.systemTemp.path}${Platform.pathSeparator}$fileName';
+                final tempFile = File(tempPath);
+                await tempFile.writeAsBytes(bytes);
+                await addFiles([
+                  XFile(tempPath, name: fileName, mimeType: mime),
+                ]);
+              } catch (_) {
+                await addFiles([
+                  XFile.fromData(bytes, name: fileName, mimeType: mime),
+                ]);
+              }
+            }
+            if (!completer.isCompleted) completer.complete(true);
+          } catch (_) {
+            if (!completer.isCompleted) completer.complete(false);
+          }
+        },
+        onError: (_) {
+          if (!completer.isCompleted) completer.complete(false);
+        },
+      );
+      return await completer.future;
+    }
+
+    if (clipReader.canProvide(Formats.fileUri)) {
+      clipReader.getValue(Formats.fileUri, (uri) async {
+        if (uri != null && uri.hasScheme && uri.scheme == 'file') {
+          final filePath = uri.toFilePath();
+          final fileExt = filePath.split('.').last.toLowerCase();
+          if (const [
+            'png',
+            'jpg',
+            'jpeg',
+            'webp',
+            'gif',
+            'bmp',
+          ].contains(fileExt)) {
+            final file = File(filePath);
+            if (await file.exists()) {
+              final fileName = filePath.split(Platform.pathSeparator).last;
+              await addFiles([XFile(filePath, name: fileName)]);
+            }
+          }
+        }
+      });
+      return true;
+    }
+
+    return false;
   }
 
   @override
