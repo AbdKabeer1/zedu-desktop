@@ -9,6 +9,7 @@ class AuthState {
     this.error,
     this.isLoading = false,
     this.sessionExpired = false,
+    this.sessionRestoreFailed = false,
   });
 
   final AuthStatus status;
@@ -19,12 +20,17 @@ class AuthState {
   /// True when a 401 ended a signed-in session (not a logout).
   final bool sessionExpired;
 
+  /// The saved session could not be checked because the server could not be
+  /// reached. The token is kept, so trying again can still restore it.
+  final bool sessionRestoreFailed;
+
   AuthState copyWith({
     AuthStatus? status,
     User? user,
     String? error,
     bool? isLoading,
     bool? sessionExpired,
+    bool? sessionRestoreFailed,
     bool clearError = false,
   }) {
     return AuthState(
@@ -33,6 +39,7 @@ class AuthState {
       error: clearError ? null : (error ?? this.error),
       isLoading: isLoading ?? this.isLoading,
       sessionExpired: sessionExpired ?? this.sessionExpired,
+      sessionRestoreFailed: sessionRestoreFailed ?? this.sessionRestoreFailed,
     );
   }
 }
