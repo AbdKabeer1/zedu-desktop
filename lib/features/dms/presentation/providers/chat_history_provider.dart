@@ -11,7 +11,12 @@ class ChatHistoryNotifier extends ChangeNotifier {
   bool isLoading = true;
   bool hasMore = true;
   int page = 1;
-  bool _isHistoryClearedLocally = false;
+
+  /// Messages created at or before this time were cleared with "Clear
+  /// history" and stay hidden.
+  DateTime? _clearedAt;
+
+  bool get historyCleared => _clearedAt != null;
 
   /// Whether the first page of history failed to load.
   bool loadFailed = false;
@@ -21,6 +26,10 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
   String? editingMessageId;
   final Map<String, Future<void>> _saveEditChains = {};
+
+  /// Messages whose edit is still being sent. A poll that lands meanwhile must
+  /// not put the old text back over the edit.
+  final Set<String> _editsInFlight = {};
 
   ChatHistoryNotifier(this.channelId, this.ref) {
     _loadInitial();
@@ -75,12 +84,20 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
   Future<void> _loadFirstPage() async {
     try {
+      _clearedAt = await ref
+          .read(dmHistoryClearStoreProvider)
+          .clearedAt(channelId);
+    } catch (_) {}
+    try {
       final repository = ref.read(dmRepositoryProvider);
       final loaded = await repository.getMessages(channelId, page: 1);
+      final visible = loaded.where((m) => !_isCleared(m)).toList();
       // Keep messages sent (or failing to send) while the history was missing.
       final unsent = messages.where((m) => m['status'] != null);
-      messages = [...unsent, ...loaded];
-      hasMore = loaded.length >= DmRepository.pageSize;
+      messages = [...unsent, ...visible];
+      hasMore =
+          loaded.length >= DmRepository.pageSize &&
+          visible.length == loaded.length;
       page = 1;
       loadFailed = false;
       _markSeen(loaded);
@@ -130,15 +147,19 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
   Future<void> _pollForNewMessages() async {
     // Until the history loads, every polled message would look new.
-    if (_isHistoryClearedLocally || loadFailed) return;
+    if (loadFailed) return;
     try {
       final repository = ref.read(dmRepositoryProvider);
       final fresh = await repository.getMessages(channelId, page: 1);
 
+      // A message edited elsewhere keeps its id, so it is not "new": replace
+      // its text in place, without a notification or a second copy.
+      final changed = _applyEditedContent(fresh);
+
       bool hadNew = false;
       for (final msg in fresh) {
         final id = msg['id']?.toString();
-        if (id == null || _seenIds.contains(id)) continue;
+        if (id == null || _seenIds.contains(id) || _isCleared(msg)) continue;
 
         _seenIds.add(id);
         hadNew = true;
@@ -155,21 +176,53 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
       if (hadNew) {
         // Prepend only the genuinely new messages at the top.
-        final existingIds = messages.map((m) => m['id']?.toString()).toSet();
+        // A message just sent keeps its local id and stores the server's id as
+        // thread_id, so match on both or the poll adds a second copy of it.
+        final existingIds = <String?>{
+          for (final m in messages) ...[
+            m['id']?.toString(),
+            if (m['thread_id'] != null) m['thread_id'].toString(),
+          ],
+        };
         final newOnly = fresh
             .where(
               (m) =>
-                  !existingIds.contains(m['id']?.toString()) && !_isDeleted(m),
+                  !existingIds.contains(m['id']?.toString()) &&
+                  !_isDeleted(m) &&
+                  !_isCleared(m),
             )
             .toList();
         if (newOnly.isNotEmpty) {
           messages = [...newOnly, ...messages];
           notifyListeners();
+          return;
         }
       }
+      if (changed) notifyListeners();
     } catch (_) {
       // Silent — polling failures should not surface to the UI.
     }
+  }
+
+  /// Puts the server's text on every loaded message whose content changed
+  /// since it was loaded. Skips messages being edited here, and returns whether
+  /// anything changed.
+  bool _applyEditedContent(List<Map<String, dynamic>> fresh) {
+    final latest = <String, Object?>{
+      for (final m in fresh)
+        if (m['id'] != null && !_isDeleted(m)) m['id'].toString(): m['content'],
+    };
+    var changed = false;
+    messages = messages.map((m) {
+      final id = m['id']?.toString();
+      if (id == null || !latest.containsKey(id)) return m;
+      if (_editsInFlight.contains(id) || editingMessageId == id) return m;
+      final content = latest[id];
+      if (content == null || content == m['content']) return m;
+      changed = true;
+      return Map<String, dynamic>.from(m)..['content'] = content;
+    }).toList();
+    return changed;
   }
 
   @override
@@ -198,8 +251,15 @@ class ChatHistoryNotifier extends ChangeNotifier {
         page: nextPage,
       );
 
-      messages = [...messages, ...newMessages.where((m) => !_isDeleted(m))];
-      hasMore = newMessages.length >= DmRepository.pageSize;
+      messages = [
+        ...messages,
+        ...newMessages.where((m) => !_isDeleted(m) && !_isCleared(m)),
+      ];
+      // Pages run newest first, so once a cleared message shows up every
+      // older page is cleared too.
+      hasMore =
+          newMessages.length >= DmRepository.pageSize &&
+          !newMessages.any(_isCleared);
       page = nextPage;
     } catch (_) {
       loadMoreFailed = true;
@@ -225,7 +285,11 @@ class ChatHistoryNotifier extends ChangeNotifier {
   }
 
   // What each message was sent with, so a retry sends it the same way.
-  final Map<String, ({List<XFile>? media, bool isChannel})> _sendOptions = {};
+  final Map<
+    String,
+    ({List<XFile>? media, List<dynamic>? mentions, bool isChannel})
+  >
+  _sendOptions = {};
 
   /// Makes each optimistic message id unique, even for sends in the same
   /// millisecond: the id keys [_sendOptions] and the message's later update.
@@ -249,7 +313,6 @@ class ChatHistoryNotifier extends ChangeNotifier {
     List<dynamic>? mentions,
     bool isChannel = false,
   }) async {
-    _isHistoryClearedLocally = false;
     final tempId =
         'local-${DateTime.now().millisecondsSinceEpoch}-${_tempIdCounter++}';
     final optimisticMessage = {
@@ -270,7 +333,11 @@ class ChatHistoryNotifier extends ChangeNotifier {
         ],
     };
 
-    _sendOptions[tempId] = (media: media, isChannel: isChannel);
+    _sendOptions[tempId] = (
+      media: media,
+      mentions: mentions,
+      isChannel: isChannel,
+    );
     messages = [optimisticMessage, ...messages];
     notifyListeners();
 
@@ -328,6 +395,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
         channelId,
         content,
         media: options?.media,
+        mentions: options?.mentions,
         isChannel:
             failedMsg['is_channel'] as bool? ?? options?.isChannel ?? false,
       );
@@ -357,12 +425,42 @@ class ChatHistoryNotifier extends ChangeNotifier {
     }
   }
 
-  void clearLocalHistory() {
-    _isHistoryClearedLocally = true;
+  static DateTime? _createdAt(Map<String, dynamic> message) =>
+      DateTime.tryParse(message['created_at']?.toString() ?? '');
+
+  bool _isCleared(Map<String, dynamic> message) {
+    final clearedAt = _clearedAt;
+    if (clearedAt == null) return false;
+    final createdAt = _createdAt(message);
+    return createdAt != null && !createdAt.isAfter(clearedAt);
+  }
+
+  /// Hides every message up to now in this conversation, on this device, and
+  /// remembers it so they stay hidden after the DM is reopened.
+  Future<void> clearLocalHistory() async {
+    // Cut off at the newest loaded message rather than this device's clock,
+    // so a clock running ahead can't hide messages sent after the clear.
+    DateTime? newest;
+    for (final message in messages) {
+      final createdAt = _createdAt(message);
+      if (createdAt != null && (newest == null || createdAt.isAfter(newest))) {
+        newest = createdAt;
+      }
+    }
+    final clearedAt = newest ?? DateTime.now();
+    _clearedAt = clearedAt;
     messages = [];
     hasMore = false;
     page = 1;
     notifyListeners();
+
+    try {
+      await ref
+          .read(dmHistoryClearStoreProvider)
+          .markCleared(channelId, clearedAt);
+    } catch (_) {
+      // The messages stay hidden for this session even if saving fails.
+    }
   }
 
   void startEditing(String messageId) {
@@ -445,6 +543,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
     }
     notifyListeners();
 
+    _editsInFlight.add(messageId);
     try {
       final repository = ref.read(dmRepositoryProvider);
       await repository.editMessage(
@@ -462,11 +561,13 @@ class ChatHistoryNotifier extends ChangeNotifier {
         return m;
       }).toList();
       notifyListeners();
+    } finally {
+      _editsInFlight.remove(messageId);
     }
   }
 }
 
-final chatHistoryProvider =
-    ChangeNotifierProvider.family<ChatHistoryNotifier, String>(
+final chatHistoryProvider = ChangeNotifierProvider.autoDispose
+    .family<ChatHistoryNotifier, String>(
       (ref, channelId) => ChatHistoryNotifier(channelId, ref),
     );
