@@ -17,6 +17,10 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  // Google may sign in an account that already exists, so the success toast
+  // must not claim a new account was created.
+  bool _signingUpWithGoogle = false;
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -27,6 +31,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
 
   Future<void> _onCreateAccountPressed() async {
     if (!_formKey.currentState!.validate()) return;
+    _signingUpWithGoogle = false;
 
     ref
         .read(authNotifierProvider.notifier)
@@ -37,6 +42,12 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
         );
   }
 
+  void _onGooglePressed() {
+    if (ref.read(authNotifierProvider).isLoading) return;
+    _signingUpWithGoogle = true;
+    ref.read(authNotifierProvider.notifier).loginWithGoogle();
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
@@ -45,7 +56,9 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
         AppToastService.show(
           context,
           type: AppToastType.success,
-          message: 'Account created successfully!',
+          message: _signingUpWithGoogle
+              ? 'Signed in with Google!'
+              : 'Account created successfully!',
         );
         context.go(AppRouter.home);
       }
@@ -222,11 +235,8 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                 SocialAuthButton(
                   icon: 'assets/svgs/google_logo.svg',
                   label: 'Sign up with Google',
-                  onPressed: () => AppToastService.show(
-                    context,
-                    type: AppToastType.info,
-                    message: 'Google sign up is not available yet.',
-                  ),
+                  loading: authState.isLoading,
+                  onPressed: _onGooglePressed,
                 ),
                 context.gapV(12),
                 SocialAuthButton(
