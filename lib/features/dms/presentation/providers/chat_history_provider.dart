@@ -1,11 +1,10 @@
-import 'dart:io' show File;
-
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
 class ChatHistoryNotifier extends ChangeNotifier {
   final String channelId;
   final Ref ref;
+  late final ComposerFileStore _fileStore;
 
   List<Map<String, dynamic>> messages = [];
   bool isLoading = true;
@@ -32,6 +31,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
   final Set<String> _editsInFlight = {};
 
   ChatHistoryNotifier(this.channelId, this.ref) {
+    _fileStore = ref.read(composerFileStoreProvider);
     _loadInitial();
   }
 
@@ -299,10 +299,9 @@ class ChatHistoryNotifier extends ChangeNotifier {
   /// the user picked are never deleted.
   Future<void> _deleteRecordings(List<XFile>? files) async {
     for (final file in files ?? const <XFile>[]) {
-      if (appRecordedPaths.remove(file.path)) {
-        try {
-          await File(file.path).delete();
-        } catch (_) {}
+      final result = await _fileStore.deleteRecording(file.path);
+      if (result case Failure(:final error)) {
+        AppLogger.w(error.message, tag: 'ChatHistoryNotifier');
       }
     }
   }
