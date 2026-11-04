@@ -77,6 +77,7 @@ class _SearchPanelState extends State<SearchPanel> {
                   onPressed: widget.onClose,
                   icon: Icon(Icons.close, color: colors.textHint),
                   splashRadius: 20,
+                  tooltip: 'Close search',
                 ),
               ],
             ),

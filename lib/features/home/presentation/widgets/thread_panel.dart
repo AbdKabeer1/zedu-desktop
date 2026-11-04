@@ -56,6 +56,7 @@ class _ThreadPanelState extends State<ThreadPanel> {
                   onPressed: widget.onClose,
                   icon: Icon(Icons.close, color: colors.textHint),
                   splashRadius: 20,
+                  tooltip: 'Close thread',
                 ),
               ],
             ),
