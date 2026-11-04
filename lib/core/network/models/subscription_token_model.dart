@@ -13,8 +13,5 @@ class SubscriptionTokenModel {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'channel': channel,
-        'token': token,
-      };
+  Map<String, dynamic> toJson() => {'channel': channel, 'token': token};
 }
