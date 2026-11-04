@@ -52,6 +52,26 @@ class _AuthDeepLinkListenerState extends ConsumerState<AuthDeepLinkListener> {
     if (token == null || token == _lastProcessedToken) return;
     _lastProcessedToken = token;
 
+    // A link that opens the app arrives while the saved session is still
+    // being restored, so wait to know whether someone is signed in.
+    final status = await _settledAuthStatus();
+    if (!mounted) return;
+
+    // Never switch accounts silently: anyone can send a link to their own
+    // account, and following it would put you in theirs.
+    if (status == AuthStatus.authenticated) {
+      final switchAccount = await _confirmSwitchAccount();
+      if (!mounted) return;
+      if (!switchAccount) {
+        AppLogger.i('Magic link ignored — kept the current account', tag: _tag);
+        // Let the same link work if it is opened again later.
+        _lastProcessedToken = null;
+        return;
+      }
+      await ref.read(authNotifierProvider.notifier).logout();
+      if (!mounted) return;
+    }
+
     AppLogger.i('Processing magic link deep link', tag: _tag);
     await ref.read(authNotifierProvider.notifier).verifyMagicLink(token: token);
 
@@ -80,6 +100,48 @@ class _AuthDeepLinkListenerState extends ConsumerState<AuthDeepLinkListener> {
         message: authState.error!,
       );
     }
+  }
+
+  /// The auth status once it is known (not [AuthStatus.unknown]).
+  Future<AuthStatus> _settledAuthStatus() async {
+    final current = ref.read(authNotifierProvider).status;
+    if (current != AuthStatus.unknown) return current;
+
+    final settled = Completer<AuthStatus>();
+    final subscription = ref.listenManual<AuthStatus>(
+      authNotifierProvider.select((s) => s.status),
+      (_, next) {
+        if (next != AuthStatus.unknown && !settled.isCompleted) {
+          settled.complete(next);
+        }
+      },
+    );
+    try {
+      return await settled.future;
+    } finally {
+      subscription.close();
+    }
+  }
+
+  /// Asks whether to leave the signed-in account for the link's one.
+  /// Returns false when there is nowhere to ask or the user declines.
+  Future<bool> _confirmSwitchAccount() async {
+    final navigator = AppRouter.navigatorKey.currentState;
+    if (navigator == null) return false;
+
+    final email = ref.read(authNotifierProvider).user?.email ?? '';
+    final signedIn = email.isEmpty
+        ? "You're already signed in."
+        : "You're signed in as $email.";
+    var confirmed = false;
+    await showProfileConfirmDialog(
+      navigator.context,
+      title: 'Switch accounts?',
+      message: '$signedIn Sign out and continue with this magic link?',
+      confirmLabel: 'Sign out and continue',
+      onConfirm: () async => confirmed = true,
+    );
+    return confirmed;
   }
 
   @override
