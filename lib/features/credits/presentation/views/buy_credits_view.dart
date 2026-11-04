@@ -114,7 +114,7 @@ class _BuyCreditsViewState extends ConsumerState<BuyCreditsView> {
                   'All Plans',
                   style: context.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF374151),
+                    color: context.colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 24),

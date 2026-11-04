@@ -188,6 +188,17 @@ void main() {
       );
       await tester.pump(const Duration(seconds: 10));
     });
+
+    testWidgets('colours the All Plans title with the text token', (
+      tester,
+    ) async {
+      await tapContactSales(tester);
+
+      final title = tester.widget<Text>(find.text('All Plans'));
+
+      expect(title.style!.color, AppPalette.light.textPrimary);
+      await tester.pump(const Duration(seconds: 10));
+    });
   });
 
   for (final balance in [0, 25]) {
