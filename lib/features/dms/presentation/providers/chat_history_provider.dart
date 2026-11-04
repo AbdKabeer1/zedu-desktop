@@ -258,6 +258,8 @@ class ChatHistoryNotifier extends ChangeNotifier {
       "channel_id": channelId,
       "user_id": _currentUserId,
       "userId": _currentUserId,
+      "sender_name": currentUserName,
+      "avatar_url": currentUserAvatarUrl,
       "type": "user",
       "created_at": DateTime.now().toIso8601String(),
       "status": "sending",
