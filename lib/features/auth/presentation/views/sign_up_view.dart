@@ -43,7 +43,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
         .signUp(
           username: _usernameController.text.trim(),
           email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
+          password: _passwordController.text,
         );
   }
 
@@ -181,6 +181,10 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                         hint: 'Password',
                         textInputAction: TextInputAction.done,
                         validator: (value) {
+                          if (value != null &&
+                              Validators.hasPasswordEdgeSpace(value)) {
+                            return Validators.passwordEdgeSpaceMessage;
+                          }
                           if (value == null || value.length < 8) {
                             return 'Password must be at least 8 characters long';
                           }

@@ -149,6 +149,25 @@ void main() {
       ]);
     });
 
+    testWidgets('sends the password exactly as typed', (tester) async {
+      final attempts = <(String, String)>[];
+      await pumpDesktopLogin(
+        tester,
+        FakeAuthNotifier(
+          onLogin: (email, password) => attempts.add((email, password)),
+        ),
+      );
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        ' user@example.com ',
+      );
+      await tester.enterText(find.byType(TextFormField).at(1), ' Secret123 ');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      expect(attempts, [('user@example.com', ' Secret123 ')]);
+    });
+
     testWidgets(
       'Enter does not submit while authentication is already loading',
       (tester) async {

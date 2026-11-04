@@ -33,7 +33,9 @@ class _LoginViewState extends ConsumerState<LoginView> {
         .read(authNotifierProvider.notifier)
         .login(
           email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
+          // Sent as typed: trimming would change a password that was set
+          // with a leading or trailing space.
+          password: _passwordController.text,
           rememberMe: _rememberMe,
         );
   }
