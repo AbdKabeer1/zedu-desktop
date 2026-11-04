@@ -129,6 +129,9 @@ class _MainSidebarSwitcher extends ConsumerWidget {
     if (state == HomeSidebarType.dms) {
       return const DmSidebarList();
     }
+    if (state == HomeSidebarType.people) {
+      return const PeopleSidebar();
+    }
     if (state == HomeSidebarType.files) {
       return const FilesSidebar();
     }
@@ -170,6 +173,9 @@ class _ChatAreaSwitcher extends ConsumerWidget {
       } else {
         return const DmEmptyState();
       }
+    }
+    if (state == HomeSidebarType.people) {
+      return const PeopleView();
     }
     if (state == HomeSidebarType.files) {
       return const FilesView();
