@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// active modifier keys (e.g. `"ctrl+s"`).
 String shortcutKey(LogicalKeyboardKey key, Set<String> modifiers) {
   final sorted = modifiers.toList()..sort();
-  return '${sorted.join('+')}+${key.debugName}'.toLowerCase();
+  return '${sorted.join('+')}+${key.keyLabel}'.toLowerCase();
 }
 
 /// Builds the modifier set currently held on the keyboard.
