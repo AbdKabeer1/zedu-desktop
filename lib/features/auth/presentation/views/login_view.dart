@@ -220,7 +220,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                               const Text('Remember me'),
                             ],
                           ),
-                          GestureDetector(
+                          InkWell(
                             onTap: () => context.push(AppRouter.forgotPassword),
                             child: Text(
                               'Forgot Password?',
@@ -262,7 +262,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text("Don't have an account? "),
-                    GestureDetector(
+                    InkWell(
                       onTap: () => context.push(AppRouter.signup),
                       child: Text(
                         'Sign up',
