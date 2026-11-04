@@ -103,6 +103,75 @@ void main() {
       return container;
     }
 
+    test(
+      'renaming the organisation renames its workspace (Ziki #2388)',
+      () async {
+        when(() => storage.readData(any())).thenAnswer((_) async => null);
+        const renamed = OrganizationProfile(
+          id: 'A',
+          name: 'Renamed',
+          natureOfBusiness: 'Technology',
+          country: 'Nigeria',
+        );
+        when(
+          () => repo.updateOrganization(renamed, orgId: 'A'),
+        ).thenAnswer((_) async => const Success(renamed));
+
+        final container = ProviderContainer(
+          overrides: [
+            userProfileRepositoryProvider.overrideWithValue(repo),
+            workspaceProvider.overrideWith(() => _ListedWorkspaceNotifier('A')),
+          ],
+        );
+        addTearDown(container.dispose);
+        container.listen(userProfileNotifierProvider, (_, _) {});
+        await settle();
+
+        await container
+            .read(userProfileNotifierProvider.notifier)
+            .updateOrganization(renamed);
+
+        final workspaces = container.read(workspaceProvider);
+        expect(workspaces.selectedWorkspace?.name, 'Renamed');
+        expect(workspaces.workspaces.map((w) => w.name), [
+          'Renamed',
+          'Workspace B',
+        ]);
+      },
+    );
+
+    test('a failed rename leaves the workspace name alone', () async {
+      when(() => storage.readData(any())).thenAnswer((_) async => null);
+      const renamed = OrganizationProfile(
+        id: 'A',
+        name: 'Renamed',
+        natureOfBusiness: 'Technology',
+        country: 'Nigeria',
+      );
+      when(
+        () => repo.updateOrganization(renamed, orgId: 'A'),
+      ).thenAnswer((_) => _failed());
+
+      final container = ProviderContainer(
+        overrides: [
+          userProfileRepositoryProvider.overrideWithValue(repo),
+          workspaceProvider.overrideWith(() => _ListedWorkspaceNotifier('A')),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(userProfileNotifierProvider, (_, _) {});
+      await settle();
+
+      await container
+          .read(userProfileNotifierProvider.notifier)
+          .updateOrganization(renamed);
+
+      expect(
+        container.read(workspaceProvider).selectedWorkspace?.name,
+        'Workspace A',
+      );
+    });
+
     test('drops an older load for the same workspace after A, B, A', () async {
       // The first load (workspace A) is held up in secure storage.
       final slowRead = Completer<String?>();
