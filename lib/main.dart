@@ -1,5 +1,6 @@
 import 'package:zedu/core/core.dart';
 import 'package:zedu/app/app.dart';
+import 'package:zedu/core/window/window_startup.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,6 +12,7 @@ Future<void> main() async {
     window: windowManager,
     storage: locator<SecureStorageService>(),
   ).restore();
+  showWindowWhenReady(windowManager);
 
   runApp(const ProviderScope(child: App()));
 }
