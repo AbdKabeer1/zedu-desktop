@@ -1,11 +1,11 @@
 import 'package:zedu/core/core.dart';
 
-/// The upper-cased first letter of [name] for an avatar, e.g. `J` for
-/// `' john'`.
+/// The first character of [name] for an avatar, upper-cased, or [fallback]
+/// when there is none.
 ///
-/// Surrounding whitespace is ignored and the first user-perceived character
-/// is taken, so an emoji or accented letter is never split in half. A null,
-/// empty or whitespace-only [name] returns [fallback] instead of throwing.
+/// It takes a whole character (a grapheme), so a name that starts with an
+/// emoji, a flag or another non-BMP character isn't cut in half the way
+/// `name[0]` cuts it.
 String avatarInitial(String? name, {String fallback = '?'}) {
   final trimmed = name?.trim() ?? '';
   if (trimmed.isEmpty) return fallback;
