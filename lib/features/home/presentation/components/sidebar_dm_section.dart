@@ -1,14 +1,15 @@
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
-/// The Direct messages section of the Home sidebar: a heading, then the
-/// user's own space as "[Name] (you)", then their other conversations in the
-/// same order as the DMs tab. Selecting one opens it in the DMs tab.
-class SidebarDmSection extends StatelessWidget {
+/// The Direct messages section of the Home sidebar: a heading with a compose
+/// button, then the user's own space as "[Name] (you)", then their other
+/// conversations in the same order as the DMs tab. Selecting one opens it in
+/// the DMs tab.
+class SidebarDmSection extends ConsumerWidget {
   const SidebarDmSection({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
 
     return Column(
@@ -30,6 +31,23 @@ class SidebarDmSection extends StatelessWidget {
                     fontSize: 15,
                   ),
                 ),
+              ),
+              // Opens the same new-message flow as the compose button in
+              // the workspace header.
+              IconButton(
+                tooltip: 'New message',
+                onPressed: () {
+                  ref.read(selectedDmProvider.notifier).select(null);
+                  ref.read(activeChatProvider.notifier).selectNewGroupChat();
+                },
+                icon: Icon(
+                  Icons.edit_note,
+                  semanticLabel: 'New message',
+                  color: colors.onPrimary.withValues(alpha: 0.7),
+                  size: 20,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
             ],
           ),
