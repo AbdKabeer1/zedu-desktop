@@ -276,14 +276,6 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     _focusNode.requestFocus();
   }
 
-  /// Whether the send control can send the composer's current content.
-  /// A recorded voice note or a picked file is enough on its own.
-  bool get _canSend {
-    final hasText = _controller.text.trim().isNotEmpty;
-    if (_isEditMode) return hasText;
-    return hasText || _pendingFiles.isNotEmpty || _voiceNote != null;
-  }
-
   void _handleSend() {
     final text = _controller.text.trim();
     final isEdit = _isEditMode && _editingMessageId != null;
