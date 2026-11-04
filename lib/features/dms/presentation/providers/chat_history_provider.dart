@@ -372,12 +372,13 @@ class ChatHistoryNotifier extends ChangeNotifier {
       return;
     }
 
-    final baselineContent =
-        messages.firstWhere(
-              (m) => m['id'] == messageId,
-              orElse: () => <String, dynamic>{},
-            )['content']
-            as String?;
+    final original = messages.firstWhere(
+      (m) => m['id'] == messageId,
+      orElse: () => <String, dynamic>{},
+    );
+    final baselineContent = original['content'] as String?;
+    // The backend requires thread_id to know which message is being edited.
+    final threadId = (original['thread_id'] ?? original['id'])?.toString();
 
     messages = messages.map((m) {
       if (m['id'] == messageId) {
@@ -394,7 +395,11 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
     try {
       final repository = ref.read(dmRepositoryProvider);
-      await repository.editMessage(channelId, content: newContent);
+      await repository.editMessage(
+        channelId,
+        content: newContent,
+        threadId: threadId,
+      );
     } catch (_) {
       messages = messages.map((m) {
         if (m['id'] == messageId && m['content'] == newContent) {
