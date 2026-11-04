@@ -69,6 +69,13 @@ class _UserManagementSectionState extends State<UserManagementSection> {
         widget.members
             .where((m) => m.status == TeamMemberStatus.pending)
             .toList();
+    // The selected role stays listed after its last member is removed, since a
+    // dropdown can't hold a value it has no item for.
+    final roleOptions = {
+      for (final member in widget.members)
+        if (member.role.isNotEmpty) member.role,
+      if (_roleFilter != 'All Roles') _roleFilter,
+    }.toList()..sort();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,20 +157,13 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                       DropdownButton<String>(
                         value: _roleFilter,
                         underline: const SizedBox(),
-                        items: const [
-                          DropdownMenuItem(
+                        items: [
+                          const DropdownMenuItem(
                             value: 'All Roles',
                             child: Text('All Roles'),
                           ),
-                          DropdownMenuItem(
-                            value: 'Administrator',
-                            child: Text('Administrator'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Manager',
-                            child: Text('Manager'),
-                          ),
-                          DropdownMenuItem(value: 'User', child: Text('User')),
+                          for (final role in roleOptions)
+                            DropdownMenuItem(value: role, child: Text(role)),
                         ],
                         onChanged: (value) => setState(() {
                           _roleFilter = value ?? 'All Roles';
