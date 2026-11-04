@@ -6,7 +6,12 @@ class _FakeChatStorage extends Fake implements ChatStorageService {
   final List<(String, String)> appended = [];
 
   @override
-  Future<void> appendMessage(String groupDmId, String message) async {
+  Future<void> appendMessage(
+    String groupDmId,
+    String message, {
+    String? orgId,
+    String? userId,
+  }) async {
     appended.add((groupDmId, message));
   }
 }
