@@ -145,6 +145,82 @@ void main() {
       expect(state.organization?.name, 'load 1');
       expect(state.isLoading, isFalse);
     });
+
+    group('updateOrganization', () {
+      const saved = OrganizationProfile(
+        id: 'A',
+        name: 'saved',
+        natureOfBusiness: 'Technology',
+        country: 'Nigeria',
+      );
+
+      late Completer<Result<OrganizationProfile>> save;
+
+      setUp(() {
+        registerFallbackValue(saved);
+        save = Completer<Result<OrganizationProfile>>();
+        when(() => storage.readData(any())).thenAnswer((_) async => null);
+        when(
+          () => repo.updateOrganization(any(), orgId: any(named: 'orgId')),
+        ).thenAnswer((_) => save.future);
+      });
+
+      Future<ProviderContainer> startSaveInWorkspaceA() async {
+        final container = buildContainer();
+        await settle();
+        unawaited(
+          container
+              .read(userProfileNotifierProvider.notifier)
+              .updateOrganization(saved),
+        );
+        return container;
+      }
+
+      test('drops a response that arrives after a workspace switch', () async {
+        final container = await startSaveInWorkspaceA();
+        (container.read(workspaceProvider.notifier) as _TestWorkspaceNotifier)
+            .select('B');
+        await settle();
+
+        save.complete(const Success<OrganizationProfile>(saved));
+        await settle();
+
+        final state = container.read(userProfileNotifierProvider);
+        expect(state.organization?.id, 'B');
+        expect(state.organization?.name, 'load 2');
+        expect(state.isSaving, isFalse);
+        expect(state.successMessage, isNull);
+      });
+
+      test('drops a failure that arrives after a workspace switch', () async {
+        final container = await startSaveInWorkspaceA();
+        (container.read(workspaceProvider.notifier) as _TestWorkspaceNotifier)
+            .select('B');
+        await settle();
+        final errorBefore = container.read(userProfileNotifierProvider).error;
+
+        save.complete(
+          Failure<OrganizationProfile>(const ApiFailure(message: 'nope')),
+        );
+        await settle();
+
+        final state = container.read(userProfileNotifierProvider);
+        expect(state.isSaving, isFalse);
+        expect(state.error, errorBefore);
+      });
+
+      test('applies a response for the workspace still selected', () async {
+        final container = await startSaveInWorkspaceA();
+
+        save.complete(const Success<OrganizationProfile>(saved));
+        await settle();
+
+        final state = container.read(userProfileNotifierProvider);
+        expect(state.organization?.name, 'saved');
+        expect(state.isSaving, isFalse);
+        expect(state.successMessage, isNotNull);
+      });
+    });
   });
 
   group('UserProfileNotifier.deleteOrganization', () {
