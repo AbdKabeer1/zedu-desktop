@@ -391,6 +391,17 @@ class _ContactRow extends StatelessWidget {
   final BuildContext context;
   final bool isLink;
 
+  Future<void> _copyLabel(BuildContext buildContext) async {
+    if (label.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: label));
+    if (!buildContext.mounted) return;
+    AppToastService.show(
+      buildContext,
+      type: AppToastType.success,
+      message: 'Copied $label',
+    );
+  }
+
   @override
   Widget build(BuildContext buildContext) {
     return Row(
@@ -409,7 +420,7 @@ class _ContactRow extends StatelessWidget {
           ),
         ),
         InkWell(
-          onTap: () {},
+          onTap: () => _copyLabel(buildContext),
           borderRadius: BorderRadius.circular(4),
           child: Icon(Icons.copy_outlined, size: 14, color: colors.textHint),
         ),
