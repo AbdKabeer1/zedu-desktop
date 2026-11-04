@@ -7,6 +7,12 @@ class _FakeAuthNotifier extends AuthNotifier {
   AuthState build() => const AuthState(status: AuthStatus.authenticated);
 }
 
+/// The settings shell reads the selected workspace; skip the network load.
+class _FakeWorkspaceNotifier extends WorkspaceNotifier {
+  @override
+  WorkspaceState build() => const WorkspaceState();
+}
+
 class _FakeCreditsNotifier extends CreditsNotifier {
   @override
   CreditsState build() => const CreditsState();
@@ -113,6 +119,7 @@ void main() {
         ProviderScope(
           overrides: [
             authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+            workspaceProvider.overrideWith(_FakeWorkspaceNotifier.new),
             creditsNotifierProvider.overrideWith(_FakeCreditsNotifier.new),
             userProfileNotifierProvider.overrideWith(
               _FakeUserProfileNotifier.new,
