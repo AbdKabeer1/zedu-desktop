@@ -89,11 +89,19 @@ class WorkspaceSwitcherList extends ConsumerWidget {
                 return _WorkspaceListItem(
                   workspace: workspace,
                   isActive: isActive,
-                  onTap: () {
-                    ref
-                        .read(workspaceProvider.notifier)
-                        .switchWorkspace(workspace);
+                  onTap: () async {
+                    // Taken before the dialog closes, which unmounts this list.
+                    final notifier = ref.read(workspaceProvider.notifier);
+                    final overlay = Overlay.of(context, rootOverlay: true);
                     Navigator.pop(context);
+                    final error = await notifier.switchWorkspace(workspace);
+                    if (error != null) {
+                      AppToastService.showWith(
+                        overlay,
+                        type: AppToastType.error,
+                        message: error,
+                      );
+                    }
                   },
                 );
               },
