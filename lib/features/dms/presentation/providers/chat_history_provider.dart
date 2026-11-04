@@ -24,6 +24,10 @@ class ChatHistoryNotifier extends ChangeNotifier {
   /// Whether the last request for older messages failed.
   bool loadMoreFailed = false;
 
+  /// Set to true once [dispose] has run; checked before every `ref.read` after
+  /// an await so the notifier doesn't touch a disposed Riverpod reader.
+  bool _disposed = false;
+
   String? editingMessageId;
   final Map<String, Future<void>> _saveEditChains = {};
 
@@ -105,6 +109,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
       loadFailed = true;
     } finally {
       isLoading = false;
+      if (!_disposed) notifyListeners();
       notifyListeners();
     }
   }
@@ -195,9 +200,13 @@ class ChatHistoryNotifier extends ChangeNotifier {
         if (newOnly.isNotEmpty) {
           messages = [...newOnly, ...messages];
           notifyListeners();
+          if (_disposed) return;
+          notifyListeners();
           return;
         }
       }
+      if (changed) notifyListeners();
+      if (_disposed) return;
       if (changed) notifyListeners();
     } catch (_) {
       // Silent — polling failures should not surface to the UI.
@@ -227,6 +236,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     (_pollingTimer as dynamic)?.cancel();
     // Recordings kept for messages that never sent are no longer needed.
     for (final options in _sendOptions.values) {
@@ -265,6 +275,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
       loadMoreFailed = true;
     } finally {
       isLoading = false;
+      if (!_disposed) notifyListeners();
       notifyListeners();
     }
   }
@@ -372,6 +383,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
         return m;
       }).toList();
     } finally {
+      if (!_disposed) notifyListeners();
       notifyListeners();
     }
   }
@@ -386,6 +398,8 @@ class ChatHistoryNotifier extends ChangeNotifier {
     failedMsg['status'] = 'sending';
     messages = List<Map<String, dynamic>>.from(messages);
     messages[idx] = failedMsg;
+    notifyListeners();
+    if (_disposed) return;
     notifyListeners();
 
     try {
@@ -421,6 +435,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
         return m;
       }).toList();
     } finally {
+      if (!_disposed) notifyListeners();
       notifyListeners();
     }
   }
@@ -453,6 +468,8 @@ class ChatHistoryNotifier extends ChangeNotifier {
     hasMore = false;
     page = 1;
     notifyListeners();
+    if (_disposed) return;
+    notifyListeners();
 
     try {
       await ref
@@ -472,10 +489,14 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
     editingMessageId = messageId;
     notifyListeners();
+    if (_disposed) return;
+    notifyListeners();
   }
 
   void cancelEditing() {
     editingMessageId = null;
+    notifyListeners();
+    if (_disposed) return;
     notifyListeners();
   }
 
@@ -497,6 +518,8 @@ class ChatHistoryNotifier extends ChangeNotifier {
     _deletedIds.add(messageId);
     messages = [...messages]..removeAt(index);
     notifyListeners();
+    if (_disposed) return;
+    notifyListeners();
 
     try {
       final repository = ref.read(dmRepositoryProvider);
@@ -505,6 +528,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
       _deletedIds.remove(messageId);
       messages = [...messages]
         ..insert(index.clamp(0, messages.length), removed);
+      if (!_disposed) notifyListeners();
       notifyListeners();
     }
   }
@@ -542,6 +566,8 @@ class ChatHistoryNotifier extends ChangeNotifier {
       editingMessageId = null;
     }
     notifyListeners();
+    if (_disposed) return;
+    notifyListeners();
 
     _editsInFlight.add(messageId);
     try {
@@ -560,6 +586,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
         }
         return m;
       }).toList();
+      if (!_disposed) notifyListeners();
       notifyListeners();
     } finally {
       _editsInFlight.remove(messageId);
