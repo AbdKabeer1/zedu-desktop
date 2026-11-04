@@ -270,10 +270,28 @@ class ChatHistoryNotifier extends ChangeNotifier {
         page: nextPage,
       );
 
-      messages = [
-        ...messages,
-        ...newMessages.where((m) => !_isDeleted(m) && !_isCleared(m)),
-      ];
+      // A message that arrived since the list was loaded pushes everything
+      // down, so the next page can start with a message already shown. Only
+      // the ones not shown yet are added.
+      final shownIds = <String>{
+        for (final m in messages) ...[
+          if (m['id'] != null) m['id'].toString(),
+          if (m['thread_id'] != null) m['thread_id'].toString(),
+        ],
+      };
+      final older = newMessages
+          .where(
+            (m) =>
+                !_isDeleted(m) &&
+                !_isCleared(m) &&
+                !shownIds.contains(m['id']?.toString()),
+          )
+          .toList();
+      for (final m in older) {
+        final id = m['id']?.toString();
+        if (id != null) _seenIds.add(id);
+      }
+      messages = [...messages, ...older];
       // Pages run newest first, so once a cleared message shows up every
       // older page is cleared too.
       hasMore =
