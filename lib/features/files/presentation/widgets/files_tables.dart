@@ -225,6 +225,7 @@ class FilesTable extends StatelessWidget {
     this.onRename,
     this.onMove,
     this.onShare,
+    this.canShare,
     this.onTogglePin,
     this.pinnedIds = const {},
     this.onInfo,
@@ -254,6 +255,9 @@ class FilesTable extends StatelessWidget {
   /// Shares a file with workspace members. When null, as in Deleted files,
   /// the menu has no Share.
   final ValueChanged<WorkspaceFile>? onShare;
+
+  /// Whether [onShare] is offered for a file. When null, every file has it.
+  final bool Function(WorkspaceFile file)? canShare;
 
   /// Pins a file, or unpins it when it is in [pinnedIds]. When null, as in
   /// Deleted files, the menu has neither.
@@ -356,7 +360,9 @@ class FilesTable extends StatelessWidget {
                 onPreview: preview == null ? null : () => preview(file),
                 onRename: rename == null ? null : () => rename(file),
                 onMove: move == null ? null : () => move(file),
-                onShare: share == null ? null : () => share(file),
+                onShare: share == null || !(canShare?.call(file) ?? true)
+                    ? null
+                    : () => share(file),
                 onTogglePin: togglePin == null ? null : () => togglePin(file),
                 isPinned: pinnedIds.contains(file.id),
                 onInfo: info == null ? null : () => info(file),
