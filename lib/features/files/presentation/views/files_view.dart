@@ -13,6 +13,10 @@ class FilesView extends ConsumerWidget {
     final title = state.folderPath.isEmpty
         ? state.view.label
         : state.folderPath.last.name;
+    // Folders are one level deep on the backend: it ignores parent_id, so
+    // inside a folder there are no subfolders to list or create.
+    final inFolder = state.folderPath.isNotEmpty;
+    final tab = inFolder ? FilesTab.files : state.tab;
 
     return Container(
       color: colors.onPrimary,
@@ -42,12 +46,14 @@ class FilesView extends ConsumerWidget {
                 if (state.view != FilesScope.trash) ...[
                   const _UploadButton(),
                   const SizedBox(width: 12),
-                  _HeaderButton(
-                    icon: Icons.create_new_folder_outlined,
-                    label: 'New Folder',
-                    onPressed: () => _newFolder(context),
-                  ),
-                  const SizedBox(width: 8),
+                  if (!inFolder) ...[
+                    _HeaderButton(
+                      icon: Icons.create_new_folder_outlined,
+                      label: 'New Folder',
+                      onPressed: () => _newFolder(context),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                 ],
                 IconButton(
                   tooltip: 'Refresh',
@@ -70,10 +76,12 @@ class FilesView extends ConsumerWidget {
                   _Breadcrumbs(state: state),
                 ],
                 const SizedBox(height: 16),
-                _Tabs(selected: state.tab),
-                const SizedBox(height: 24),
+                if (!inFolder) ...[
+                  _Tabs(selected: tab),
+                  const SizedBox(height: 24),
+                ],
                 Text(
-                  state.tab == FilesTab.folders ? 'Folders' : 'Files',
+                  tab == FilesTab.folders ? 'Folders' : 'Files',
                   style: context.textTheme.titleMedium?.copyWith(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -81,7 +89,7 @@ class FilesView extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                if (state.tab == FilesTab.folders)
+                if (tab == FilesTab.folders)
                   const _FoldersSection()
                 else
                   const _FilesSection(),

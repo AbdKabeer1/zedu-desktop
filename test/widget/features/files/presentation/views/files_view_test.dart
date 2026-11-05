@@ -467,7 +467,7 @@ void main() {
     expect(find.text('Reports'), findsOneWidget);
   });
 
-  testWidgets('New Folder inside a folder sends it as the parent', (
+  testWidgets('inside a folder there is no Folders tab or New Folder', (
     tester,
   ) async {
     final repository = _FakeFilesRepository();
@@ -475,13 +475,23 @@ void main() {
 
     await tester.tap(find.text('docs'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('New Folder'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).last, 'drafts');
-    await tester.tap(find.text('Create'));
+
+    expect(find.text('spec.pdf'), findsOneWidget);
+    expect(find.text('Folders'), findsNothing);
+    expect(find.text('New Folder'), findsNothing);
+    expect(find.text('Upload File'), findsOneWidget);
+    // The folder's own subfolders are never asked for.
+    expect(
+      repository.folderRequests.where((request) => request.$2 == 'docs'),
+      isEmpty,
+    );
+
+    // Back at the top level, both come back.
+    await tester.tap(find.widgetWithText(TextButton, 'All files'));
     await tester.pumpAndSettle();
 
-    expect(repository.createdFolders, [('drafts', 'org-1', 'docs')]);
+    expect(find.text('Folders'), findsWidgets);
+    expect(find.text('New Folder'), findsOneWidget);
   });
 
   testWidgets('New Folder shows the server error and stays open', (
