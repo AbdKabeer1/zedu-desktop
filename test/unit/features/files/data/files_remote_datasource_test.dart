@@ -453,4 +453,94 @@ void main() {
       ).called(1);
     });
   });
+
+  group('shareFile', () {
+    test('sends the share as the web app does and reads the result', () async {
+      when(
+        () => api.post<Map<String, dynamic>>(
+          path: any(named: 'path'),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 201,
+          data: {
+            'data': {
+              'share_link': 'https://zedu.chat/share/abc',
+              'dms_sent': ['u-2'],
+              'recipients_info': [
+                {'user_id': 'u-2', 'username': 'grace', 'success': true},
+                {
+                  'user_id': 'u-3',
+                  'username': 'alan',
+                  'success': false,
+                  'error': 'DM blocked',
+                },
+              ],
+            },
+          },
+        ),
+      );
+
+      final result = await datasource.shareFile(
+        fileId: 'f-1',
+        recipientIds: ['u-2', 'u-3'],
+        permission: FileSharePermission.edit,
+        access: FileShareAccess.anyoneWithLink,
+        note: 'For the review',
+      );
+
+      verify(
+        () => api.post<Map<String, dynamic>>(
+          path: '/files/f-1/share',
+          data: {
+            'file_id': 'f-1',
+            'access_type': 'public',
+            'permission_type': 'edit',
+            'note': 'For the review',
+            'share_via_dm': true,
+            'recipient_ids': ['u-2', 'u-3'],
+          },
+        ),
+      ).called(1);
+      expect(result.shareLink, 'https://zedu.chat/share/abc');
+      expect(result.sentTo, ['u-2']);
+      expect(result.failures.single.userId, 'u-3');
+      expect(result.failures.single.error, 'DM blocked');
+    });
+
+    test('Only those invited is a private share', () async {
+      when(
+        () => api.post<Map<String, dynamic>>(
+          path: any(named: 'path'),
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 201,
+          data: {'data': null},
+        ),
+      );
+
+      final result = await datasource.shareFile(
+        fileId: 'f-1',
+        recipientIds: ['u-2'],
+        permission: FileSharePermission.view,
+        access: FileShareAccess.invited,
+      );
+
+      final sent =
+          verify(
+                () => api.post<Map<String, dynamic>>(
+                  path: '/files/f-1/share',
+                  data: captureAny(named: 'data'),
+                ),
+              ).captured.single
+              as Map<String, dynamic>;
+      expect(sent['access_type'], 'private');
+      expect(sent['permission_type'], 'view');
+      expect(sent['note'], '');
+      expect(result.sentTo, isEmpty);
+    });
+  });
 }

@@ -39,4 +39,13 @@ abstract class FilesRepository {
 
   /// Moves [fileId] into folder [folderId].
   Future<Result<void>> moveFile(String fileId, String folderId);
+
+  /// Shares [fileId] with [recipientIds] by direct message.
+  Future<Result<FileShareResult>> shareFile({
+    required String fileId,
+    required List<String> recipientIds,
+    required FileSharePermission permission,
+    required FileShareAccess access,
+    String note = '',
+  });
 }

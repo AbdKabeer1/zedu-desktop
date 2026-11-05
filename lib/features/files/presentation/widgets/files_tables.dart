@@ -208,6 +208,7 @@ class FilesTable extends StatelessWidget {
     this.onDownload,
     this.onRename,
     this.onMove,
+    this.onShare,
     this.onDelete,
     this.deletesPermanently = false,
     this.downloads = const {},
@@ -228,6 +229,10 @@ class FilesTable extends StatelessWidget {
   /// no Move.
   final ValueChanged<WorkspaceFile>? onMove;
 
+  /// Shares a file with workspace members. When null, as in Deleted files,
+  /// the menu has no Share.
+  final ValueChanged<WorkspaceFile>? onShare;
+
   /// Deletes a file. When null, the menu has no Delete.
   final ValueChanged<WorkspaceFile>? onDelete;
 
@@ -245,9 +250,14 @@ class FilesTable extends StatelessWidget {
     final download = onDownload;
     final rename = onRename;
     final move = onMove;
+    final share = onShare;
     final delete = onDelete;
     final hasActions =
-        download != null || rename != null || move != null || delete != null;
+        download != null ||
+        rename != null ||
+        move != null ||
+        share != null ||
+        delete != null;
 
     return _Table(
       columns: [
@@ -296,6 +306,7 @@ class FilesTable extends StatelessWidget {
                 onDownload: download == null ? null : () => download(file),
                 onRename: rename == null ? null : () => rename(file),
                 onMove: move == null ? null : () => move(file),
+                onShare: share == null ? null : () => share(file),
                 onDelete: delete == null ? null : () => delete(file),
                 deleteLabel: deletesPermanently
                     ? 'Delete permanently'
@@ -308,7 +319,7 @@ class FilesTable extends StatelessWidget {
   }
 }
 
-enum _FileAction { download, rename, move, delete }
+enum _FileAction { download, share, rename, move, delete }
 
 /// The ⋮ menu of a file row, holding the actions on that file. While the file
 /// downloads it shows a progress ring instead.
@@ -320,6 +331,7 @@ class _FileActionsMenu extends StatelessWidget {
     required this.onDownload,
     required this.onRename,
     required this.onMove,
+    required this.onShare,
     required this.onDelete,
     required this.deleteLabel,
   });
@@ -330,6 +342,7 @@ class _FileActionsMenu extends StatelessWidget {
   final VoidCallback? onDownload;
   final VoidCallback? onRename;
   final VoidCallback? onMove;
+  final VoidCallback? onShare;
   final VoidCallback? onDelete;
   final String deleteLabel;
 
@@ -398,6 +411,7 @@ class _FileActionsMenu extends StatelessWidget {
       icon: Icon(Icons.more_vert, color: colors.textSecondary),
       onSelected: (action) => switch (action) {
         _FileAction.download => onDownload?.call(),
+        _FileAction.share => onShare?.call(),
         _FileAction.rename => onRename?.call(),
         _FileAction.move => onMove?.call(),
         _FileAction.delete => onDelete?.call(),
@@ -405,6 +419,8 @@ class _FileActionsMenu extends StatelessWidget {
       itemBuilder: (context) => [
         if (onDownload != null)
           item(_FileAction.download, Icons.download_outlined, 'Download'),
+        if (onShare != null)
+          item(_FileAction.share, Icons.share_outlined, 'Share'),
         if (onRename != null)
           item(_FileAction.rename, Icons.drive_file_rename_outline, 'Rename'),
         if (onMove != null)

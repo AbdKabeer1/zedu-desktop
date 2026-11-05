@@ -229,4 +229,58 @@ void main() {
       );
     });
   });
+
+  group('shareFile', () {
+    Future<Result<FileShareResult>> share() => repository.shareFile(
+      fileId: 'f-1',
+      recipientIds: ['u-2'],
+      permission: FileSharePermission.view,
+      access: FileShareAccess.invited,
+      note: 'hi',
+    );
+
+    test('returns what the server reports', () async {
+      when(
+        () => remote.shareFile(
+          fileId: 'f-1',
+          recipientIds: ['u-2'],
+          permission: FileSharePermission.view,
+          access: FileShareAccess.invited,
+          note: 'hi',
+        ),
+      ).thenAnswer((_) async => const FileShareResult(sentTo: ['u-2']));
+
+      expect(
+        await share(),
+        isA<Success<FileShareResult>>().having(
+          (s) => s.value.sentTo,
+          'sentTo',
+          ['u-2'],
+        ),
+      );
+    });
+
+    test('returns the failure when the server refuses', () async {
+      when(
+        () => remote.shareFile(
+          fileId: 'f-1',
+          recipientIds: ['u-2'],
+          permission: FileSharePermission.view,
+          access: FileShareAccess.invited,
+          note: 'hi',
+        ),
+      ).thenThrow(
+        const ApiFailure(message: 'nope', kind: ApiFailureKind.forbidden),
+      );
+
+      expect(
+        await share(),
+        isA<Failure<FileShareResult>>().having(
+          (f) => f.error.kind,
+          'kind',
+          ApiFailureKind.forbidden,
+        ),
+      );
+    });
+  });
 }

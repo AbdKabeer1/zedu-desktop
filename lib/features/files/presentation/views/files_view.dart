@@ -319,6 +319,17 @@ class _FilesSection extends ConsumerWidget {
     );
   }
 
+  Future<void> _share(BuildContext context, WorkspaceFile file) async {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final outcome = await ShareFileDialog.show(context, file: file);
+    if (outcome == null || !overlay.mounted) return;
+    AppToastService.showWith(
+      overlay,
+      type: outcome.complete ? AppToastType.success : AppToastType.info,
+      message: outcome.message,
+    );
+  }
+
   Future<void> _delete(
     BuildContext context,
     WorkspaceFile file, {
@@ -389,6 +400,9 @@ class _FilesSection extends ConsumerWidget {
               onMove: scope == FilesScope.trash
                   ? null
                   : (file) => _move(context, file),
+              onShare: scope == FilesScope.trash
+                  ? null
+                  : (file) => _share(context, file),
               onDelete: (file) =>
                   _delete(context, file, permanent: scope == FilesScope.trash),
               deletesPermanently: scope == FilesScope.trash,

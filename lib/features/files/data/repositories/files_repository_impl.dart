@@ -128,4 +128,29 @@ class FilesRepositoryImpl implements FilesRepository {
       return Failure(ApiFailure(message: e.toString()));
     }
   }
+
+  @override
+  Future<Result<FileShareResult>> shareFile({
+    required String fileId,
+    required List<String> recipientIds,
+    required FileSharePermission permission,
+    required FileShareAccess access,
+    String note = '',
+  }) async {
+    try {
+      return Success(
+        await remoteDataSource.shareFile(
+          fileId: fileId,
+          recipientIds: recipientIds,
+          permission: permission,
+          access: access,
+          note: note,
+        ),
+      );
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
 }
