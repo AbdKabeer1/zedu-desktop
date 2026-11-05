@@ -72,7 +72,12 @@ Future<void> _pumpWithMentionList(
       ),
     ),
   );
+  await tester.pumpAndSettle();
   await tester.tap(find.byType(TextField));
+  // Focusing the box adds the formatting bar above it, which rebuilds the
+  // text field. Let that finish before typing, so the @ reaches the field
+  // that is on screen and opens the mention list.
+  await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField), '@');
   await tester.pump();
 }
