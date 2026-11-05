@@ -144,7 +144,7 @@ class ChannelNotifier extends AsyncNotifier<List<Channel>> {
     if (result is Success<void>) {
       state = AsyncData([
         for (final c in state.value ?? const <Channel>[])
-          if (c.id == channelId) c.copyWith(hasAccess: false) else c,
+          if (c.id != channelId) c,
       ]);
     }
     return result;

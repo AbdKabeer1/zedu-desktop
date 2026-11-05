@@ -90,31 +90,25 @@ void main() {
       addTearDown(container.dispose);
     });
 
-    test(
-      'leaveChannel marks the channel hasAccess as false in state',
-      () async {
-        when(
-          () => repository.leaveChannel('c-general'),
-        ).thenAnswer((_) async => const Success(null));
+    test('leaveChannel removes the channel from state', () async {
+      when(
+        () => repository.leaveChannel('c-general'),
+      ).thenAnswer((_) async => const Success(null));
 
-        final channelsBefore = await container.read(channelProvider.future);
-        expect(
-          channelsBefore.firstWhere((c) => c.id == 'c-general').hasAccess,
-          isTrue,
-        );
+      final channelsBefore = await container.read(channelProvider.future);
+      expect(
+        channelsBefore.firstWhere((c) => c.id == 'c-general').hasAccess,
+        isTrue,
+      );
 
-        final result = await container
-            .read(channelProvider.notifier)
-            .leaveChannel('c-general');
-        expect(result, isA<Success<void>>());
+      final result = await container
+          .read(channelProvider.notifier)
+          .leaveChannel('c-general');
+      expect(result, isA<Success<void>>());
 
-        final channelsAfter = container.read(channelProvider).value!;
-        expect(
-          channelsAfter.firstWhere((c) => c.id == 'c-general').hasAccess,
-          isFalse,
-        );
-      },
-    );
+      final channelsAfter = container.read(channelProvider).value!;
+      expect(channelsAfter.any((c) => c.id == 'c-general'), isFalse);
+    });
 
     test('joinChannel marks the channel hasAccess as true in state', () async {
       when(
