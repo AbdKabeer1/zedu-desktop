@@ -64,6 +64,9 @@ void composerTest(
 }
 
 Future<void> tapDivider(WidgetTester tester) async {
+  // Divider lives in the plus menu with the other less-used actions.
+  await tester.tap(find.byTooltip('More actions'));
+  await tester.pump();
   await tester.tap(find.byTooltip('Divider'));
   // Let the composer's debounced draft save run.
   await tester.pump(const Duration(milliseconds: 300));
