@@ -124,6 +124,7 @@ class ChannelNotifier extends AsyncNotifier<List<Channel>> {
             topic: topic ?? c.topic,
             unreadCount: c.unreadCount,
             membersCount: c.membersCount,
+            hasAccess: c.hasAccess,
           );
         }
         return c;
@@ -143,7 +144,21 @@ class ChannelNotifier extends AsyncNotifier<List<Channel>> {
     if (result is Success<void>) {
       state = AsyncData([
         for (final c in state.value ?? const <Channel>[])
-          if (c.id != channelId) c,
+          if (c.id == channelId) c.copyWith(hasAccess: false) else c,
+      ]);
+    }
+    return result;
+  }
+
+  /// Joins the channel and, on success, marks it as joined in the list.
+  Future<Result<void>> joinChannel(String channelId) async {
+    final result = await ref
+        .read(channelRepositoryProvider)
+        .joinChannel(channelId);
+    if (result is Success<void>) {
+      state = AsyncData([
+        for (final c in state.value ?? const <Channel>[])
+          if (c.id == channelId) c.copyWith(hasAccess: true) else c,
       ]);
     }
     return result;

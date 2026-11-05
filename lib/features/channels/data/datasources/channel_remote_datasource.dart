@@ -18,6 +18,7 @@ abstract class ChannelRemoteDataSource {
   });
   Future<void> archiveChannel(String channelId, bool archived);
   Future<void> leaveChannel(String channelId);
+  Future<void> joinChannel(String channelId);
   Future<List<String>> fetchOrganisationMemberIds(String orgId);
   Future<List<String>> fetchChannelMemberIds(String channelId);
   Future<List<DmParticipant>> fetchChannelMembers(String channelId);
@@ -130,6 +131,14 @@ class ChannelRemoteDataSourceImpl implements ChannelRemoteDataSource {
   Future<void> leaveChannel(String channelId) async {
     await apiBaseService.post<Map<String, dynamic>>(
       path: '/channels/$channelId/leave',
+    );
+  }
+
+  @override
+  Future<void> joinChannel(String channelId) async {
+    await apiBaseService.post<Map<String, dynamic>>(
+      path: '/channels/$channelId/join',
+      data: const <String, dynamic>{},
     );
   }
 
