@@ -7,3 +7,4 @@ export 'composer_file_store.dart';
 export 'datasources/dm_draft_store.dart';
 export 'datasources/dm_history_clear_store.dart';
 export 'datasources/dm_preferences_store.dart';
+export 'datasources/saved_messages_store.dart';
