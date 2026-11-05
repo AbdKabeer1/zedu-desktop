@@ -32,10 +32,10 @@ class ChannelMessageList extends ConsumerWidget {
                 ? m['avatar_url'] as String
                 : chatHistory.currentUserAvatarUrl,
             text: m['content']?.toString() ?? '',
-            createdAt: DateTime.tryParse(
-              m['created_at']?.toString() ?? '',
-            )?.toLocal(),
+            createdAt: DateTime.tryParse(m['created_at']?.toString() ?? '')
+                ?.toLocal(),
             status: m['status']?.toString(),
+            media: ChannelMessage.mediaFrom(m['media'] ?? m['files']),
           ),
         )
         .toList();
@@ -240,15 +240,24 @@ class ChannelMessageTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                MessageLinkScope(
-                  builder: (context, links) => SelectableText.rich(
-                    buildInlineMarkdownSpan(
-                      message.text,
-                      TextStyle(fontSize: 15, color: colors.textPrimary),
-                      plainText: links.span,
+                if (message.text.isNotEmpty || message.media.isEmpty)
+                  ReportMessageMenu(
+                    senderName: message.senderName,
+                    messageText: message.text,
+                    child: MessageLinkScope(
+                      builder: (context, links) => SelectableText.rich(
+                        buildInlineMarkdownSpan(
+                          message.text,
+                          TextStyle(fontSize: 15, color: colors.textPrimary),
+                          plainText: links.span,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                if (message.media.isNotEmpty) ...[
+                  if (message.text.isNotEmpty) const SizedBox(height: 8),
+                  MessageAttachmentList(media: message.media, isMe: false),
+                ],
                 if (status != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
