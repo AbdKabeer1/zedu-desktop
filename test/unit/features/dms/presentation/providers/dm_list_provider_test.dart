@@ -185,5 +185,52 @@ void _noFakeDmTests() {
 
       expect(conversations, [real]);
     });
+
+    test(
+      'returns an empty list when usesMockData is false and API returns empty list',
+      () async {
+        if (locator.isRegistered<AppConfig>()) {
+          locator.unregister<AppConfig>();
+        }
+        locator.registerSingleton<AppConfig>(
+          const AppConfig(apiBaseUrl: '', usesMockData: false),
+        );
+        addTearDown(() {
+          if (locator.isRegistered<AppConfig>()) {
+            locator.unregister<AppConfig>();
+          }
+        });
+
+        final container = containerFor(const []);
+        final conversations = await container.read(dmListProvider.future);
+
+        expect(conversations, isEmpty);
+        expect(container.read(dmListProvider.notifier).hasMore, isFalse);
+      },
+    );
+
+    test(
+      'injects mock conversation when usesMockData is true and API returns empty list',
+      () async {
+        if (locator.isRegistered<AppConfig>()) {
+          locator.unregister<AppConfig>();
+        }
+        locator.registerSingleton<AppConfig>(
+          const AppConfig(apiBaseUrl: '', usesMockData: true),
+        );
+        addTearDown(() {
+          if (locator.isRegistered<AppConfig>()) {
+            locator.unregister<AppConfig>();
+          }
+        });
+
+        final container = containerFor(const []);
+        final conversations = await container.read(dmListProvider.future);
+
+        expect(conversations.length, 1);
+        expect(conversations.first.channelId, 'mock-channel-id-123');
+        expect(conversations.first.username, 'Test User');
+      },
+    );
   });
 }
