@@ -592,10 +592,18 @@ class AuthNotifier extends Notifier<AuthState> {
     HttpServer? server;
     try {
       final config = locator<AppConfig>();
-      const port = 8000; // Standard redirect port for desktop
 
-      // 1. Bind to localhost port to intercept the redirect
-      server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+      // 1. Bind to a localhost port to intercept the redirect. Prefer the
+      // conventional port; when another app holds it, fall back to a port the
+      // OS assigns (Google accepts any port on a loopback redirect URI).
+      late final HttpServer bound;
+      try {
+        bound = await HttpServer.bind(InternetAddress.loopbackIPv4, 8000);
+      } on SocketException {
+        bound = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      }
+      server = bound;
+      final port = bound.port;
       AppLogger.d('Local loopback server listening on port $port', tag: _tag);
 
       final redirectUri = 'http://127.0.0.1:$port'; // Desktop Loopback URI
