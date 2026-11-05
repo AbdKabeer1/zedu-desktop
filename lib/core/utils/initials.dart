@@ -22,8 +22,10 @@ String avatarInitial(String? name, {String fallback = '?'}) {
 String avatarInitials(String? name, {String fallback = '?'}) {
   final trimmed = name?.trim() ?? '';
   if (trimmed.isEmpty) return fallback;
-  final parts =
-      trimmed.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+  final parts = trimmed
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList();
   if (parts.isEmpty) return fallback;
   if (parts.length == 1) {
     return parts.first.characters.first.toUpperCase();
