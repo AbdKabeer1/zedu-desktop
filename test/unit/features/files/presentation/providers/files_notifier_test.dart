@@ -77,6 +77,45 @@ void main() {
     expect(state().query, before);
   });
 
+  for (final (kind, expected) in [
+    (
+      ApiFailureKind.network,
+      'No internet connection. Check your network and try again.',
+    ),
+    (
+      ApiFailureKind.server,
+      'Something went wrong on our end. Please try again later.',
+    ),
+    (ApiFailureKind.unknown, 'Could not create the folder. Try again.'),
+    (ApiFailureKind.parsing, 'Could not create the folder. Try again.'),
+    (ApiFailureKind.client, 'Folder name already exists'),
+  ]) {
+    test(
+      'create-folder failure $kind returns safe copy and clears loading',
+      () async {
+        final repository = _UploadRepository()
+          ..folderError = ApiFailure(
+            message: kind == ApiFailureKind.client
+                ? 'Folder name already exists'
+                : '<html>internal-host failure</html>',
+            kind: kind,
+          );
+        final folders = ProviderContainer(
+          overrides: [
+            currentOrgIdProvider.overrideWithValue('org-1'),
+            filesRepositoryProvider.overrideWithValue(repository),
+          ],
+        );
+        addTearDown(folders.dispose);
+        final message = await folders
+            .read(filesActionsProvider.notifier)
+            .createFolder('docs');
+        expect(message, expected);
+        expect(folders.read(filesActionsProvider).isCreatingFolder, isFalse);
+      },
+    );
+  }
+
   group('uploadFiles', () {
     late ProviderContainer uploads;
     late _UploadRepository repository;
@@ -123,6 +162,7 @@ void main() {
 
 class _UploadRepository implements FilesRepository {
   final uploaded = <String>[];
+  ApiFailure? folderError;
 
   @override
   Future<Result<WorkspaceFile>> uploadFile(XFile file) async {
@@ -148,7 +188,7 @@ class _UploadRepository implements FilesRepository {
     required String name,
     required String orgId,
     String? parentId,
-  }) async => const Success(null);
+  }) async => folderError == null ? const Success(null) : Failure(folderError!);
 
   @override
   Future<Result<void>> downloadFile({

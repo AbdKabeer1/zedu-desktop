@@ -264,7 +264,12 @@ void main() {
       tester,
     ) async {
       final repository = _LeavingChannelRepository(
-        const Failure(ApiFailure(message: 'You cannot leave this channel')),
+        const Failure(
+          ApiFailure(
+            message: 'You cannot leave this channel',
+            kind: ApiFailureKind.client,
+          ),
+        ),
       );
       await pumpSidebarAndChat(tester, repository: repository);
 
@@ -277,6 +282,40 @@ void main() {
       expect(find.text('# random'), findsOneWidget);
       await tester.pump(const Duration(seconds: 5));
     });
+
+    for (final (kind, expected) in [
+      (
+        ApiFailureKind.network,
+        'No internet connection. Check your network and try again.',
+      ),
+      (
+        ApiFailureKind.server,
+        'Something went wrong on our end. Please try again later.',
+      ),
+      (ApiFailureKind.unknown, 'Could not leave #random. Please try again.'),
+      (ApiFailureKind.parsing, 'Could not leave #random. Please try again.'),
+    ]) {
+      testWidgets('leave failure $kind shows safe copy and keeps the channel', (
+        tester,
+      ) async {
+        final repository = _LeavingChannelRepository(
+          Failure(
+            ApiFailure(
+              message: '<html>internal-host failure</html>',
+              kind: kind,
+            ),
+          ),
+        );
+        await pumpSidebarAndChat(tester, repository: repository);
+        await leaveRandom(tester);
+        await tester.tap(find.widgetWithText(TextButton, 'Leave'));
+        await tester.pumpAndSettle();
+        expect(find.text(expected), findsOneWidget);
+        expect(find.textContaining('internal-host'), findsNothing);
+        expect(find.text('# random'), findsOneWidget);
+        await tester.pump(const Duration(seconds: 5));
+      });
+    }
   });
 
   group('ResizableSidebar', () {

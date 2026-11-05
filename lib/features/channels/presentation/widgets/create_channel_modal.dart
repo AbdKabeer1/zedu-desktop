@@ -59,7 +59,11 @@ class _CreateChannelModalState extends ConsumerState<CreateChannelModal> {
       case Failure<Channel>(:final error):
         setState(() {
           _isCreating = false;
-          _errorMessage = error.message;
+          _errorMessage = switch (error.kind) {
+            ApiFailureKind.unknown || ApiFailureKind.parsing =>
+              'Could not create the channel. Please try again.',
+            _ => error.friendlyMessage,
+          };
         });
     }
   }

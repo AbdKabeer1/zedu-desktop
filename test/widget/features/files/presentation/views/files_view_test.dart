@@ -61,10 +61,15 @@ class _FakePeopleRepository implements PeopleRepository {
 }
 
 class _FakeFilesRepository implements FilesRepository {
-  _FakeFilesRepository({this.failFolders = false, this.failCreate = false});
+  _FakeFilesRepository({
+    this.failFolders = false,
+    this.failCreate = false,
+    this.createFailure,
+  });
 
   final bool failFolders;
   final bool failCreate;
+  final ApiFailure? createFailure;
   final queries = <FilesQuery>[];
   final folderRequests = <(FilesScope, String?)>[];
   final createdFolders = <(String, String, String?)>[];
@@ -260,8 +265,14 @@ class _FakeFilesRepository implements FilesRepository {
     String? parentId,
   }) async {
     if (failCreate) {
-      return const Failure(ApiFailure(message: 'Folder name already exists'));
+      return const Failure(
+        ApiFailure(
+          message: 'Folder name already exists',
+          kind: ApiFailureKind.client,
+        ),
+      );
     }
+    if (createFailure case final error?) return Failure(error);
     createdFolders.add((name, orgId, parentId));
     return const Success(null);
   }
@@ -462,6 +473,43 @@ void main() {
     expect(find.text('Folder name already exists'), findsOneWidget);
     expect(find.text('Create New Folder'), findsOneWidget);
   });
+
+  for (final (kind, expected) in [
+    (
+      ApiFailureKind.network,
+      'No internet connection. Check your network and try again.',
+    ),
+    (
+      ApiFailureKind.server,
+      'Something went wrong on our end. Please try again later.',
+    ),
+  ]) {
+    testWidgets('New Folder $kind shows safe copy and keeps the entered name', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _FakeFilesRepository(
+          createFailure: ApiFailure(
+            message: '<html>internal-host failure</html>',
+            kind: kind,
+          ),
+        ),
+      );
+      await tester.tap(find.text('New Folder'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, 'Reports');
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+      expect(find.text(expected), findsOneWidget);
+      expect(find.textContaining('internal-host'), findsNothing);
+      expect(find.text('Create New Folder'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField).last).controller!.text,
+        'Reports',
+      );
+    });
+  }
 
   Future<void> openFilesTab(WidgetTester tester) async {
     await tester.tap(find.text('Files').last);

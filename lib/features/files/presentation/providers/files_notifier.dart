@@ -209,8 +209,12 @@ class FilesActionsNotifier extends Notifier<FilesActionsState> {
         ref.invalidate(foldersListProvider);
         return null;
       case Failure(:final error):
-        return error.message.isNotEmpty
-            ? error.message
+        final message = switch (error.kind) {
+          ApiFailureKind.unknown || ApiFailureKind.parsing => '',
+          _ => error.friendlyMessage,
+        };
+        return message.isNotEmpty
+            ? message
             : 'Could not create the folder. Try again.';
     }
   }

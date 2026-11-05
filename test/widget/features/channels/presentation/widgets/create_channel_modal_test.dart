@@ -5,7 +5,10 @@ import '../../../../../helpers/helpers.dart';
 
 class _FakeChannelNotifier extends ChannelNotifier {
   Result<Channel> result = const Failure<Channel>(
-    ApiFailure(message: 'Channel name already exists'),
+    ApiFailure(
+      message: 'Channel name already exists',
+      kind: ApiFailureKind.client,
+    ),
   );
   int createCalls = 0;
 
@@ -78,6 +81,45 @@ void main() {
       expect(find.text('Channel name already exists'), findsOneWidget);
       expect(find.text('Create a channel'), findsOneWidget);
     });
+
+    for (final (kind, expected) in [
+      (
+        ApiFailureKind.network,
+        'No internet connection. Check your network and try again.',
+      ),
+      (
+        ApiFailureKind.server,
+        'Something went wrong on our end. Please try again later.',
+      ),
+      (
+        ApiFailureKind.unknown,
+        'Could not create the channel. Please try again.',
+      ),
+      (
+        ApiFailureKind.parsing,
+        'Could not create the channel. Please try again.',
+      ),
+    ]) {
+      testWidgets('create failure $kind shows safe copy and keeps the form', (
+        tester,
+      ) async {
+        await openModal(tester);
+        notifier.result = Failure(
+          ApiFailure(message: '<html>internal-host failure</html>', kind: kind),
+        );
+        await submit(tester);
+        expect(find.text(expected), findsOneWidget);
+        expect(find.textContaining('internal-host'), findsNothing);
+        expect(find.text('Create a channel'), findsOneWidget);
+        expect(
+          tester
+              .widget<TextField>(find.byType(TextField).first)
+              .controller!
+              .text,
+          'general',
+        );
+      });
+    }
 
     testWidgets('does not show an old error when opened again', (tester) async {
       await openModal(tester);
