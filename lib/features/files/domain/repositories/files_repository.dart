@@ -20,4 +20,23 @@ abstract class FilesRepository {
     required String orgId,
     String? parentId,
   });
+
+  /// Saves [file] to [savePath]. Uses the file's own link, or asks the server
+  /// for it when the list did not include one. [onProgress] gets the share
+  /// downloaded, from 0 to 1, or null while the size is unknown.
+  Future<Result<void>> downloadFile({
+    required WorkspaceFile file,
+    required String savePath,
+    void Function(double? progress)? onProgress,
+  });
+
+  /// Deletes [fileId]: moves it to Deleted files, or removes it for good when
+  /// [permanent].
+  Future<Result<void>> deleteFile(String fileId, {bool permanent = false});
+
+  /// Renames [fileId] to [name].
+  Future<Result<void>> renameFile(String fileId, String name);
+
+  /// Moves [fileId] into folder [folderId].
+  Future<Result<void>> moveFile(String fileId, String folderId);
 }

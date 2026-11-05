@@ -266,10 +266,92 @@ class _FilesSection extends ConsumerWidget {
     }
   }
 
+  Future<void> _download(
+    BuildContext context,
+    WidgetRef ref,
+    WorkspaceFile file,
+  ) async {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final outcome = await ref
+        .read(fileDownloadsProvider.notifier)
+        .download(file);
+    if (!overlay.mounted) return;
+    switch (outcome.status) {
+      case FileDownloadStatus.cancelled:
+        return;
+      case FileDownloadStatus.saved:
+        final folder = _folderName(outcome.path!);
+        AppToastService.showWith(
+          overlay,
+          type: AppToastType.success,
+          message: folder.isEmpty
+              ? 'Downloaded ${file.name}.'
+              : 'Downloaded ${file.name} to $folder.',
+        );
+      case FileDownloadStatus.failed:
+        AppToastService.showWith(
+          overlay,
+          type: AppToastType.error,
+          message: outcome.message!,
+        );
+    }
+  }
+
+  Future<void> _rename(BuildContext context, WorkspaceFile file) async {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final newName = await RenameFileDialog.show(context, file: file);
+    if (newName == null || !overlay.mounted) return;
+    AppToastService.showWith(
+      overlay,
+      type: AppToastType.success,
+      message: 'Renamed ${file.name} to $newName.',
+    );
+  }
+
+  Future<void> _move(BuildContext context, WorkspaceFile file) async {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final folder = await MoveFileDialog.show(context, file: file);
+    if (folder == null || !overlay.mounted) return;
+    AppToastService.showWith(
+      overlay,
+      type: AppToastType.success,
+      message: 'Moved ${file.name} to ${folder.name}.',
+    );
+  }
+
+  Future<void> _delete(
+    BuildContext context,
+    WorkspaceFile file, {
+    required bool permanent,
+  }) async {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final deleted = await DeleteFileDialog.show(
+      context,
+      file: file,
+      permanent: permanent,
+    );
+    if (!deleted || !overlay.mounted) return;
+    AppToastService.showWith(
+      overlay,
+      type: AppToastType.success,
+      message: permanent
+          ? 'Deleted ${file.name} permanently.'
+          : 'Moved ${file.name} to Deleted files.',
+    );
+  }
+
+  /// Name of the folder holding [path], such as `Downloads`.
+  static String _folderName(String path) {
+    final parts = path.split(RegExp(r'[\\/]'))..removeWhere((p) => p.isEmpty);
+    return parts.length < 2 ? '' : parts[parts.length - 2];
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final page = ref.watch(filesListProvider);
     final sort = ref.watch(filesProvider.select((s) => s.sort));
+    final scope = ref.watch(filesProvider.select((s) => s.view));
+    final downloads = ref.watch(fileDownloadsProvider);
     final ownerName = _ownerNames(ref);
 
     return page.when(
@@ -297,6 +379,19 @@ class _FilesSection extends ConsumerWidget {
               ownerNameOf: (file) =>
                   file.owner.isNotEmpty ? file.owner : ownerName(file.userId),
               onOpen: (file) => _open(context, file),
+              downloads: downloads,
+              onDownload: scope == FilesScope.trash
+                  ? null
+                  : (file) => _download(context, ref, file),
+              onRename: scope == FilesScope.trash
+                  ? null
+                  : (file) => _rename(context, file),
+              onMove: scope == FilesScope.trash
+                  ? null
+                  : (file) => _move(context, file),
+              onDelete: (file) =>
+                  _delete(context, file, permanent: scope == FilesScope.trash),
+              deletesPermanently: scope == FilesScope.trash,
             ),
             if (page.totalPages > 1)
               _Pagination(

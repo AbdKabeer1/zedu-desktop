@@ -205,23 +205,58 @@ class FilesTable extends StatelessWidget {
     required this.files,
     required this.ownerNameOf,
     required this.onOpen,
+    this.onDownload,
+    this.onRename,
+    this.onMove,
+    this.onDelete,
+    this.deletesPermanently = false,
+    this.downloads = const {},
   });
 
   final List<WorkspaceFile> files;
   final String Function(WorkspaceFile file) ownerNameOf;
   final ValueChanged<WorkspaceFile> onOpen;
 
+  /// Downloads a file. When null, as in Deleted files, the menu has no
+  /// Download.
+  final ValueChanged<WorkspaceFile>? onDownload;
+
+  /// Renames a file. When null, as in Deleted files, the menu has no Rename.
+  final ValueChanged<WorkspaceFile>? onRename;
+
+  /// Moves a file into a folder. When null, as in Deleted files, the menu has
+  /// no Move.
+  final ValueChanged<WorkspaceFile>? onMove;
+
+  /// Deletes a file. When null, the menu has no Delete.
+  final ValueChanged<WorkspaceFile>? onDelete;
+
+  /// Whether Delete removes files for good, as in Deleted files. The menu then
+  /// says Delete permanently.
+  final bool deletesPermanently;
+
+  /// Downloads in progress, by file id: the share downloaded, or null while
+  /// the size is unknown.
+  final Map<String, double?> downloads;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final download = onDownload;
+    final rename = onRename;
+    final move = onMove;
+    final delete = onDelete;
+    final hasActions =
+        download != null || rename != null || move != null || delete != null;
 
     return _Table(
-      columns: const [
-        _Column('Name', 5),
-        _Column('Shared in', 2, compact: false),
-        _Column('Owner', 2, compact: false),
-        _Column('Date Modified', 2),
-        _Column('Size', 1),
+      columns: [
+        const _Column('Name', 5),
+        const _Column('Shared in', 2, compact: false),
+        const _Column('Owner', 2, compact: false),
+        const _Column('Date Modified', 2),
+        const _Column('Size', 1),
+        if (hasActions) const _Column('', 1),
       ],
       rowCount: files.length,
       onTapRow: (r) => onOpen(files[r]),
@@ -251,8 +286,137 @@ class FilesTable extends StatelessWidget {
           _cellText(context, ownerNameOf(file)),
           _cellText(context, formatFileDate(file.modifiedAt)),
           _cellText(context, formatFileSize(file.size)),
+          if (hasActions)
+            Align(
+              alignment: Alignment.centerRight,
+              child: _FileActionsMenu(
+                fileName: file.name,
+                isDownloading: downloads.containsKey(file.id),
+                progress: downloads[file.id],
+                onDownload: download == null ? null : () => download(file),
+                onRename: rename == null ? null : () => rename(file),
+                onMove: move == null ? null : () => move(file),
+                onDelete: delete == null ? null : () => delete(file),
+                deleteLabel: deletesPermanently
+                    ? 'Delete permanently'
+                    : 'Delete',
+              ),
+            ),
         ];
       },
+    );
+  }
+}
+
+enum _FileAction { download, rename, move, delete }
+
+/// The ⋮ menu of a file row, holding the actions on that file. While the file
+/// downloads it shows a progress ring instead.
+class _FileActionsMenu extends StatelessWidget {
+  const _FileActionsMenu({
+    required this.fileName,
+    required this.isDownloading,
+    required this.progress,
+    required this.onDownload,
+    required this.onRename,
+    required this.onMove,
+    required this.onDelete,
+    required this.deleteLabel,
+  });
+
+  final String fileName;
+  final bool isDownloading;
+  final double? progress;
+  final VoidCallback? onDownload;
+  final VoidCallback? onRename;
+  final VoidCallback? onMove;
+  final VoidCallback? onDelete;
+  final String deleteLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    if (isDownloading) {
+      final percent = progress == null ? '' : ' ${(progress! * 100).round()}%';
+      return Tooltip(
+        message: 'Downloading$percent',
+        child: SizedBox.square(
+          dimension: 32,
+          child: Padding(
+            padding: const EdgeInsets.all(7),
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 2,
+              color: colors.primary,
+              backgroundColor: colors.divider,
+            ),
+          ),
+        ),
+      );
+    }
+
+    PopupMenuItem<_FileAction> item(
+      _FileAction value,
+      IconData icon,
+      String label, {
+      bool destructive = false,
+    }) => PopupMenuItem(
+      value: value,
+      height: 40,
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: destructive ? colors.error : colors.textSecondary,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: context.textTheme.bodyMedium?.copyWith(
+              fontSize: 13,
+              color: destructive ? colors.error : colors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return PopupMenuButton<_FileAction>(
+      tooltip: 'More actions for $fileName',
+      position: PopupMenuPosition.under,
+      color: colors.onPrimary,
+      padding: EdgeInsets.zero,
+      iconSize: 20,
+      constraints: const BoxConstraints(minWidth: 160),
+      style: IconButton.styleFrom(
+        fixedSize: const Size.square(32),
+        minimumSize: const Size.square(32),
+        padding: EdgeInsets.zero,
+      ),
+      icon: Icon(Icons.more_vert, color: colors.textSecondary),
+      onSelected: (action) => switch (action) {
+        _FileAction.download => onDownload?.call(),
+        _FileAction.rename => onRename?.call(),
+        _FileAction.move => onMove?.call(),
+        _FileAction.delete => onDelete?.call(),
+      },
+      itemBuilder: (context) => [
+        if (onDownload != null)
+          item(_FileAction.download, Icons.download_outlined, 'Download'),
+        if (onRename != null)
+          item(_FileAction.rename, Icons.drive_file_rename_outline, 'Rename'),
+        if (onMove != null)
+          item(_FileAction.move, Icons.drive_file_move_outline, 'Move'),
+        if (onDelete != null)
+          item(
+            _FileAction.delete,
+            Icons.delete_outline,
+            deleteLabel,
+            destructive: true,
+          ),
+      ],
     );
   }
 }

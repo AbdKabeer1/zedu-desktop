@@ -17,6 +17,27 @@ abstract class FilesRemoteDataSource {
     required String orgId,
     String? parentId,
   });
+
+  /// The download link of file [fileId], or empty when it has none.
+  Future<String> fetchFileLink(String fileId);
+
+  /// Downloads [url] to [savePath]. [onProgress] gets the bytes received and
+  /// the total, which is -1 when the server does not say.
+  Future<void> downloadFile({
+    required String url,
+    required String savePath,
+    void Function(int received, int total)? onProgress,
+  });
+
+  /// Deletes file [fileId]: moves it to Deleted files, or removes it for good
+  /// when [permanent].
+  Future<void> deleteFile(String fileId, {bool permanent = false});
+
+  /// Renames file [fileId] to [name].
+  Future<void> renameFile(String fileId, String name);
+
+  /// Moves file [fileId] into folder [folderId].
+  Future<void> moveFile(String fileId, String folderId);
 }
 
 /// Reads `current_page` and `total_pages_count` (or `total_pages`).
@@ -40,7 +61,12 @@ abstract class FilesRemoteDataSource {
 class FilesRemoteDataSourceImpl implements FilesRemoteDataSource {
   final ApiBaseService apiBaseService;
 
-  FilesRemoteDataSourceImpl({required this.apiBaseService});
+  /// Fetches file contents from their storage links. It is a plain client,
+  /// so the session token is never sent to the storage host.
+  final Dio downloadClient;
+
+  FilesRemoteDataSourceImpl({required this.apiBaseService, Dio? downloadClient})
+    : downloadClient = downloadClient ?? Dio();
 
   /// Folders per page, as the web app asks for.
   static const pageSize = 10;
@@ -156,6 +182,56 @@ class FilesRemoteDataSourceImpl implements FilesRemoteDataSource {
         'parent_id': parentId != null && parentId.isNotEmpty ? parentId : null,
         'organisation_id': orgId,
       },
+    );
+  }
+
+  @override
+  Future<String> fetchFileLink(String fileId) async {
+    final response = await apiBaseService.get<Map<String, dynamic>>(
+      path: '/files/file/$fileId',
+    );
+    final data = response.data['data'];
+    return data is Map ? data['file_link']?.toString().trim() ?? '' : '';
+  }
+
+  @override
+  Future<void> downloadFile({
+    required String url,
+    required String savePath,
+    void Function(int received, int total)? onProgress,
+  }) async {
+    try {
+      await downloadClient.download(
+        url,
+        savePath,
+        onReceiveProgress: onProgress,
+      );
+    } on DioException catch (error) {
+      throw ApiFailure.fromDioException(error);
+    }
+  }
+
+  @override
+  Future<void> deleteFile(String fileId, {bool permanent = false}) async {
+    await apiBaseService.delete<dynamic>(
+      path: '/files/file/$fileId',
+      queryParameters: permanent ? const {'permanent': true} : null,
+    );
+  }
+
+  @override
+  Future<void> renameFile(String fileId, String name) async {
+    await apiBaseService.put<dynamic>(
+      path: '/files/file/$fileId',
+      data: {'file_name': name},
+    );
+  }
+
+  @override
+  Future<void> moveFile(String fileId, String folderId) async {
+    await apiBaseService.put<dynamic>(
+      path: '/files/$fileId/move',
+      data: {'folder_id': folderId},
     );
   }
 }

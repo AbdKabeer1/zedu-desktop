@@ -39,6 +39,31 @@ class FilesRepositoryImpl implements FilesRepository {
   }
 
   @override
+  Future<Result<void>> downloadFile({
+    required WorkspaceFile file,
+    required String savePath,
+    void Function(double? progress)? onProgress,
+  }) => _guard(() async {
+    final link = file.link.isNotEmpty
+        ? file.link
+        : await remoteDataSource.fetchFileLink(file.id);
+    if (link.isEmpty) {
+      throw const ApiFailure(
+        message: 'This file has no download link.',
+        kind: ApiFailureKind.client,
+      );
+    }
+    await remoteDataSource.downloadFile(
+      url: link,
+      savePath: savePath,
+      onProgress: onProgress == null
+          ? null
+          : (received, total) =>
+                onProgress(total > 0 ? received / total : null),
+    );
+  });
+
+  @override
   Future<Result<WorkspaceFile>> uploadFile(XFile file) =>
       _guard(() => remoteDataSource.uploadFile(file));
 
@@ -58,6 +83,45 @@ class FilesRepositoryImpl implements FilesRepository {
   Future<Result<T>> _guard<T>(Future<T> Function() call) async {
     try {
       return Success(await call());
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> deleteFile(
+    String fileId, {
+    bool permanent = false,
+  }) async {
+    try {
+      await remoteDataSource.deleteFile(fileId, permanent: permanent);
+      return const Success(null);
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> renameFile(String fileId, String name) async {
+    try {
+      await remoteDataSource.renameFile(fileId, name);
+      return const Success(null);
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> moveFile(String fileId, String folderId) async {
+    try {
+      await remoteDataSource.moveFile(fileId, folderId);
+      return const Success(null);
     } on ApiFailure catch (e) {
       return Failure(e);
     } catch (e) {

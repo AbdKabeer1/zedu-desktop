@@ -43,6 +43,10 @@ class _Repository implements FilesRepository {
     required String orgId,
     String? parentId,
   }) => throw StateError('Opening a file must not create a folder');
+
+  // The other calls are not made in these tests.
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _Launcher {
