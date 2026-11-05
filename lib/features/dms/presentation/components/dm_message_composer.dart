@@ -523,11 +523,14 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   void _insertEmoji(String emoji) {
     final text = _controller.text;
     final sel = _controller.selection;
-    final pos = sel.isValid ? sel.baseOffset : text.length;
-    final newText = text.substring(0, pos) + emoji + text.substring(pos);
+    // A highlighted word is replaced; start and end also cover a selection
+    // dragged backwards.
+    final start = sel.isValid ? sel.start : text.length;
+    final end = sel.isValid ? sel.end : text.length;
+    final newText = text.replaceRange(start, end, emoji);
     _controller.value = TextEditingValue(
       text: newText,
-      selection: TextSelection.collapsed(offset: pos + emoji.length),
+      selection: TextSelection.collapsed(offset: start + emoji.length),
     );
     _focusNode.requestFocus();
   }
@@ -817,23 +820,15 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
       type: FileType.any,
     );
     if (result == null) return;
+    // The paths come from the system file dialog, so there is no traversal to
+    // guard against: on macOS and Linux every one of them starts with '/', and
+    // a name such as `notes..v2.txt` is ordinary. `addFiles` checks that each
+    // file exists and is under the size limit. The MIME type is left unset
+    // because the upload works it out from the file name; `f.extension` is a
+    // bare extension such as `pdf`, not a MIME type.
     final picked = result.files
         .where((PlatformFile f) => f.path != null)
-        .map((PlatformFile f) {
-          // Validate file path to prevent path traversal and invalid files
-          if (f.path == null ||
-              f.path!.contains('..') ||
-              f.path!.startsWith('/')) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Invalid file path: ${f.path}')),
-              );
-            }
-            return null;
-          }
-          return XFile(f.path!, name: f.name, mimeType: f.extension);
-        })
-        .whereType<XFile>()
+        .map((PlatformFile f) => XFile(f.path!, name: f.name))
         .toList();
     await addFiles(picked);
   }
