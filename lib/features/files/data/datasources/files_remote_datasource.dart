@@ -49,6 +49,9 @@ abstract class FilesRemoteDataSource {
     String note = '',
   });
 
+  /// File [fileId] as `GET /files/file/{id}` reports it now.
+  Future<WorkspaceFile> fetchFileDetails(String fileId);
+
   /// Ids of the files the user pinned, from `GET /files/favorites`.
   Future<Set<String>> fetchPinnedFileIds();
 
@@ -275,6 +278,21 @@ class FilesRemoteDataSourceImpl implements FilesRemoteDataSource {
     return data is Map
         ? FileShareResult.fromJson(Map<String, dynamic>.from(data))
         : const FileShareResult();
+  }
+
+  @override
+  Future<WorkspaceFile> fetchFileDetails(String fileId) async {
+    final path = '/files/file/$fileId';
+    final response = await apiBaseService.get<Map<String, dynamic>>(path: path);
+    final data = response.data['data'];
+    if (data is! Map) {
+      throw ApiFailure(
+        message: 'File details missing from the response.',
+        path: path,
+        kind: ApiFailureKind.parsing,
+      );
+    }
+    return WorkspaceFile.fromJson(Map<String, dynamic>.from(data));
   }
 
   @override

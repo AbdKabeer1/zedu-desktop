@@ -20,6 +20,15 @@ const _months = [
 String formatFileDate(DateTime? date) =>
     date == null ? '—' : '${_months[date.month - 1]} ${date.day}, ${date.year}';
 
+/// `Nov 4, 2026, 6:59 PM`.
+String formatFileDateTime(DateTime? date) {
+  if (date == null) return '—';
+  final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+  final minute = date.minute.toString().padLeft(2, '0');
+  final period = date.hour < 12 ? 'AM' : 'PM';
+  return '${formatFileDate(date)}, $hour:$minute $period';
+}
+
 /// `512 B`, `1.5 KB`, `12 MB`, …
 String formatFileSize(int bytes) {
   if (bytes < 1024) return '$bytes B';
@@ -217,6 +226,7 @@ class FilesTable extends StatelessWidget {
     this.onShare,
     this.onTogglePin,
     this.pinnedIds = const {},
+    this.onInfo,
     this.onDelete,
     this.deletesPermanently = false,
     this.downloads = const {},
@@ -248,6 +258,10 @@ class FilesTable extends StatelessWidget {
   /// Ids of the pinned files, marked with a pin by their name.
   final Set<String> pinnedIds;
 
+  /// Shows a file's details. When null, as in Deleted files, the menu has no
+  /// Info.
+  final ValueChanged<WorkspaceFile>? onInfo;
+
   /// Deletes a file. When null, the menu has no Delete.
   final ValueChanged<WorkspaceFile>? onDelete;
 
@@ -267,6 +281,7 @@ class FilesTable extends StatelessWidget {
     final move = onMove;
     final share = onShare;
     final togglePin = onTogglePin;
+    final info = onInfo;
     final delete = onDelete;
     final hasActions =
         download != null ||
@@ -274,6 +289,7 @@ class FilesTable extends StatelessWidget {
         move != null ||
         share != null ||
         togglePin != null ||
+        info != null ||
         delete != null;
 
     return _Table(
@@ -336,6 +352,7 @@ class FilesTable extends StatelessWidget {
                 onShare: share == null ? null : () => share(file),
                 onTogglePin: togglePin == null ? null : () => togglePin(file),
                 isPinned: pinnedIds.contains(file.id),
+                onInfo: info == null ? null : () => info(file),
                 onDelete: delete == null ? null : () => delete(file),
                 deleteLabel: deletesPermanently
                     ? 'Delete permanently'
@@ -348,7 +365,7 @@ class FilesTable extends StatelessWidget {
   }
 }
 
-enum _FileAction { download, pin, share, rename, move, delete }
+enum _FileAction { download, pin, share, rename, move, info, delete }
 
 /// The ⋮ menu of a file row, holding the actions on that file. While the file
 /// downloads it shows a progress ring instead.
@@ -363,6 +380,7 @@ class _FileActionsMenu extends StatelessWidget {
     required this.onShare,
     required this.onTogglePin,
     required this.isPinned,
+    required this.onInfo,
     required this.onDelete,
     required this.deleteLabel,
   });
@@ -376,6 +394,7 @@ class _FileActionsMenu extends StatelessWidget {
   final VoidCallback? onShare;
   final VoidCallback? onTogglePin;
   final bool isPinned;
+  final VoidCallback? onInfo;
   final VoidCallback? onDelete;
   final String deleteLabel;
 
@@ -448,6 +467,7 @@ class _FileActionsMenu extends StatelessWidget {
         _FileAction.share => onShare?.call(),
         _FileAction.rename => onRename?.call(),
         _FileAction.move => onMove?.call(),
+        _FileAction.info => onInfo?.call(),
         _FileAction.delete => onDelete?.call(),
       },
       itemBuilder: (context) => [
@@ -465,6 +485,7 @@ class _FileActionsMenu extends StatelessWidget {
           item(_FileAction.rename, Icons.drive_file_rename_outline, 'Rename'),
         if (onMove != null)
           item(_FileAction.move, Icons.drive_file_move_outline, 'Move'),
+        if (onInfo != null) item(_FileAction.info, Icons.info_outline, 'Info'),
         if (onDelete != null)
           item(
             _FileAction.delete,
