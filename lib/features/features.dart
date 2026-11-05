@@ -7,3 +7,6 @@ export 'user_profile/user_profile.dart';
 export 'organization/organization.dart';
 export 'channels/channels.dart';
 export 'dms/dms.dart';
+export 'files/files.dart';
+export 'people/people.dart';
+export 'buzz/buzz.dart';
