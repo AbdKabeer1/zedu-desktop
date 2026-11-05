@@ -92,8 +92,11 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   @override
   Future<void> deleteAccount() async {
     if (_config.usesMockData) return;
+    // There is no DELETE /profile/account on the API; deactivating your own
+    // account is DELETE /users/me (DeactivateSelfUser), so the old path 404'd
+    // and the delete action could never succeed (Ziki #584).
     await _apiBaseService.delete<Map<String, dynamic>>(
-      path: '/profile/account',
+      path: '/users/me',
     );
   }
 
