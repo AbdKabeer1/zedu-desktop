@@ -232,10 +232,14 @@ class ChatHistoryNotifier extends ChangeNotifier {
   bool _sameJsonValue(Object? a, Object? b) {
     if (identical(a, b) || a == b) return true;
     if (a is List && b is List) {
-      return a.length == b.length &&
-          Iterable.generate(
-            a.length,
-          ).every((index) => _sameJsonValue(a[index], b[index]));
+      final first = List<Object?>.from(a);
+      final second = List<Object?>.from(b);
+      if (first.length != second.length) return false;
+
+      for (var index = 0; index < first.length; index++) {
+        if (!_sameJsonValue(first[index], second[index])) return false;
+      }
+      return true;
     }
     if (a is Map && b is Map) {
       return a.length == b.length &&
