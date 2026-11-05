@@ -15,6 +15,30 @@ class AppRouter {
   static const profile = '/profile';
   static const createOrganization = '/create-organization';
   static const buyCredits = '/credits/buy';
+  static const welcome = '/welcome';
+
+  /// Set once Get Started is pressed on the welcome screen.
+  static const welcomeSeenKey = 'welcome_seen';
+
+  /// Where the app opens. [main] sets it with [resolveStartLocation] before
+  /// the router is first used.
+  static String startLocation = login;
+
+  /// The welcome screen on a first launch (no saved session and the welcome
+  /// screen never dismissed), otherwise the usual login route, from which a
+  /// saved session still goes on to Home. Any storage error falls back to
+  /// login, so startup never depends on this.
+  static Future<String> resolveStartLocation(
+    SecureStorageService storage,
+  ) async {
+    try {
+      final token = await storage.getAccessToken();
+      final seen = await storage.readData(welcomeSeenKey);
+      return token == null && seen == null ? welcome : login;
+    } catch (_) {
+      return login;
+    }
+  }
 
   /// The root Navigator. Widgets mounted from [App]'s `builder` sit above the
   /// Navigator, so they reach the Overlay and the router through this key
@@ -28,6 +52,7 @@ class AppRouter {
   /// Routes that stay reachable while signed out. Change password is part of
   /// the signed-out reset flow ("Use current password").
   static const publicPaths = {
+    welcome,
     login,
     magicLinkRequest,
     magicLinkSent,
@@ -46,11 +71,12 @@ class AppRouter {
   }
 
   static final router = GoRouter(
-    initialLocation: login,
+    initialLocation: startLocation,
     navigatorKey: navigatorKey,
     refreshListenable: authStatus,
     redirect: (context, state) => redirectSignedOut(state),
     routes: [
+      GoRoute(path: welcome, builder: (context, state) => const WelcomeView()),
       GoRoute(path: login, builder: (context, state) => const LoginView()),
       GoRoute(
         path: magicLinkRequest,

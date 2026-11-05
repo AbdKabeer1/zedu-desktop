@@ -13,6 +13,9 @@ Future<void> main() async {
     storage: locator<SecureStorageService>(),
   ).restore();
   showWindowWhenReady(windowManager);
+  AppRouter.startLocation = await AppRouter.resolveStartLocation(
+    locator<SecureStorageService>(),
+  );
 
   runApp(const ProviderScope(child: App()));
 }
