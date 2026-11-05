@@ -255,9 +255,11 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   void _insertMention(DmParticipant participant) {
     final text = _controller.text;
     final sel = _controller.selection;
+    if (sel.baseOffset < 0) return;
     final before = text.substring(0, sel.baseOffset);
     final atIndex = before.lastIndexOf('@');
     if (atIndex == -1) return;
+    if (before.substring(atIndex).contains(RegExp(r'\s'))) return;
 
     final after = text.substring(sel.baseOffset);
     final replacement = '@${participant.username} ';
