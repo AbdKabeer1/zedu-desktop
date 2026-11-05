@@ -415,13 +415,16 @@ class HomeChatArea extends ConsumerWidget {
                   empty: welcome,
                 ),
         ),
-        DmMessageComposer(
-          key: ValueKey(selected?.id ?? channelName),
-          recipientName: '#$channelName',
-          channelId: selected?.id ?? '',
-          participants: members,
-          isChannel: true,
-        ),
+        if (selected?.archived == true)
+          _ArchivedChannelBanner(channelName: channelName)
+        else
+          DmMessageComposer(
+            key: ValueKey(selected?.id ?? channelName),
+            recipientName: '#$channelName',
+            channelId: selected?.id ?? '',
+            participants: members,
+            isChannel: true,
+          ),
       ],
     );
   }
@@ -495,6 +498,38 @@ class HomeChatArea extends ConsumerWidget {
           ),
           const SizedBox(height: 32),
           const _InviteCard(),
+        ],
+      ),
+    );
+  }
+}
+
+/// Replaces the composer of an archived channel: read-only, as on the web.
+class _ArchivedChannelBanner extends StatelessWidget {
+  const _ArchivedChannelBanner({required this.channelName});
+
+  final String channelName;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: colors.divider)),
+        color: colors.primaryBg,
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.lock_outline, size: 18, color: colors.textSecondary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '#$channelName is archived and read-only.',
+              style: TextStyle(fontSize: 14, color: colors.textSecondary),
+            ),
+          ),
         ],
       ),
     );
