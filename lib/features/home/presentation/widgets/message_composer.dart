@@ -368,7 +368,11 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                     );
                     if (result != null) {
                       setState(() {
-                        _attachedFiles.addAll(result.names.whereType<String>());
+                        _attachedFiles.addAll(
+                          result.files
+                              .map((f) => f.path)
+                              .whereType<String>(),
+                        );
                       });
                     }
                   },
