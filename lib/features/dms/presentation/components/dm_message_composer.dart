@@ -270,6 +270,31 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     _focusNode.requestFocus();
   }
 
+  /// The participants [text] @mentions, in the shape the server reads
+  /// (`{type, id}`), like the web composer. Without it the server sees only
+  /// the text "@name", records no mention and notifies nobody. Null when no
+  /// one is mentioned, so the request leaves the field out as before.
+  List<Map<String, String>>? _mentionsIn(String text) {
+    final mentions = <Map<String, String>>[];
+    final seen = <String>{};
+    for (final participant in widget.participants) {
+      final username = participant.username.trim();
+      if (participant.userId.isEmpty || username.isEmpty) continue;
+      // A whole @handle only: not part of an email or a longer handle.
+      final handle = RegExp(
+        '(?<![\\w@.])@${RegExp.escape(username)}(?![\\w.-])',
+        caseSensitive: false,
+      );
+      if (handle.hasMatch(text) && seen.add(participant.userId)) {
+        mentions.add({
+          'type': participant.userType == 'bot' ? 'bot' : 'user',
+          'id': participant.userId,
+        });
+      }
+    }
+    return mentions.isEmpty ? null : mentions;
+  }
+
   void _handleSend() {
     final text = _controller.text.trim();
     final isEdit = _isEditMode && _editingMessageId != null;
@@ -296,6 +321,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
           .sendMessage(
             text,
             media: [..._pendingFiles, ?_voiceNote],
+            mentions: _mentionsIn(text),
             isChannel: widget.isChannel,
           );
       widget.onSend?.call(text);
