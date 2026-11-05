@@ -110,7 +110,7 @@ Future<void> showEditAccountDialog(
                 account.copyWith(
                   name: nameCtrl.text.trim(),
                   email: emailCtrl.text.trim(),
-                  timezone: timezoneCtrl.text.trim(),
+                  timezone: normalizeProfileTimezone(timezoneCtrl.text.trim()),
                 ),
               );
               Navigator.pop(ctx);
