@@ -147,6 +147,67 @@ void main() {
       expect(hasFocus(tester, 1), isTrue);
     });
 
+    testWidgets('pasting a full code into a filled box drops its old digit', (
+      tester,
+    ) async {
+      await pump(tester);
+      await tester.enterText(codeBox(0), '7');
+      await tester.pump();
+
+      // Flutter puts the paste after the old 7, so the field gets '7123456'.
+      await tester.enterText(codeBox(0), '7123456');
+      await tester.pump();
+
+      expect(codeDigits(tester), ['1', '2', '3', '4', '5', '6']);
+      expect(hasFocus(tester, 5), isTrue);
+    });
+
+    testWidgets('a paste landing before the old digit also drops it', (
+      tester,
+    ) async {
+      await pump(tester);
+      await tester.enterText(codeBox(0), '7');
+      await tester.pump();
+
+      await tester.tap(codeBox(0));
+      tester.testTextInput.updateEditingValue(
+        const TextEditingValue(
+          text: '1234567',
+          selection: TextSelection.collapsed(offset: 6),
+        ),
+      );
+      await tester.pump();
+
+      expect(codeDigits(tester), ['1', '2', '3', '4', '5', '6']);
+    });
+
+    testWidgets('focusing a filled box selects its digit', (tester) async {
+      await pump(tester);
+      await tester.enterText(codeBox(0), '7');
+      await tester.pump();
+
+      await tester.tap(codeBox(0));
+      await tester.pump();
+
+      final field = tester.widget<TextFormField>(codeBox(0));
+      expect(
+        field.controller!.selection,
+        const TextSelection(baseOffset: 0, extentOffset: 1),
+      );
+    });
+
+    testWidgets('pasting two digits into an empty box fills two boxes', (
+      tester,
+    ) async {
+      await pump(tester);
+
+      await tester.enterText(codeBox(0), '12');
+      await tester.pump();
+
+      expect(codeDigits(tester), ['1', '2', '', '', '', '']);
+      expect(hasFocus(tester, 2), isTrue);
+    });
+
     testWidgets('clearing a box moves back to the previous one', (
       tester,
     ) async {
