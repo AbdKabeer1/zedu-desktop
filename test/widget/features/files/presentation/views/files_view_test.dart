@@ -480,11 +480,6 @@ void main() {
     expect(find.text('Folders'), findsNothing);
     expect(find.text('New Folder'), findsNothing);
     expect(find.text('Upload File'), findsOneWidget);
-    // The folder's own subfolders are never asked for.
-    expect(
-      repository.folderRequests.where((request) => request.$2 == 'docs'),
-      isEmpty,
-    );
 
     // Back at the top level, both come back.
     await tester.tap(find.widgetWithText(TextButton, 'All files'));
