@@ -101,6 +101,8 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
         await _showConversationSearch();
       case 'view_files':
         await _showConversationFiles();
+      case 'export_transcript':
+        await _showExportTranscript();
       case 'clear_history':
         final confirmed = await _confirmConversationAction(
           title: 'Clear history?',
@@ -198,6 +200,19 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
       context: context,
       builder: (context) => ConversationFilesDialog(
         title: '${widget.conversation.displayName} files',
+        history: history,
+      ),
+    );
+  }
+
+  Future<void> _showExportTranscript() async {
+    final history = ref.read(
+      chatHistoryProvider(widget.conversation.channelId),
+    );
+    await showDialog<void>(
+      context: context,
+      builder: (context) => ExportTranscriptDialog(
+        conversationName: widget.conversation.displayName,
         history: history,
       ),
     );
@@ -947,6 +962,7 @@ class _DmChatHeader extends StatelessWidget {
               menuItem('pinned_messages', 'Pinned messages'),
               menuItem('search_in_conversation', 'Search in conversation'),
               menuItem('view_files', 'View files'),
+              menuItem('export_transcript', 'Export transcript'),
               const PopupMenuDivider(height: 1),
               menuItem('clear_history', 'Clear history'),
               menuItem('block_user', 'Block User'),

@@ -29,6 +29,8 @@ Future<void> _pumpChatArea(
   when(() => history.loadFailed).thenReturn(false);
   when(() => history.loadMoreFailed).thenReturn(false);
   when(() => history.historyCleared).thenReturn(false);
+  when(() => history.loadAll()).thenAnswer((_) async {});
+  when(() => history.currentUserName).thenReturn(username);
   final drafts = MockDraftStore();
   when(() => drafts.load(any())).thenAnswer((_) async => null);
 
@@ -113,6 +115,19 @@ void main() {
     await tester.tap(find.text('View profile'));
     await tester.pumpAndSettle();
     expect(find.byType(Dialog), findsOneWidget);
+    await _unmount(tester);
+  });
+
+  testWidgets('Export transcript opens the export dialog', (tester) async {
+    await _pumpChatArea(tester);
+    await tester.tap(find.byTooltip('More options'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Export transcript'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ExportTranscriptDialog), findsOneWidget);
+    expect(find.text('0 messages will be exported.'), findsOneWidget);
     await _unmount(tester);
   });
 
