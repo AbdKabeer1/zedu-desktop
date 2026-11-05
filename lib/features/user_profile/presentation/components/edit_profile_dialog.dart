@@ -97,6 +97,8 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
   late String selectedTimezone;
   late String selectedCountry;
 
+  TextEditingController? _countryController;
+
   bool _saving = false;
   String? _saveError;
 
@@ -365,6 +367,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                               },
                               onSelected: (value) {
                                 setState(() => selectedCountry = value);
+                                _countryController?.text = value;
                               },
                               fieldViewBuilder:
                                   (
@@ -373,12 +376,16 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                                     focusNode,
                                     onFieldSubmitted,
                                   ) {
+                                    _countryController = controller;
                                     return TextFormField(
                                       controller: controller,
                                       focusNode: focusNode,
-                                      onChanged: (value) => setState(() {
-                                        selectedCountry = value;
-                                      }),
+                                      onChanged: (value) {
+                                        final canonical = _canonicalCountryName(value);
+                                        setState(() {
+                                          selectedCountry = canonical;
+                                        });
+                                      },
                                       validator: (value) {
                                         final country = _canonicalCountryName(
                                           value ?? '',
