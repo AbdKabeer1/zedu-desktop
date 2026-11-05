@@ -101,6 +101,9 @@ class _ProfileContent extends StatelessWidget {
               onDelete: notifier.deleteAccount,
             ),
             UserProfileSection.notifications => const SizedBox.shrink(),
+            UserProfileSection.desktop => DesktopSection(
+              controller: locator<WindowHotkeyController>(),
+            ),
             UserProfileSection.security => SecuritySection(
               sessions: state.securitySessions,
               isSaving: state.isSaving,

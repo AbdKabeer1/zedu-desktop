@@ -12,6 +12,7 @@ Future<void> main() async {
     window: windowManager,
     storage: locator<SecureStorageService>(),
   ).restore();
+  await locator<WindowHotkeyController>().start();
   showWindowWhenReady(windowManager);
 
   runApp(const ProviderScope(child: App()));
