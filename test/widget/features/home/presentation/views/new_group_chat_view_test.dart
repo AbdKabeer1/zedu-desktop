@@ -125,7 +125,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.descendant(of: find.byType(Chip), matching: find.text('EM')),
+        find.descendant(of: find.byType(Chip), matching: find.text('E')),
         findsOneWidget,
       );
     },
