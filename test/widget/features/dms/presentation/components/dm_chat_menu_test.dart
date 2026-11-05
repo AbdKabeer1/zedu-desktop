@@ -14,6 +14,7 @@ class _FakeAuthNotifier extends AuthNotifier {
 
 Future<void> _pumpChatArea(
   WidgetTester tester, {
+  String username = 'Menu Tester',
   String? participantEmail,
 }) async {
   tester.view.physicalSize = const Size(1280, 900);
@@ -43,7 +44,7 @@ Future<void> _pumpChatArea(
           body: DmChatArea(
             conversation: DmConversation(
               channelId: 'chat-1',
-              username: 'Menu Tester',
+              username: username,
               participantId: 'user-1',
               participantEmail: participantEmail,
               previewMessage: '',
@@ -137,6 +138,17 @@ void main() {
       );
       expect(find.textContaining('user-1'), findsNothing);
       expect(find.textContaining('User ID'), findsNothing);
+      await _unmount(tester);
+    });
+
+    testWidgets('keeps a leading emoji whole in the initial', (tester) async {
+      await _pumpChatArea(tester, username: '😀 Smiley');
+      await _openViewProfile(tester);
+
+      expect(
+        find.descendant(of: find.byType(Dialog), matching: find.text('😀')),
+        findsOneWidget,
+      );
       await _unmount(tester);
     });
 

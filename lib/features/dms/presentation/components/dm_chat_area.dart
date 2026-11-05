@@ -653,7 +653,7 @@ class _ParticipantProfileDialog extends StatelessWidget {
                     : null,
                 child: avatarUrl == null
                     ? Text(
-                        name.isEmpty ? '?' : name[0].toUpperCase(),
+                        avatarInitial(name),
                         style: textTheme.headlineSmall?.copyWith(
                           color: colors.onPrimary,
                           fontWeight: FontWeight.bold,
