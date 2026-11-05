@@ -30,7 +30,9 @@ void main() {
     );
 
     final titleWidget = tester.widget<Text>(find.text('Pro Tier'));
-    final descWidget = tester.widget<Text>(find.text('Ideal for scaling teams'));
+    final descWidget = tester.widget<Text>(
+      find.text('Ideal for scaling teams'),
+    );
 
     expect(titleWidget.style?.color, equals(AppPalette.light.textPrimary));
     expect(descWidget.style?.color, equals(AppPalette.light.textSecondary));
