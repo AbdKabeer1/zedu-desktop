@@ -543,4 +543,58 @@ void main() {
       expect(result.sentTo, isEmpty);
     });
   });
+
+  group('pins', () {
+    test('reads the pinned file ids from the favorites', () async {
+      when(
+        () => api.get<Map<String, dynamic>>(path: '/files/favorites'),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 200,
+          data: {
+            'data': [
+              {
+                'pinned_file_id': 'p-1',
+                'file': {'id': 'f-1', 'file_name': 'logo.png'},
+              },
+              {'pinned_file_id': 'p-2', 'file_id': 'f-2'},
+              {'pinned_file_id': 'p-3', 'file': <String, dynamic>{}},
+            ],
+          },
+        ),
+      );
+
+      expect(await datasource.fetchPinnedFileIds(), {'f-1', 'f-2'});
+    });
+
+    test('no favorites is no pins', () async {
+      when(
+        () => api.get<Map<String, dynamic>>(path: '/files/favorites'),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 200,
+          data: {'data': null},
+        ),
+      );
+
+      expect(await datasource.fetchPinnedFileIds(), isEmpty);
+    });
+
+    test('pins with POST and unpins with DELETE', () async {
+      when(() => api.post<dynamic>(path: any(named: 'path'))).thenAnswer(
+        (_) async =>
+            const ApiResponseModel<dynamic>(statusCode: 201, data: null),
+      );
+      when(() => api.delete<dynamic>(path: any(named: 'path'))).thenAnswer(
+        (_) async =>
+            const ApiResponseModel<dynamic>(statusCode: 200, data: null),
+      );
+
+      await datasource.pinFile('f-1');
+      await datasource.unpinFile('f-1');
+
+      verify(() => api.post<dynamic>(path: '/files/file/f-1/pin')).called(1);
+      verify(() => api.delete<dynamic>(path: '/files/file/f-1/pin')).called(1);
+    });
+  });
 }

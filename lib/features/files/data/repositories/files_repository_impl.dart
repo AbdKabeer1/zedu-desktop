@@ -153,4 +153,16 @@ class FilesRepositoryImpl implements FilesRepository {
       return Failure(ApiFailure(message: e.toString()));
     }
   }
+
+  @override
+  Future<Result<Set<String>>> fetchPinnedFileIds() =>
+      _guard(remoteDataSource.fetchPinnedFileIds);
+
+  @override
+  Future<Result<void>> pinFile(String fileId) =>
+      _guard(() => remoteDataSource.pinFile(fileId));
+
+  @override
+  Future<Result<void>> unpinFile(String fileId) =>
+      _guard(() => remoteDataSource.unpinFile(fileId));
 }

@@ -179,4 +179,13 @@ class _UploadRepository implements FilesRepository {
     required FileShareAccess access,
     String note = '',
   }) async => const Success(FileShareResult());
+
+  @override
+  Future<Result<Set<String>>> fetchPinnedFileIds() async => const Success({});
+
+  @override
+  Future<Result<void>> pinFile(String fileId) async => const Success(null);
+
+  @override
+  Future<Result<void>> unpinFile(String fileId) async => const Success(null);
 }
