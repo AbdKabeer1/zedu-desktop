@@ -257,6 +257,16 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
       _saving = true;
       _saveError = null;
     });
+
+    final canonicalCountry = _canonicalCountryName(selectedCountry);
+    if (selectedCountry.isNotEmpty && !kCountries.contains(canonicalCountry)) {
+      setState(() {
+        _saving = false;
+        _saveError = 'Select a country from the list';
+      });
+      return;
+    }
+
     final error = await widget.onSave(
       widget.account.copyWith(
         name: nameCtrl.text.trim(),
@@ -267,7 +277,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
         title: titleCtrl.text.trim(),
         namePronunciation: pronunciationCtrl.text.trim(),
         timezone: selectedTimezone,
-        country: _canonicalCountryName(selectedCountry),
+        country: canonicalCountry,
       ),
     );
     // Closed with Cancel while saving: nothing left to update or pop.
@@ -488,8 +498,9 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                                     return TextFormField(
                                       controller: controller,
                                       focusNode: focusNode,
-                                      onChanged: (value) => selectedCountry =
-                                          _canonicalCountryName(value),
+                                      onChanged: (value) => setState(() {
+                                        selectedCountry = value;
+                                      }),
                                       validator: (value) {
                                         final country = _canonicalCountryName(
                                           value ?? '',
