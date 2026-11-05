@@ -85,35 +85,10 @@ class _LoginViewState extends ConsumerState<LoginView> {
         toolbarHeight: 80,
         backgroundColor: context.colors.background,
         elevation: 0,
-        title: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Image.asset('assets/pngs/zedu_logo.png', width: 83, height: 31),
-              Text.rich(
-                TextSpan(
-                  text: "Don't have an account? ",
-                  style: context.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w400,
-                    color: context.colors.textPrimary,
-                    fontFamily: FontFamily.roboto,
-                  ),
-                  children: [
-                    TextSpan(
-                      text: 'Sign up',
-                      style: context.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w400,
-                        color: context.colors.primary,
-                        fontFamily: FontFamily.roboto,
-                      ),
-                      recognizer: _signUpLink,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        title: AuthHeaderRow(
+          prompt: "Don't have an account? ",
+          action: 'Sign up',
+          recognizer: _signUpLink,
         ),
       ),
       body: SingleChildScrollView(
