@@ -330,6 +330,18 @@ class _FilesSection extends ConsumerWidget {
     );
   }
 
+  void _preview(BuildContext context, WidgetRef ref, WorkspaceFile file) =>
+      FilePreviewDialog.show(
+        context,
+        file: file,
+        onDownload: () {
+          if (context.mounted) _download(context, ref, file);
+        },
+        onOpenExternally: () {
+          if (context.mounted) _open(context, file);
+        },
+      );
+
   Future<void> _togglePin(
     BuildContext context,
     WidgetRef ref,
@@ -402,10 +414,15 @@ class _FilesSection extends ConsumerWidget {
           files: files,
           ownerNameOf: (file) =>
               file.owner.isNotEmpty ? file.owner : ownerName(file.userId),
-          onOpen: (file) => _open(context, file),
+          // Clicking a file previews it in the app, as on web. Deleted files
+          // still open outside it.
+          onOpen: isTrash
+              ? (file) => _open(context, file)
+              : (file) => _preview(context, ref, file),
           downloads: downloads,
           pinnedIds: pinnedIds,
           onDownload: isTrash ? null : (file) => _download(context, ref, file),
+          onPreview: isTrash ? null : (file) => _preview(context, ref, file),
           onTogglePin: isTrash
               ? null
               : (file) => _togglePin(context, ref, file),

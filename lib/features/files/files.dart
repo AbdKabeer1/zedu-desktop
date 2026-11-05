@@ -1,6 +1,7 @@
 export 'data/datasources/files_remote_datasource.dart';
 export 'data/repositories/files_repository_impl.dart';
 export 'domain/entities/file_folder.dart';
+export 'domain/entities/file_preview.dart';
 export 'domain/entities/file_share.dart';
 export 'domain/entities/files_query.dart';
 export 'domain/entities/workspace_file.dart';
@@ -18,6 +19,7 @@ export 'presentation/views/files_view.dart';
 export 'presentation/widgets/create_folder_dialog.dart';
 export 'presentation/widgets/delete_file_dialog.dart';
 export 'presentation/widgets/file_info_panel.dart';
+export 'presentation/widgets/file_preview_dialog.dart';
 export 'presentation/widgets/files_sidebar.dart';
 export 'presentation/widgets/files_tables.dart';
 export 'presentation/widgets/files_toolbar.dart';

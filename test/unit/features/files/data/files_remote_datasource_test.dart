@@ -650,4 +650,57 @@ void main() {
       );
     });
   });
+
+  group('fetchFileBytes', () {
+    test('returns the contents without the session client', () async {
+      when(
+        () => downloadClient.get<List<int>>(
+          'https://files.zedu.test/notes.txt',
+          cancelToken: any(named: 'cancelToken'),
+          options: any(named: 'options'),
+          onReceiveProgress: any(named: 'onReceiveProgress'),
+        ),
+      ).thenAnswer(
+        (_) async =>
+            Response(requestOptions: RequestOptions(), data: [104, 105]),
+      );
+
+      final bytes = await datasource.fetchFileBytes(
+        url: 'https://files.zedu.test/notes.txt',
+        maxBytes: 10,
+      );
+
+      expect(bytes, [104, 105]);
+      verifyNever(() => api.get<dynamic>(path: any(named: 'path')));
+    });
+
+    test('refuses contents larger than the limit', () async {
+      when(
+        () => downloadClient.get<List<int>>(
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+          options: any(named: 'options'),
+          onReceiveProgress: any(named: 'onReceiveProgress'),
+        ),
+      ).thenAnswer(
+        (_) async => Response(
+          requestOptions: RequestOptions(),
+          data: List.filled(11, 0),
+        ),
+      );
+
+      expect(
+        datasource.fetchFileBytes(url: 'https://x.test/a', maxBytes: 10),
+        throwsA(
+          isA<ApiFailure>()
+              .having((f) => f.kind, 'kind', ApiFailureKind.client)
+              .having(
+                (f) => f.message,
+                'message',
+                'This file is too large to preview.',
+              ),
+        ),
+      );
+    });
+  });
 }

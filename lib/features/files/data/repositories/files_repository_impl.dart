@@ -44,17 +44,8 @@ class FilesRepositoryImpl implements FilesRepository {
     required String savePath,
     void Function(double? progress)? onProgress,
   }) => _guard(() async {
-    final link = file.link.isNotEmpty
-        ? file.link
-        : await remoteDataSource.fetchFileLink(file.id);
-    if (link.isEmpty) {
-      throw const ApiFailure(
-        message: 'This file has no download link.',
-        kind: ApiFailureKind.client,
-      );
-    }
     await remoteDataSource.downloadFile(
-      url: link,
+      url: await _linkOf(file),
       savePath: savePath,
       onProgress: onProgress == null
           ? null
@@ -152,6 +143,38 @@ class FilesRepositoryImpl implements FilesRepository {
     } catch (e) {
       return Failure(ApiFailure(message: e.toString()));
     }
+  }
+
+  @override
+  Future<Result<Uint8List>> fetchFilePreview(
+    WorkspaceFile file,
+    FilePreviewKind kind,
+  ) => _guard(() async {
+    // The list's size spares fetching a file that is plainly too large.
+    if (file.size > kind.maxBytes) {
+      throw const ApiFailure(
+        message: 'This file is too large to preview.',
+        kind: ApiFailureKind.client,
+      );
+    }
+    return remoteDataSource.fetchFileBytes(
+      url: await _linkOf(file),
+      maxBytes: kind.maxBytes,
+    );
+  });
+
+  /// [file]'s storage link: from the list, else from the server.
+  Future<String> _linkOf(WorkspaceFile file) async {
+    final link = file.link.isNotEmpty
+        ? file.link
+        : await remoteDataSource.fetchFileLink(file.id);
+    if (link.isEmpty) {
+      throw const ApiFailure(
+        message: 'This file has no download link.',
+        kind: ApiFailureKind.client,
+      );
+    }
+    return link;
   }
 
   @override
