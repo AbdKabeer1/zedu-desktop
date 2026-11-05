@@ -498,6 +498,30 @@ void main() {
       });
     }
 
+    testWidgets('centers the login with magic link link beneath the button', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(buildLoginViewUnderTest());
+      await tester.pumpAndSettle();
+
+      final linkText = find.text('Login with magic link');
+      expect(linkText, findsOneWidget);
+
+      final align = tester.widget<Align>(
+        find.ancestor(of: linkText, matching: find.byType(Align)).first,
+      );
+      expect(align.alignment, Alignment.center);
+
+      final linkCenter = tester.getCenter(linkText);
+      final buttonCenter = tester.getCenter(
+        find.widgetWithText(ElevatedButton, 'Login'),
+      );
+      expect((linkCenter.dx - buttonCenter.dx).abs(), lessThan(1.0));
+    });
+
     testWidgets('Tab moves directly from email to password', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 1024));
       addTearDown(() => tester.binding.setSurfaceSize(null));
