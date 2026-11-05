@@ -96,15 +96,87 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
         await showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text(conversation.displayName),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            title: Row(
               children: [
-                if (conversation.participantEmail?.isNotEmpty == true)
-                  Text(conversation.participantEmail!),
-                Text('User ID: ${conversation.participantId}'),
+                if (conversation.effectiveAvatarUrl != null)
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundImage: NetworkImage(
+                      conversation.effectiveAvatarUrl!,
+                    ),
+                  )
+                else
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: context.colors.primary,
+                    child: Text(
+                      avatarInitial(conversation.displayName),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    conversation.displayName,
+                    style: context.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
+            ),
+            content: SizedBox(
+              width: 320,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (conversation.participantEmail?.isNotEmpty == true)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.email,
+                            size: 16,
+                            color: context.colors.textHint,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              conversation.participantEmail!,
+                              style: context.textTheme.bodyMedium,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: context.colors.textHint,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'User ID: ${conversation.participantId}',
+                          style: context.textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
