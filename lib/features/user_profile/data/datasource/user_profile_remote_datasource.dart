@@ -95,9 +95,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
     // There is no DELETE /profile/account on the API; deactivating your own
     // account is DELETE /users/me (DeactivateSelfUser), so the old path 404'd
     // and the delete action could never succeed (Ziki #584).
-    await _apiBaseService.delete<Map<String, dynamic>>(
-      path: '/users/me',
-    );
+    await _apiBaseService.delete<Map<String, dynamic>>(path: '/users/me');
   }
 
   @override
