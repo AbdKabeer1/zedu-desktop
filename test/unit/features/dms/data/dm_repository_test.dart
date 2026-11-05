@@ -199,4 +199,29 @@ void main() {
       );
     });
   });
+
+  group('DmRepository.editMessage', () {
+    test('sends messageId in the URL path and content in data', () async {
+      when(
+        () => api.put<Map<String, dynamic>>(
+          path: '/dms/messages/msg-123',
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 200,
+          data: {},
+        ),
+      );
+
+      await repository.editMessage('msg-123', content: 'Updated message text');
+
+      verify(
+        () => api.put<Map<String, dynamic>>(
+          path: '/dms/messages/msg-123',
+          data: {'content': 'Updated message text'},
+        ),
+      ).called(1);
+    });
+  });
 }
