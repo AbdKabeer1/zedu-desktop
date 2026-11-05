@@ -18,6 +18,10 @@ class _AuthDeepLinkListenerState extends ConsumerState<AuthDeepLinkListener> {
   StreamSubscription<Uri>? _linkSubscription;
   String? _lastProcessedToken;
 
+  /// Token whose verification is still running, so a duplicate event for the
+  /// same link doesn't start a second attempt before the first finishes.
+  String? _verifyingToken;
+
   static const _tag = 'AuthDeepLinkListener';
 
   @override
@@ -50,10 +54,25 @@ class _AuthDeepLinkListenerState extends ConsumerState<AuthDeepLinkListener> {
   Future<void> _handleUri(Uri uri) async {
     final token = MagicLinkDeepLinkParser.extractToken(uri);
     if (token == null || token == _lastProcessedToken) return;
-    _lastProcessedToken = token;
+    // A retry for the same link is only allowed once the current attempt has
+    // settled; otherwise the same token would kick off parallel verifications.
+    if (_verifyingToken != null) return;
+    _verifyingToken = token;
 
     AppLogger.i('Processing magic link deep link', tag: _tag);
-    await ref.read(authNotifierProvider.notifier).verifyMagicLink(token: token);
+    try {
+      await ref
+          .read(authNotifierProvider.notifier)
+          .verifyMagicLink(token: token);
+    } finally {
+      _verifyingToken = null;
+    }
+    // Only remember a token that actually succeeded, so a failed attempt (for
+    // example a stale link opened while logged out) can be retried.
+    final authState = ref.read(authNotifierProvider);
+    if (authState.status == AuthStatus.authenticated) {
+      _lastProcessedToken = token;
+    }
 
     if (!mounted) return;
 
@@ -62,7 +81,6 @@ class _AuthDeepLinkListenerState extends ConsumerState<AuthDeepLinkListener> {
     final navigator = AppRouter.navigatorKey.currentState;
     if (navigator == null) return;
 
-    final authState = ref.read(authNotifierProvider);
     if (authState.status == AuthStatus.authenticated) {
       AppToastService.showAtRoot(
         navigator,
