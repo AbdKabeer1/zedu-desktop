@@ -153,6 +153,31 @@ void main() {
     });
   });
 
+  group('DmRepository.pinMessage', () {
+    test('pins the thread through the channels pin route', () async {
+      when(
+        () => api.post<Map<String, dynamic>>(
+          path: '/channels/pin/ch-1/thread',
+          data: {'thread_id': 'thread-1'},
+        ),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 201,
+          data: {},
+        ),
+      );
+
+      await repository.pinMessage(threadId: 'thread-1', channelId: 'ch-1');
+
+      verify(
+        () => api.post<Map<String, dynamic>>(
+          path: '/channels/pin/ch-1/thread',
+          data: {'thread_id': 'thread-1'},
+        ),
+      ).called(1);
+    });
+  });
+
   group('DmRepository.openConversation', () {
     test('returns the channel and participant ids', () async {
       when(

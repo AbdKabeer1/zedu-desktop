@@ -509,6 +509,24 @@ class ChatHistoryNotifier extends ChangeNotifier {
     }
   }
 
+  /// Pins the message on the server. Returns whether it was pinned.
+  Future<bool> pinMessage(String messageId) async {
+    final message = messages.firstWhere(
+      (m) => m['id'] == messageId,
+      orElse: () => const {},
+    );
+    if (message.isEmpty) return false;
+    final threadId = (message['thread_id'] ?? message['id']).toString();
+    try {
+      await ref
+          .read(dmRepositoryProvider)
+          .pinMessage(threadId: threadId, channelId: channelId);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> saveEdit(String messageId, String newContent) {
     final previous = _saveEditChains[messageId] ?? Future<void>.value();
     final task = previous.then((_) => _runSaveEdit(messageId, newContent));

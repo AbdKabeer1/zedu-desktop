@@ -1040,6 +1040,24 @@ class _MessageBubble extends ConsumerWidget {
     );
   }
 
+  Future<void> _pin(
+    BuildContext context,
+    WidgetRef ref,
+    String messageId,
+  ) async {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final pinned = await ref
+        .read(chatHistoryProvider(channelId))
+        .pinMessage(messageId);
+    AppToastService.showWith(
+      overlay,
+      type: pinned ? AppToastType.success : AppToastType.error,
+      message: pinned
+          ? 'Message pinned'
+          : "Couldn't pin the message. Try again.",
+    );
+  }
+
   Future<void> _confirmDelete(
     BuildContext context,
     WidgetRef ref,
@@ -1161,10 +1179,13 @@ class _MessageBubble extends ConsumerWidget {
                   ),
                 ),
                 if (content.isNotEmpty)
-                  _OwnMessageMenu(
-                    enabled: isMe && status == null,
-                    onEdit: () => onEdit(messageId, content),
-                    onDelete: () => _confirmDelete(context, ref, messageId),
+                  _MessageMenu(
+                    enabled: status == null,
+                    onPin: () => _pin(context, ref, messageId),
+                    onEdit: isMe ? () => onEdit(messageId, content) : null,
+                    onDelete: isMe
+                        ? () => _confirmDelete(context, ref, messageId)
+                        : null,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -1191,12 +1212,14 @@ class _MessageBubble extends ConsumerWidget {
                     child: content.isNotEmpty
                         ? _AttachmentBubbleList(media: media, isMe: isMe)
                         // No text to hang the menu on, so it goes on the
-                        // attachments (Delete only: there is nothing to edit).
-                        : _OwnMessageMenu(
-                            enabled: isMe && status == null,
+                        // attachments (no Edit: there is nothing to edit).
+                        : _MessageMenu(
+                            enabled: status == null,
+                            onPin: () => _pin(context, ref, messageId),
                             onEdit: null,
-                            onDelete: () =>
-                                _confirmDelete(context, ref, messageId),
+                            onDelete: isMe
+                                ? () => _confirmDelete(context, ref, messageId)
+                                : null,
                             child: _AttachmentBubbleList(
                               media: media,
                               isMe: isMe,
@@ -1389,26 +1412,30 @@ class _AttachmentBubbleList extends StatelessWidget {
 }
 
 /// Shows a "more" button on hover, and a right-click or long-press menu, for
-/// your own messages, with Edit and Delete. The long press is for touch input,
-/// where there is no hover or right click.
-class _OwnMessageMenu extends StatefulWidget {
-  const _OwnMessageMenu({
+/// a sent message: Pin on every message, and Edit and Delete on your own. The
+/// long press is for touch input, where there is no hover or right click.
+class _MessageMenu extends StatefulWidget {
+  const _MessageMenu({
     required this.enabled,
+    required this.onPin,
     required this.onEdit,
     required this.onDelete,
     required this.child,
   });
 
   final bool enabled;
+  final VoidCallback onPin;
+
+  /// Null on other people's messages, which can't be edited or deleted.
   final VoidCallback? onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
   final Widget child;
 
   @override
-  State<_OwnMessageMenu> createState() => _OwnMessageMenuState();
+  State<_MessageMenu> createState() => _MessageMenuState();
 }
 
-class _OwnMessageMenuState extends State<_OwnMessageMenu> {
+class _MessageMenuState extends State<_MessageMenu> {
   final _menuKey = GlobalKey<PopupMenuButtonState<String>>();
   bool _hovered = false;
 
@@ -1431,18 +1458,23 @@ class _OwnMessageMenuState extends State<_OwnMessageMenu> {
                 key: _menuKey,
                 tooltip: 'Message actions',
                 icon: const Icon(Icons.more_horiz, size: 18),
-                onSelected: (value) =>
-                    value == 'edit' ? widget.onEdit?.call() : widget.onDelete(),
+                onSelected: (value) => switch (value) {
+                  'pin' => widget.onPin(),
+                  'edit' => widget.onEdit?.call(),
+                  _ => widget.onDelete?.call(),
+                },
                 itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'pin', child: Text('Pin message')),
                   if (widget.onEdit != null)
                     const PopupMenuItem(
                       value: 'edit',
                       child: Text('Edit message'),
                     ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete message'),
-                  ),
+                  if (widget.onDelete != null)
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete message'),
+                    ),
                 ],
               ),
             ),

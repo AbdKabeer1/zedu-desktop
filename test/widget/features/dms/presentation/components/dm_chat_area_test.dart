@@ -233,7 +233,7 @@ void main() {
   );
 
   group('DmChatArea message text', () {
-    Future<void> pumpChat(
+    Future<MockDmRepository> pumpChat(
       WidgetTester tester,
       List<Map<String, dynamic>> messages,
     ) async {
@@ -274,6 +274,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      return repository;
     }
 
     testWidgets('own space explains privacy and hides its system event', (
@@ -491,8 +492,60 @@ void main() {
       await tester.longPress(find.text('my message', findRichText: true));
       await tester.pumpAndSettle();
 
+      expect(find.text('Pin message'), findsOneWidget);
       expect(find.text('Edit message'), findsOneWidget);
       expect(find.text('Delete message'), findsOneWidget);
+    });
+
+    testWidgets('offers only Pin on someone else\'s message', (tester) async {
+      await pumpChat(tester, [message('m1', 'their message')]);
+
+      await tester.longPress(find.text('their message', findRichText: true));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pin message'), findsOneWidget);
+      expect(find.text('Edit message'), findsNothing);
+      expect(find.text('Delete message'), findsNothing);
+    });
+
+    testWidgets('Pin message pins the thread and says so', (tester) async {
+      final repository = await pumpChat(tester, [
+        {...message('m1', 'their message'), 'thread_id': 'thread-1'},
+      ]);
+      when(
+        () => repository.pinMessage(threadId: 'thread-1', channelId: 'ch-1'),
+      ).thenAnswer((_) async {});
+
+      await tester.longPress(find.text('their message', findRichText: true));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pin message'));
+      await tester.pump();
+
+      verify(
+        () => repository.pinMessage(threadId: 'thread-1', channelId: 'ch-1'),
+      ).called(1);
+      expect(find.text('Message pinned'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('Pin message says when pinning fails', (tester) async {
+      final repository = await pumpChat(tester, [
+        ownMessage('m1', 'my message'),
+      ]);
+      when(
+        () => repository.pinMessage(
+          threadId: any(named: 'threadId'),
+          channelId: any(named: 'channelId'),
+        ),
+      ).thenThrow(Exception('offline'));
+
+      await tester.longPress(find.text('my message', findRichText: true));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pin message'));
+      await tester.pump();
+
+      expect(find.text("Couldn't pin the message. Try again."), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
     });
 
     testWidgets('Edit message from the menu puts the message in the composer', (
