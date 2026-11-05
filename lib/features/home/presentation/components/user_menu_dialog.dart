@@ -23,8 +23,6 @@ class UserMenuDialog extends ConsumerWidget {
     final balance = ref.watch(orgCreditBalanceProvider);
     final displayName = authUser?.fullname ?? 'AnonymousUser';
     final status = authUser?.status ?? UserStatus.empty;
-    final orgSlug = authUser?.currentOrganisationSlug ?? '';
-    final signOutTarget = orgSlug.isEmpty ? 'Zedu' : orgSlug;
     final isOnline = status.online;
 
     // Sit the card just outside the rail and keep it inside the window: it
@@ -303,7 +301,7 @@ class UserMenuDialog extends ConsumerWidget {
               // ── Sign out ───────────────────────────────────────────────────
               _MenuItemButton(
                 icon: Icons.logout_rounded,
-                label: 'Sign out of $signOutTarget',
+                label: 'Sign out of Zedu',
                 isError: true,
                 onTap: () async {
                   Navigator.pop(context);
