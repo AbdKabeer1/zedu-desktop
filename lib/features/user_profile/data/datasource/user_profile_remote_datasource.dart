@@ -93,7 +93,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   Future<void> deleteAccount() async {
     if (_config.usesMockData) return;
     await _apiBaseService.delete<Map<String, dynamic>>(
-      path: '/profile/account',
+      path: '/users/me',
     );
   }
 
