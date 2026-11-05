@@ -243,9 +243,7 @@ void main() {
       expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isFalse);
     });
 
-    testWidgets('pressing Enter on status input saves status', (
-      tester,
-    ) async {
+    testWidgets('pressing Enter on status input saves status', (tester) async {
       final notifier = _FakeAuthNotifier();
       await _pumpDialog(tester, notifier: () => notifier);
 
