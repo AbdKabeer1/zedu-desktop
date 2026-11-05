@@ -40,6 +40,7 @@ final desktopWindowTitleProvider = Provider<String>((ref) {
   final channels = ref.watch(channelProvider).value ?? const [];
   final dms = ref.watch(dmListProvider).value ?? const [];
   final selectedDm = ref.watch(selectedDmProvider);
+  final groups = ref.watch(groupDmProvider);
 
   String? contextName;
   switch (activeChat.type) {
@@ -81,7 +82,11 @@ final desktopWindowTitleProvider = Provider<String>((ref) {
       break;
 
     case ActiveChatType.groupDm:
-      contextName = 'Group Chat';
+      // Name the open group, like channels and DMs; fall back only when the
+      // group isn't in the list (#2750).
+      final group = groups.where((g) => g.id == activeChat.id).firstOrNull;
+      final groupName = group?.name.trim() ?? '';
+      contextName = groupName.isNotEmpty ? groupName : 'Group Chat';
       break;
 
     case ActiveChatType.channelDirectory:
@@ -110,6 +115,14 @@ final desktopWindowTitleProvider = Provider<String>((ref) {
         (d.participantId == activeChat.id || d.channelId == activeChat.id);
     if (!isActive) {
       unreadCount += d.unreadCount.toInt();
+    }
+  }
+
+  for (final g in groups) {
+    final isActive =
+        activeChat.type == ActiveChatType.groupDm && g.id == activeChat.id;
+    if (!isActive) {
+      unreadCount += g.unreadCount;
     }
   }
 
