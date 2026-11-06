@@ -62,12 +62,33 @@ class AppRouter {
     changePassword,
   };
 
-  /// Sends a signed-out user on a signed-in route to the login page, for
-  /// example after a 401 ends the session. Nothing redirects while the status
-  /// is still [AuthStatus.unknown] (the saved session is being restored).
+  /// Auth entry routes that an authenticated user is redirected away from to [home].
+  static const authEntryPaths = {
+    login,
+    magicLinkRequest,
+    magicLinkSent,
+    signup,
+    forgotPassword,
+    resetPassword,
+  };
+
+  /// Sends a signed-out user on a protected route to the login page, and an
+  /// authenticated user on an entry auth route to the home page.
+  /// Nothing redirects while the status is still [AuthStatus.unknown] (the saved
+  /// session is being restored).
   static String? redirectSignedOut(GoRouterState state) {
-    if (authStatus.value != AuthStatus.unauthenticated) return null;
-    return publicPaths.contains(state.uri.path) ? null : login;
+    final status = authStatus.value;
+    final path = state.uri.path;
+
+    if (status == AuthStatus.unauthenticated) {
+      return publicPaths.contains(path) ? null : login;
+    }
+
+    if (status == AuthStatus.authenticated && authEntryPaths.contains(path)) {
+      return home;
+    }
+
+    return null;
   }
 
   static final router = GoRouter(
