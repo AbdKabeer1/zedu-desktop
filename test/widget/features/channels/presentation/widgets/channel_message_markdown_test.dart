@@ -26,11 +26,9 @@ class _EmptyHistory extends ChangeNotifier implements ChatHistoryNotifier {
 
 /// Every text-bearing span of the single message body, markers included or not.
 List<TextSpan> _spansOf(WidgetTester tester) {
-  final body = find.descendant(
-    of: find.byType(SelectableText),
-    matching: find.byType(RichText),
-  );
-  final root = tester.widgetList<RichText>(body).first.text;
+  final root = tester
+      .widget<SelectableText>(find.byType(SelectableText))
+      .textSpan!;
   final spans = <TextSpan>[];
   root.visitChildren((InlineSpan child) {
     if (child is TextSpan) spans.add(child);
