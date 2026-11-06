@@ -661,7 +661,15 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
             );
           }).toList();
           loadedTeamMembers = savedMembers;
-        } catch (_) {}
+        } catch (error) {
+          // Keep the members already loaded; a bad cache entry shouldn't
+          // block the profile.
+          AppLogger.w(
+            'Could not parse cached team members for org $orgId',
+            tag: 'UserProfileNotifier',
+            error: error,
+          );
+        }
       }
     }
 
