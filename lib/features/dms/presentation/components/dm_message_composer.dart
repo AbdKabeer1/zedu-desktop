@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Directory, File, Platform;
 
 import 'package:audioplayers/audioplayers.dart'
     show AudioPlayer, DeviceFileSource;
@@ -86,6 +85,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   /// can't be used in [dispose], and a flush must go to the store the draft
   /// was typed against.
   late DmDraftStore _drafts;
+  late final ComposerFileStore _fileStore;
 
   /// Set when this conversation is deleted, so closing the composer doesn't
   /// save its text back as a draft.
@@ -96,6 +96,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     super.initState();
     _audioRecorder = widget.audioRecorder ?? AudioRecorder();
     _drafts = ref.read(dmDraftStoreProvider);
+    _fileStore = ref.read(composerFileStoreProvider);
     _controller = RichTextController();
     _controller.addListener(_onTextChanged);
     _draftChannelId = _draftKey;
@@ -649,12 +650,16 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
         _showVoiceError('Allow microphone access to record a voice message.');
         return;
       }
-      final path =
-          '${Directory.systemTemp.path}${Platform.pathSeparator}zedu-voice-${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final pathResult = _fileStore.newRecordingPath();
+      if (pathResult case Failure(:final error)) {
+        _showVoiceError(error.message);
+        return;
+      }
+      final path = (pathResult as Success<String>).value;
       _activeRecordingPath = path;
       await _audioRecorder.start(const RecordConfig(), path: path);
       // Only remember the file once recording really started.
-      appRecordedPaths.add(path);
+      _fileStore.trackRecording(path);
       if (!mounted) {
         // dispose() is already stopping and cleaning up the recorder.
         await _deleteOwnRecording(path);
@@ -747,16 +752,16 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   /// always comes from the recorder itself, never from a file the user picked.
   Future<void> _deleteOwnRecording(String? path) async {
     if (path == null) return;
-    appRecordedPaths.add(path);
+    _fileStore.trackRecording(path);
     await _deleteRecording(path);
   }
 
   /// Deletes a recording this app made. Never used on files the user picked.
   Future<void> _deleteRecording(String? path) async {
-    if (path == null || !appRecordedPaths.remove(path)) return;
-    try {
-      await File(path).delete();
-    } catch (_) {}
+    final result = await _fileStore.deleteRecording(path);
+    if (result case Failure(:final error)) {
+      AppLogger.w(error.message, tag: 'DmMessageComposer');
+    }
   }
 
   String _formatSeconds(int total) {
@@ -859,8 +864,8 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     for (final file in newFiles) {
       try {
         if (file.path.isNotEmpty) {
-          final fileOnDisk = File(file.path);
-          if (!await fileOnDisk.exists()) {
+          final exists = await _fileStore.exists(file.path);
+          if (exists is! Success<bool> || !exists.value) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -962,13 +967,20 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
               final fileName =
                   'pasted_image_${DateTime.now().millisecondsSinceEpoch}.$ext';
               try {
-                final tempPath =
-                    '${Directory.systemTemp.path}${Platform.pathSeparator}$fileName';
-                final tempFile = File(tempPath);
-                await tempFile.writeAsBytes(bytes);
-                await addFiles([
-                  XFile(tempPath, name: fileName, mimeType: mime),
-                ]);
+                final saved = await _fileStore.writeTemporaryFile(
+                  fileName,
+                  bytes,
+                );
+                switch (saved) {
+                  case Success(:final value):
+                    await addFiles([
+                      XFile(value, name: fileName, mimeType: mime),
+                    ]);
+                  case Failure():
+                    await addFiles([
+                      XFile.fromData(bytes, name: fileName, mimeType: mime),
+                    ]);
+                }
               } catch (_) {
                 await addFiles([
                   XFile.fromData(bytes, name: fileName, mimeType: mime),
@@ -1000,9 +1012,9 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
             'gif',
             'bmp',
           ].contains(fileExt)) {
-            final file = File(filePath);
-            if (await file.exists()) {
-              final fileName = filePath.split(Platform.pathSeparator).last;
+            final exists = await _fileStore.exists(filePath);
+            if (exists is Success<bool> && exists.value) {
+              final fileName = XFile(filePath).name;
               await addFiles([XFile(filePath, name: fileName)]);
             }
           }

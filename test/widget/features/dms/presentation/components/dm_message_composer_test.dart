@@ -17,6 +17,27 @@ class FakeSecureStorageService extends Fake implements SecureStorageService {
   Future<void> deleteValue(String key) async => _values.remove(key);
 }
 
+class _VirtualAttachment extends Fake implements XFile {
+  @override
+  String get path => 'virtual-attachment.txt';
+
+  @override
+  String get name => 'virtual-attachment.txt';
+
+  @override
+  Future<int> length() async => 4;
+}
+
+class _ComposerFiles extends ComposerFileStore {
+  final inspected = <String>[];
+
+  @override
+  Future<Result<bool>> exists(String path) async {
+    inspected.add(path);
+    return const Success(true);
+  }
+}
+
 Future<TextField> pumpComposer(WidgetTester tester) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -119,6 +140,39 @@ Future<void> pressShortcut(
 }
 
 void main() {
+  testWidgets('attachment checks go through the file store without disk I/O', (
+    tester,
+  ) async {
+    final files = _ComposerFiles();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          composerFileStoreProvider.overrideWithValue(files),
+          dmDraftStoreProvider.overrideWith(
+            (ref) => DmDraftStore(
+              FakeSecureStorageService(),
+              userId: 'user-1',
+              orgId: 'org-1',
+            ),
+          ),
+        ],
+        child: buildTestMaterialApp(
+          const Scaffold(
+            body: DmMessageComposer(recipientName: 'Ada', channelId: 'dm-1'),
+          ),
+        ),
+      ),
+    );
+    await tester
+        .state<DmMessageComposerState>(find.byType(DmMessageComposer))
+        .addFiles([_VirtualAttachment()]);
+    await tester.pump();
+
+    expect(files.inspected, ['virtual-attachment.txt']);
+    expect(find.text('virtual-attachment.txt'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   group('DmMessageComposer block quotes', () {
     const cases = [
       (
