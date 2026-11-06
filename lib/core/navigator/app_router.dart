@@ -5,6 +5,7 @@ class AppRouter {
   const AppRouter._();
 
   static const home = '/home';
+  static const threads = '/threads';
   static const login = '/login';
   static const magicLinkRequest = '/magic-link';
   static const magicLinkSent = '/magic-link/sent';
@@ -69,6 +70,7 @@ class AppRouter {
       ),
 
       GoRoute(path: home, builder: (context, state) => const HomeView()),
+      GoRoute(path: threads, builder: (context, state) => const ThreadsView()),
       GoRoute(path: signup, builder: (context, state) => const SignUpView()),
       GoRoute(
         path: forgotPassword,
