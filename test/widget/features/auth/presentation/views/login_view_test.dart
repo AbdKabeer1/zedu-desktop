@@ -517,5 +517,13 @@ void main() {
       );
       expect(passwordField.focusNode.hasFocus, isTrue);
     });
+    testWidgets('disposes tap gesture recognizers cleanly on unmount', (
+      tester,
+    ) async {
+      await pumpDesktopLogin(tester, FakeAuthNotifier());
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      expect(find.byType(LoginView), findsNothing);
+    });
   });
 }
