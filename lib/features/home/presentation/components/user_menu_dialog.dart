@@ -302,6 +302,9 @@ class _UserMenuDialogState extends ConsumerState<UserMenuDialog> {
                 onTap: () {
                   Navigator.pop(context);
                   ref.read(personalProfilePanelProvider.notifier).state = true;
+                  if (context.mounted) {
+                    context.go(AppRouter.home);
+                  }
                 },
               ),
               _MenuItemButton(
