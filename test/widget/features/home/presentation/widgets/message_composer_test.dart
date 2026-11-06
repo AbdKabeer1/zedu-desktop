@@ -10,6 +10,9 @@ class _FakeProfileNotifier extends UserProfileNotifier {
 
   @override
   UserProfileState build() => initial;
+
+  @override
+  Future<void> load() async {}
 }
 
 const _rocket = TeamMember(
