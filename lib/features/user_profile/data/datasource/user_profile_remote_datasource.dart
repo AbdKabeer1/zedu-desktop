@@ -450,7 +450,8 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
           email: user['email'] as String? ?? '',
           role: user['role'] as String? ?? 'User',
           dateJoined: user['created_at'] as String? ?? '',
-          status: TeamMemberStatus.active, // Or parse from user['status']
+          // Pending invites and deactivated members come back here too.
+          status: TeamMemberModel.statusFromJson(user),
           name: _displayName(user),
           avatarUrl: user['avatar_url'] as String?,
         );
