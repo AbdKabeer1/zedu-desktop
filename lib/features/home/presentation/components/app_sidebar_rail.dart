@@ -59,6 +59,17 @@ class _AppSidebarRailState extends ConsumerState<AppSidebarRail> {
     ValueChanged<HomeSidebarType> select,
   ) {
     final colors = context.colors;
+    final conversations = ref.watch(
+      dmListProvider.select((state) => state.value ?? const <DmConversation>[]),
+    );
+    final deletedConversationIds = ref.watch(
+      dmConversationActionsProvider.select((state) => state.deletedIds),
+    );
+    final hasUnreadDms = conversations.any(
+      (conversation) =>
+          conversation.unreadCount > 0 &&
+          !deletedConversationIds.contains(conversation.channelId),
+    );
     return Container(
       width: AppSidebarRail.width,
       decoration: BoxDecoration(
@@ -110,9 +121,19 @@ class _AppSidebarRailState extends ConsumerState<AppSidebarRail> {
           ),
           const Spacer(),
           _RailBottomIcon(
+            icon: Icons.inbox_outlined,
+            tooltip: 'Inbox',
+            onTap: () {
+              showDialog<void>(
+                context: context,
+                barrierColor: Colors.black.withValues(alpha: 0.3),
+                builder: (context) => const InboxDialog(),
+              );
+            },
+          ),
+          _RailBottomIcon(
             icon: Icons.notifications_none_outlined,
-            // No unread-count source yet; show the dot once there is one.
-            hasNotification: false,
+            hasNotification: hasUnreadDms,
             tooltip: 'Notifications',
             onTap: () {
               showDialog<void>(
@@ -293,6 +314,7 @@ class _RailBottomIcon extends StatelessWidget {
                 right: 6,
                 top: 6,
                 child: Container(
+                  key: const Key('notification-unread-indicator'),
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
