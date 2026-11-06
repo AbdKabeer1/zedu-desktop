@@ -549,7 +549,11 @@ class _UploadButton extends ConsumerWidget {
         .uploadFiles(files);
     if (!context.mounted) return;
     final failed = outcome.failedNames;
-    final message = failed.isEmpty
+    final message = outcome.workspaceChanged
+        ? 'Workspace changed. ${outcome.skippedNames.length} remaining files '
+              'were not uploaded. A file already in progress may have '
+              'completed in the previous workspace.'
+        : failed.isEmpty
         ? (outcome.uploaded == 1
               ? 'File uploaded'
               : '${outcome.uploaded} files uploaded')
