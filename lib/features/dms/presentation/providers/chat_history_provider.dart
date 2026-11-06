@@ -591,7 +591,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
     try {
       final repository = ref.read(dmRepositoryProvider);
       await repository.editMessage(
-        channelId,
+        messageId,
         content: newContent,
         threadId: threadId,
       );
