@@ -123,30 +123,41 @@ class _HomeAppBar extends ConsumerWidget {
           TopUserMenu(userName: userName),
           const Spacer(),
           Flexible(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 400),
-              height: 28,
-              decoration: BoxDecoration(
-                color: colors.onPrimary.withValues(alpha: 0.16),
+            child: Semantics(
+              button: true,
+              label: 'Search messages',
+              child: InkWell(
+                key: const Key('home-search-messages'),
                 borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.search,
-                    color: colors.onPrimary.withValues(alpha: 0.7),
-                    size: 18,
+                // #2825: opens workspace message search with From, In and
+                // Date filters.
+                onTap: () => showMessageSearch(context),
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: colors.onPrimary.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Search messages...',
-                    style: TextStyle(
-                      color: colors.onPrimary.withValues(alpha: 0.7),
-                      fontSize: 13,
-                    ),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.search,
+                        color: colors.onPrimary.withValues(alpha: 0.7),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Search messages...',
+                        style: TextStyle(
+                          color: colors.onPrimary.withValues(alpha: 0.7),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
