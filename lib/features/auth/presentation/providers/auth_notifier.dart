@@ -105,6 +105,39 @@ class AuthNotifier extends Notifier<AuthState> {
   static const sessionExpiredMessage =
       'Your session has expired. Please sign in again.';
 
+  /// Shown when an email+password login attempt is rejected. One generic
+  /// message that does not reveal which credential was wrong and does not
+  /// claim the session expired: a rejected attempt is not an expired session.
+  static const invalidCredentialsMessage =
+      'Invalid email or password. Please check your credentials and try again.';
+
+  /// Matches server rejection wording for bad credentials, e.g. "Invalid
+  /// email and password supplied", "Incorrect password", "credentials not
+  /// valid". Other 4xx login answers (rate limit, validation) stay untouched.
+  static final _credentialRejectionPattern = RegExp(
+    r'(invalid|incorrect|wrong|bad|mismatch)\s+.{0,40}?(email|password|credential)'
+    r'|(email|password)\s+.{0,40}?(invalid|incorrect|wrong|bad|mismatch)'
+    r'|credential',
+    caseSensitive: false,
+  );
+
+  /// Message the login screen shows for a failed email+password attempt.
+  /// Wrong credentials may arrive as a 4xx carrying per-credential wording
+  /// ("Invalid email and password supplied") or as a 401; both are wrong
+  /// credentials on this route, so both get [invalidCredentialsMessage].
+  /// Network, timeout, rate limit and server problems keep their real
+  /// messages, so the screen never hides an unrelated failure cause.
+  static String loginFailureMessage(ApiFailure failure) {
+    if (failure.kind == ApiFailureKind.unauthorized) {
+      return AuthNotifier.invalidCredentialsMessage;
+    }
+    if (failure.kind == ApiFailureKind.client &&
+        _credentialRejectionPattern.hasMatch(failure.message)) {
+      return AuthNotifier.invalidCredentialsMessage;
+    }
+    return failure.friendlyMessage;
+  }
+
   @override
   AuthState build() {
     _repository = ref.read(authRepositoryProvider);
@@ -334,7 +367,7 @@ class AuthNotifier extends Notifier<AuthState> {
         AppLogger.w('Login rejected — ${result.error.message}', tag: _tag);
         state = state.copyWith(
           isLoading: false,
-          error: result.error.friendlyMessage,
+          error: loginFailureMessage(result.error),
         );
     }
   }
