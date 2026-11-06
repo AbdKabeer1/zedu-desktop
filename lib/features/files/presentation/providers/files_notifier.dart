@@ -101,6 +101,8 @@ class FilesListNotifier extends AsyncNotifier<FilesPage> {
 
   @override
   Future<FilesPage> build() async {
+    // Equal filters in another workspace must not reuse this workspace's data.
+    ref.watch(currentOrgIdProvider);
     final query = ref.watch(filesProvider.select((s) => s.query));
     final repository = ref.read(filesRepositoryProvider);
 
@@ -145,6 +147,7 @@ class FilesListNotifier extends AsyncNotifier<FilesPage> {
 class FoldersListNotifier extends AsyncNotifier<FoldersPage> {
   @override
   Future<FoldersPage> build() async {
+    ref.watch(currentOrgIdProvider);
     final (view, parentId, page) = ref.watch(
       filesProvider.select((s) => (s.view, s.folderId, s.folderPage)),
     );
