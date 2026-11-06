@@ -33,6 +33,7 @@ Future<void> main() async {
     window: windowManager,
     storage: locator<SecureStorageService>(),
   ).restore();
+  await locator<WindowHotkeyController>().start();
   showWindowWhenReady(windowManager);
   AppRouter.startLocation = await AppRouter.resolveStartLocation(
     locator<SecureStorageService>(),
