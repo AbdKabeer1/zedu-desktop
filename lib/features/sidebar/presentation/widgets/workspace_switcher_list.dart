@@ -272,6 +272,8 @@ class _WorkspaceListItem extends StatelessWidget {
                     top: -6,
                     right: -6,
                     child: Container(
+                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                      alignment: Alignment.center,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 5,
                         vertical: 2,
@@ -282,7 +284,7 @@ class _WorkspaceListItem extends StatelessWidget {
                         border: Border.all(color: colors.background, width: 2),
                       ),
                       child: Text(
-                        '${workspace.unreadCount}',
+                        workspace.unreadCount.unreadBadgeText,
                         style: TextStyle(
                           color: colors.onPrimary,
                           fontSize: 8,
