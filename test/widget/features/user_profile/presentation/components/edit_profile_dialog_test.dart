@@ -96,6 +96,53 @@ void main() {
     expect(saved?.country, 'Nigeria');
   });
 
+  testWidgets('highlights the country selected with the keyboard', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await openDialog(tester, (_) async => null);
+
+    final countryField = find.byType(TextFormField).last;
+    await tester.ensureVisible(countryField);
+    await tester.tap(countryField);
+    await tester.enterText(countryField, 'United');
+    await tester.pumpAndSettle();
+
+    Color optionColor(String country) {
+      final coloredBox = find
+          .ancestor(of: find.text(country), matching: find.byType(ColoredBox))
+          .first;
+      return tester.widget<ColoredBox>(coloredBox).color;
+    }
+
+    bool optionIsSelected(String country) {
+      final selectedSemantics = find
+          .ancestor(
+            of: find.text(country),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Semantics && widget.properties.selected != null,
+            ),
+          )
+          .first;
+      return tester.widget<Semantics>(selectedSemantics).properties.selected ??
+          false;
+    }
+
+    expect(optionColor('United Arab Emirates'), AppPalette.light.primaryBg);
+    expect(optionIsSelected('United Arab Emirates'), isTrue);
+    expect(optionIsSelected('United Kingdom'), isFalse);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+
+    expect(optionColor('United Arab Emirates'), Colors.transparent);
+    expect(optionIsSelected('United Arab Emirates'), isFalse);
+    expect(optionColor('United Kingdom'), AppPalette.light.primaryBg);
+    expect(optionIsSelected('United Kingdom'), isTrue);
+    semantics.dispose();
+  });
+
   testWidgets('accepts and normalizes a typed country without selecting it', (
     tester,
   ) async {
