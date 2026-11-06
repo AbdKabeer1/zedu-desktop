@@ -6,6 +6,10 @@ class App extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Initialise the cross-DM notification poller so notifications fire
+    // even for conversations you haven't opened yet.
+    ref.read(dmNotificationPollerProvider);
+
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: kIsWeb ? 'Zedu | Team Messaging & Collaboration' : 'Zedu',
