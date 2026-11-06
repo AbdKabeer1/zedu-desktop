@@ -64,6 +64,53 @@ void main() {
       }
     });
 
+    testWidgets('updates attachment details changed by a remote edit', (
+      tester,
+    ) async {
+      final reads = [
+        [
+          {
+            'id': 'm1',
+            'content': 'original',
+            'user_id': 'u1',
+            'media': [
+              {'file_name': 'before.pdf'},
+            ],
+          },
+        ],
+        [
+          {
+            'id': 'm1',
+            'content': 'original',
+            'user_id': 'u1',
+            'media': [
+              {'file_name': 'after.pdf'},
+            ],
+          },
+        ],
+      ];
+      when(
+        () => repository.getMessages(any(), page: any(named: 'page')),
+      ).thenAnswer((_) async => reads.removeAt(0));
+      final container = ProviderContainer(
+        overrides: [
+          authNotifierProvider.overrideWith(_SignedOutAuth.new),
+          dmRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      final notifier = open(container);
+      await tester.pump();
+
+      await tester.pump(const Duration(seconds: 10));
+      await tester.pump();
+
+      expect(notifier.messages, hasLength(1));
+      expect(notifier.messages.single['media'], [
+        {'file_name': 'after.pdf'},
+      ]);
+      container.dispose();
+    });
+
     testWidgets('leaves the list alone when the response is unchanged', (
       tester,
     ) async {
