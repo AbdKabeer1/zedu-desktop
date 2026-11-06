@@ -30,6 +30,7 @@ List<TextSpan> _spansOf(WidgetTester tester) {
   final spans = <TextSpan>[];
   rich.text.visitChildren((InlineSpan child) {
     if (child is TextSpan) spans.add(child);
+    return true;
   });
   return spans;
 }
