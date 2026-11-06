@@ -264,7 +264,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                 ),
                 context.gapV(12),
                 Align(
-                  alignment: Alignment.topLeft,
+                  alignment: Alignment.center,
                   child: InkWell(
                     onTap: () => context.go(AppRouter.magicLinkRequest),
                     child: Text(
