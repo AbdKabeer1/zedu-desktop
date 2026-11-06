@@ -185,3 +185,79 @@ class DmListNotifier extends AsyncNotifier<List<DmConversation>> {
     state = await AsyncValue.guard(() => _fetchPage(orgId, 1));
   }
 }
+
+class DmSearchResultsNotifier extends AsyncNotifier<List<DmConversation>> {
+  DmSearchResultsNotifier(this.search);
+
+  final String search;
+  int _currentPage = 1;
+  bool _hasMore = true;
+  int _searchVersion = 0;
+
+  bool get hasMore => _hasMore;
+
+  @override
+  Future<List<DmConversation>> build() async {
+    final query = search.trim();
+    if (query.isEmpty) return const [];
+    final orgId = ref.watch(currentOrgIdProvider);
+    if (orgId.isEmpty) return const [];
+
+    _searchVersion++;
+    _currentPage = 1;
+    _hasMore = true;
+    return _fetchPage(orgId, 1, query);
+  }
+
+  Future<List<DmConversation>> _fetchPage(
+    String orgId,
+    int page,
+    String query,
+  ) async {
+    final repository = ref.read(dmRepositoryProvider);
+    final version = _searchVersion;
+    final results = await repository.getConversations(
+      orgId: orgId,
+      page: page,
+      search: query,
+    );
+    if (version == _searchVersion && results.length < DmRepository.pageSize) {
+      _hasMore = false;
+    }
+    return results;
+  }
+
+  Future<void> loadMore() async {
+    if (!_hasMore) return;
+    final query = search.trim();
+    if (query.isEmpty) return;
+    final orgId = ref.read(currentOrgIdProvider);
+    if (orgId.isEmpty) return;
+
+    final current = state.value ?? [];
+    final version = _searchVersion;
+    final page = _currentPage + 1;
+    final next = await _fetchPage(orgId, page, query);
+    if (version != _searchVersion) return;
+    _currentPage = page;
+    state = AsyncValue.data([...current, ...next]);
+  }
+
+  Future<void> refresh() async {
+    final query = search.trim();
+    if (query.isEmpty) return;
+    final orgId = ref.read(currentOrgIdProvider);
+    if (orgId.isEmpty) return;
+
+    _searchVersion++;
+    _currentPage = 1;
+    _hasMore = true;
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() => _fetchPage(orgId, 1, query));
+  }
+}
+
+final dmSearchResultsProvider = AsyncNotifierProvider.autoDispose
+    .family<DmSearchResultsNotifier, List<DmConversation>, String>(
+      DmSearchResultsNotifier.new,
+    );
