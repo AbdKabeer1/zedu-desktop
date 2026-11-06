@@ -31,43 +31,63 @@ class _HomeViewState extends ConsumerState<HomeView> {
     });
     final colors = context.colors;
     final showProfile = ref.watch(personalProfilePanelProvider);
+    final sidebarVisible = ref.watch(sidebarVisibilityProvider);
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: Column(
-        children: [
-          const _HomeAppBar(),
-          const OfflineStatusIndicator(),
-          Expanded(
-            child: Row(
-              children: [
-                AppSidebarRail(activeType: ref.watch(homeSidebarProvider)),
-                // Buzz is a full-width page, as on the web. The sidebar
-                // stays mounted so it keeps the width the user dragged it to.
-                Visibility(
-                  visible:
-                      ref.watch(homeSidebarProvider) != HomeSidebarType.buzz,
-                  maintainState: true,
-                  child: ResizableSidebar(child: const _MainSidebarSwitcher()),
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.backslash, meta: true): () =>
+            ref.read(sidebarVisibilityProvider.notifier).toggle(),
+        const SingleActivator(
+          LogicalKeyboardKey.backslash,
+          control: true,
+        ): () =>
+            ref.read(sidebarVisibilityProvider.notifier).toggle(),
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: colors.background,
+          body: Column(
+            children: [
+              const _HomeAppBar(),
+              const OfflineStatusIndicator(),
+              Expanded(
+                child: Row(
+                  children: [
+                    AppSidebarRail(activeType: ref.watch(homeSidebarProvider)),
+                    // Buzz is a full-width page, as on the web. The sidebar
+                    // stays mounted so it keeps the width the user dragged it to.
+                    Visibility(
+                      visible:
+                          ref.watch(homeSidebarProvider) !=
+                              HomeSidebarType.buzz,
+                      maintainState: true,
+                      child: sidebarVisible
+                          ? const ResizableSidebar(
+                              child: _MainSidebarSwitcher(),
+                            )
+                          : const SizedBox(width: 0),
+                    ),
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          const Positioned.fill(child: _ChatAreaSwitcher()),
+                          if (showProfile)
+                            const Positioned(
+                              right: 0,
+                              top: 0,
+                              bottom: 0,
+                              child: PersonalProfilePanel(),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      const Positioned.fill(child: _ChatAreaSwitcher()),
-                      if (showProfile)
-                        const Positioned(
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          child: PersonalProfilePanel(),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -88,6 +108,8 @@ class _HomeAppBar extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
+          const SidebarToggleButton(),
+          const SizedBox(width: 4),
           Text(
             'Zedu',
             style: TextStyle(
