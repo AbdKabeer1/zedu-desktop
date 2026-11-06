@@ -15,3 +15,4 @@ export 'quick_switcher.dart';
 export 'quick_switcher_shortcut.dart';
 export 'app_zoom_shortcut.dart';
 export 'desktop_window_title_listener.dart';
+export 'sidebar_toggle_button.dart';
