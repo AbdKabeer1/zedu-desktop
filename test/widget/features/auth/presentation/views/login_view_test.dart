@@ -19,6 +19,12 @@ class FakeAuthNotifier extends AuthNotifier {
   final void Function(String email, String password)? _onLogin;
   final Future<void>? _pendingLogin;
   bool? lastRememberMe;
+  bool? lastGoogleRememberMe;
+
+  @override
+  Future<void> loginWithGoogle({bool rememberMe = true}) async {
+    lastGoogleRememberMe = rememberMe;
+  }
 
   @override
   AuthState build() => _initial;
@@ -495,6 +501,29 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(notifier.lastRememberMe, ticked);
+      });
+
+      testWidgets('passes Remember me =  to loginWithGoogle', (
+        tester,
+      ) async {
+        final notifier = FakeAuthNotifier();
+        await pumpDesktopLogin(tester, notifier);
+
+        if (ticked) {
+          await tester.ensureVisible(find.byType(Checkbox));
+          await tester.tap(find.byType(Checkbox));
+          await tester.pump();
+        }
+
+        final googleButton = find.widgetWithText(
+          SocialAuthButton,
+          'Sign in with Google',
+        );
+        await tester.ensureVisible(googleButton);
+        await tester.tap(googleButton);
+        await tester.pumpAndSettle();
+
+        expect(notifier.lastGoogleRememberMe, ticked);
       });
     }
 
