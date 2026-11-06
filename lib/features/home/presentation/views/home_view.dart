@@ -60,7 +60,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                     Visibility(
                       visible:
                           ref.watch(homeSidebarProvider) !=
-                              HomeSidebarType.buzz,
+                          HomeSidebarType.buzz,
                       maintainState: true,
                       child: sidebarVisible
                           ? const ResizableSidebar(
