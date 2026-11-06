@@ -178,6 +178,108 @@ void main() {
     },
   );
 
+  group('Copy text', () {
+    late List<String> copied;
+
+    setUp(() {
+      copied = [];
+    });
+
+    Future<void> mockClipboard(WidgetTester tester) async {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied.add((call.arguments as Map)['text'] as String);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+    }
+
+    Future<void> rightClick(WidgetTester tester, Finder target) async {
+      final gesture = await tester.startGesture(
+        tester.getCenter(target),
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('right-click offers Copy text and copies the plain text', (
+      tester,
+    ) async {
+      await mockClipboard(tester);
+      await pumpList(
+        tester,
+        const Success([
+          ChannelMessage(senderName: 'Ada', text: 'Ship **it** today'),
+        ]),
+      );
+
+      await rightClick(tester, find.byType(ChannelMessageTile));
+      expect(find.text('Copy text'), findsOneWidget);
+
+      await tester.tap(find.text('Copy text'));
+      await tester.pump();
+
+      expect(copied, ['Ship it today']);
+      expect(find.text('Copied'), findsOneWidget);
+      await tester.pumpAndSettle(const Duration(seconds: 5));
+    });
+
+    testWidgets('hovering a message shows an actions button with Copy text', (
+      tester,
+    ) async {
+      await mockClipboard(tester);
+      await pumpList(
+        tester,
+        const Success([ChannelMessage(senderName: 'Ada', text: 'hello')]),
+      );
+      expect(find.byTooltip('Message actions'), findsNothing);
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(tester.getCenter(find.byType(ChannelMessageTile)));
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('Message actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Copy text'));
+      await tester.pump();
+
+      expect(copied, ['hello']);
+      await tester.pumpAndSettle(const Duration(seconds: 5));
+    });
+
+    testWidgets('does not copy an empty message', (tester) async {
+      await mockClipboard(tester);
+      await pumpList(
+        tester,
+        const Success([ChannelMessage(senderName: 'Ada', text: '   ')]),
+      );
+
+      await rightClick(tester, find.byType(ChannelMessageTile));
+      await tester.tap(find.text('Copy text'));
+      await tester.pump();
+
+      expect(copied, isEmpty);
+      expect(find.text('Copied'), findsNothing);
+    });
+  });
+
+  test('channelMessagePlainText drops the Markdown marks', () {
+    expect(channelMessagePlainText('a **b** c'), 'a b c');
+  });
+
   group('day dividers', () {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day, 0, 1);
