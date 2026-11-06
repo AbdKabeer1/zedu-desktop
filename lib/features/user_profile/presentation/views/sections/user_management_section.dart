@@ -413,6 +413,7 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                                         context,
                                         invite.email,
                                         () async => widget.onRemove(invite.id),
+                                        pendingInvite: true,
                                       ),
                                     ),
                                   ],
@@ -444,12 +445,15 @@ class _UserManagementSectionState extends State<UserManagementSection> {
   Future<void> _confirmRemove(
     BuildContext context,
     String email,
-    Future<void> Function() onConfirm,
-  ) => showProfileConfirmDialog(
+    Future<void> Function() onConfirm, {
+    bool pendingInvite = false,
+  }) => showProfileConfirmDialog(
     context,
-    title: 'Remove team member?',
-    message: '$email will lose access to this organization.',
-    confirmLabel: 'Remove member',
+    title: pendingInvite ? 'Remove invitation?' : 'Remove team member?',
+    message: pendingInvite
+        ? 'The invitation to $email will be cancelled. They will not join this organization.'
+        : '$email will lose access to this organization.',
+    confirmLabel: pendingInvite ? 'Remove invite' : 'Remove member',
     onConfirm: onConfirm,
     destructive: true,
   );
