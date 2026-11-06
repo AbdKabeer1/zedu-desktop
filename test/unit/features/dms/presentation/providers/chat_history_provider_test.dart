@@ -841,6 +841,49 @@ void _retryTests() {
         throwsA(isA<FlutterError>()),
       );
     });
+
+    test('marks message as failed when sendMessage throws an error', () async {
+      when(
+        () => mockRepository.sendMessage(
+          any(),
+          any(),
+          media: any(named: 'media'),
+          mentions: any(named: 'mentions'),
+          isChannel: any(named: 'isChannel'),
+        ),
+      ).thenThrow(Exception('Send message failed'));
+
+      await notifier.sendMessage('failing message');
+
+      expect(notifier.messages.first['status'], 'failed');
+      expect(notifier.messages.first['content'], 'failing message');
+    });
+
+    test('retains failed status when retryMessage throws an error', () async {
+      when(
+        () => mockRepository.sendMessage(
+          any(),
+          any(),
+          media: any(named: 'media'),
+          mentions: any(named: 'mentions'),
+          isChannel: any(named: 'isChannel'),
+        ),
+      ).thenThrow(Exception('Retry failed'));
+
+      notifier.messages = [
+        {
+          'id': 'failed-msg-retry',
+          'content': 'Retrying content',
+          'channel_id': 'channel-xyz',
+          'status': 'failed',
+        },
+      ];
+
+      await notifier.retryMessage('failed-msg-retry');
+
+      expect(notifier.messages.first['status'], 'failed');
+      expect(notifier.messages.first['content'], 'Retrying content');
+    });
   });
 }
 
