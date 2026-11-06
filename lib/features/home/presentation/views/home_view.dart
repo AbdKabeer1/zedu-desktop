@@ -595,8 +595,29 @@ class _ChannelHeaderMenu extends ConsumerWidget {
       icon: Icon(Icons.more_vert, color: colors.textHint),
       onSelected: (value) {
         if (value == 'leave') _confirmLeave(context, ref);
+        if (value == 'archive') _confirmArchive(context, ref);
+        if (value == 'unarchive') _setArchived(context, ref, archived: false);
       },
       itemBuilder: (_) => [
+        PopupMenuItem(
+          value: channel.archived ? 'unarchive' : 'archive',
+          child: Row(
+            children: [
+              Icon(
+                channel.archived
+                    ? Icons.unarchive_outlined
+                    : Icons.archive_outlined,
+                size: 18,
+                color: colors.textPrimary,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                channel.archived ? 'Unarchive channel' : 'Archive channel',
+                style: TextStyle(color: colors.textPrimary),
+              ),
+            ],
+          ),
+        ),
         PopupMenuItem(
           value: 'leave',
           child: Row(
@@ -609,6 +630,69 @@ class _ChannelHeaderMenu extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _confirmArchive(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Archive #${channel.name}?'),
+        content: const Text(
+          'It leaves the sidebar for everyone and its history is kept. '
+          'You can unarchive it from the channel directory.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Archive'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await _setArchived(context, ref, archived: true);
+  }
+
+  Future<void> _setArchived(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool archived,
+  }) async {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final result = await ref
+        .read(channelProvider.notifier)
+        .archiveChannel(channel, archived: archived);
+
+    switch (result) {
+      case Success<void>():
+        if (archived) {
+          // Open another channel so the header never shows an archived one.
+          final remaining =
+              ref.read(channelProvider).value ?? const <Channel>[];
+          ref
+              .read(activeChatProvider.notifier)
+              .selectChannel(
+                remaining.isEmpty ? 'general' : remaining.first.name,
+              );
+        }
+        AppToastService.showWith(
+          overlay,
+          type: AppToastType.success,
+          message: archived
+              ? '#${channel.name} was archived'
+              : '#${channel.name} was unarchived',
+        );
+      case Failure<void>(:final error):
+        AppToastService.showWith(
+          overlay,
+          type: AppToastType.error,
+          message: archiveFailureMessage(error, channel, archived: archived),
+        );
+    }
   }
 
   Future<void> _confirmLeave(BuildContext context, WidgetRef ref) async {
