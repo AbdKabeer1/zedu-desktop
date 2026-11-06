@@ -1,5 +1,4 @@
-/// Sentinel value representing a profile field that was not modified by the user.
-const String kUnchangedField = '\u0000UNCHANGED\u0000';
+import 'package:zedu/core/core.dart';
 
 class ProfileAccount {
   const ProfileAccount({
@@ -7,24 +6,18 @@ class ProfileAccount {
     required this.email,
     required this.timezone,
     this.avatarUrl,
-    this.displayName = kUnchangedField,
-    this.username = kUnchangedField,
-    this.phoneNumber = kUnchangedField,
-    this.title = kUnchangedField,
-    this.namePronunciation = kUnchangedField,
-    this.country = kUnchangedField,
+    this.displayName = '',
+    this.username = '',
+    this.phoneNumber = '',
+    this.title = '',
+    this.namePronunciation = '',
+    this.country = '',
   });
 
   factory ProfileAccount.empty() => const ProfileAccount(
     name: 'Anonymous user',
     email: 'anonymoususer@email.com',
     timezone: 'Africa/Lagos',
-    displayName: '',
-    username: '',
-    phoneNumber: '',
-    title: '',
-    namePronunciation: '',
-    country: '',
   );
 
   final String name;
@@ -41,8 +34,11 @@ class ProfileAccount {
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+'));
     if (parts.isEmpty || parts.first.isEmpty) return 'ZU';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    // Whole characters (characters.first), so names that start with an emoji
+    // or another non-BMP character aren't cut in half.
+    if (parts.length == 1) return parts.first.characters.first.toUpperCase();
+    return '${parts.first.characters.first}${parts.last.characters.first}'
+        .toUpperCase();
   }
 
   ProfileAccount copyWith({
