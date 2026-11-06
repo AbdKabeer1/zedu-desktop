@@ -9,6 +9,12 @@ class ChannelMessage {
   final String? status;
   final List<dynamic> media;
 
+  /// The message's thread id, which the edit and delete routes take.
+  final String? threadId;
+
+  /// Who sent it, so the current user's own messages can be edited.
+  final String? userId;
+
   const ChannelMessage({
     this.id,
     required this.senderName,
@@ -17,6 +23,8 @@ class ChannelMessage {
     this.createdAt,
     this.status,
     this.media = const [],
+    this.threadId,
+    this.userId,
   });
 
   static List<dynamic> mediaFrom(dynamic raw) {
@@ -48,6 +56,8 @@ class ChannelMessage {
       )?.toLocal(),
       status: json['status']?.toString(),
       media: mediaFrom(json['media'] ?? json['files'] ?? json['attachments']),
+      threadId: nonEmpty(json['thread_id']) ?? nonEmpty(json['id']),
+      userId: nonEmpty(json['user_id']),
     );
   }
 
