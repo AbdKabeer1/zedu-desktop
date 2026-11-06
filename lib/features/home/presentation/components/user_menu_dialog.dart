@@ -277,6 +277,9 @@ class UserMenuDialog extends ConsumerWidget {
                 onTap: () {
                   Navigator.pop(context);
                   ref.read(personalProfilePanelProvider.notifier).state = true;
+                  if (context.mounted) {
+                    context.go(AppRouter.home);
+                  }
                 },
               ),
               _MenuItemButton(
