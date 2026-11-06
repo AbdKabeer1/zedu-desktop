@@ -31,8 +31,6 @@ class _UserMenuDialogState extends ConsumerState<UserMenuDialog> {
     final settings = ref.watch(notificationSettingsProvider);
     final displayName = authUser?.fullname ?? 'AnonymousUser';
     final status = authUser?.status ?? UserStatus.empty;
-    final orgSlug = authUser?.currentOrganisationSlug ?? '';
-    final signOutTarget = orgSlug.isEmpty ? 'Zedu' : orgSlug;
     final isOnline = status.online;
     final pausedUntil = settings.isDndActive ? settings.dndUntil : null;
 
@@ -328,9 +326,11 @@ class _UserMenuDialogState extends ConsumerState<UserMenuDialog> {
               const SizedBox(height: 8),
 
               // ── Sign out ───────────────────────────────────────────────────
+              // Ends the whole Zedu session, not just this workspace, so the
+              // label names Zedu rather than the current organisation.
               _MenuItemButton(
                 icon: Icons.logout_rounded,
-                label: 'Sign out of $signOutTarget',
+                label: 'Sign out of Zedu',
                 isError: true,
                 onTap: () async {
                   Navigator.pop(context);
