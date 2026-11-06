@@ -23,6 +23,18 @@ class _FakeLaunchAtLoginService implements LaunchAtLoginService {
 Switch _switch(WidgetTester tester) =>
     tester.widget<Switch>(find.byType(Switch));
 
+/// A login item that cannot be read, e.g. the registry read fails.
+class _UnreadableLaunchAtLoginService implements LaunchAtLoginService {
+  @override
+  bool isSupported = true;
+
+  @override
+  Future<bool> isEnabled() async => throw StateError('login item read failed');
+
+  @override
+  Future<void> setEnabled(bool value) async {}
+}
+
 void main() {
   macOsVersionTests();
 
@@ -79,6 +91,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(Switch), findsNothing);
+  });
+
+  testWidgets('logs a failed state read and leaves the switch off', (
+    tester,
+  ) async {
+    final logs = <String>[];
+    final previousDebugPrint = debugPrint;
+    debugPrint = (String? message, {int? wrapWidth}) {
+      if (message != null) logs.add(message);
+    };
+
+    try {
+      await tester.pumpWidget(
+        buildTestMaterialApp(
+          Scaffold(
+            body: LaunchAtLoginTile(service: _UnreadableLaunchAtLoginService()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Safe default: an unreadable login item leaves the switch off...
+      expect(_switch(tester).value, isFalse);
+      // ...and the read is finished, so the tile is no longer busy.
+      expect(_switch(tester).onChanged, isNotNull);
+
+      final failures = logs.where(
+        (line) => line.contains('LaunchAtLoginTile._load:'),
+      );
+      expect(failures, isNotEmpty, reason: 'the failure must be logged');
+      expect(
+        failures.any((line) => line.contains('login item read failed')),
+        isTrue,
+        reason: 'the log line must carry the error itself',
+      );
+    } finally {
+      // Restored before the binding checks the foundation debug variables.
+      debugPrint = previousDebugPrint;
+    }
   });
 }
 
