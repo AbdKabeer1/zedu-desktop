@@ -17,6 +17,9 @@ abstract class ChannelRemoteDataSource {
     String? description,
   });
   Future<void> archiveChannel(String channelId, bool archived);
+
+  /// The organisation's archived channels the user can see.
+  Future<List<Channel>> fetchArchivedChannels(String orgId);
   Future<void> leaveChannel(String channelId);
   Future<List<String>> fetchOrganisationMemberIds(String orgId);
   Future<List<String>> fetchChannelMemberIds(String channelId);
@@ -124,6 +127,18 @@ class ChannelRemoteDataSourceImpl implements ChannelRemoteDataSource {
       path: '/channels/$channelId/archive',
       data: {'archived': archived},
     );
+  }
+
+  @override
+  Future<List<Channel>> fetchArchivedChannels(String orgId) async {
+    final response = await apiBaseService.get<Map<String, dynamic>>(
+      path: '/organisations/$orgId/channels/archived',
+    );
+    final data = response.data['data'] as List?;
+    if (data == null) return [];
+    return data
+        .map((e) => Channel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override

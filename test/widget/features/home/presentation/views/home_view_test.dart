@@ -37,6 +37,24 @@ class _LeavingChannelRepository extends _EmptyChannelRepository {
   }
 }
 
+/// Records archive calls and answers with [archiveResult].
+class _ArchivingChannelRepository extends _EmptyChannelRepository {
+  _ArchivingChannelRepository(this.archiveResult);
+
+  final Result<void> archiveResult;
+  final archived = <(String, bool)>[];
+
+  @override
+  Future<Result<void>> archiveChannel(String channelId, bool value) async {
+    archived.add((channelId, value));
+    return archiveResult;
+  }
+
+  @override
+  Future<Result<List<Channel>>> fetchArchivedChannels(String orgId) async =>
+      const Success(<Channel>[]);
+}
+
 class FakeSecureStorageService extends Fake implements SecureStorageService {
   final _values = <String, String>{};
 
@@ -316,6 +334,73 @@ void main() {
         await tester.pump(const Duration(seconds: 5));
       });
     }
+
+    Future<void> archiveRandom(WidgetTester tester) async {
+      await tester.tap(find.text('random'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('channel-header-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Archive channel'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('archiving a channel removes it and opens another one', (
+      tester,
+    ) async {
+      final repository = _ArchivingChannelRepository(const Success(null));
+      await pumpSidebarAndChat(tester, repository: repository);
+
+      await archiveRandom(tester);
+      expect(find.text('Archive #random?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Archive'));
+      await tester.pumpAndSettle();
+
+      expect(repository.archived, [('channel-random', true)]);
+      expect(find.text('random'), findsNothing);
+      expect(find.text('# general'), findsOneWidget);
+      expect(find.text('#random was archived'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('cancelling the archive dialog keeps the channel', (
+      tester,
+    ) async {
+      final repository = _ArchivingChannelRepository(const Success(null));
+      await pumpSidebarAndChat(tester, repository: repository);
+
+      await archiveRandom(tester);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(repository.archived, isEmpty);
+      expect(find.text('# random'), findsOneWidget);
+    });
+
+    testWidgets(
+      'a forbidden archive says who can do it and keeps the channel',
+      (tester) async {
+        final repository = _ArchivingChannelRepository(
+          const Failure(
+            ApiFailure(
+              message: 'unauthorized, only channel owner or channel manager',
+              kind: ApiFailureKind.forbidden,
+            ),
+          ),
+        );
+        await pumpSidebarAndChat(tester, repository: repository);
+
+        await archiveRandom(tester);
+        await tester.tap(find.widgetWithText(TextButton, 'Archive'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('Only the channel owner or an admin can archive #random.'),
+          findsOneWidget,
+        );
+        expect(find.text('# random'), findsOneWidget);
+        await tester.pump(const Duration(seconds: 5));
+      },
+    );
   });
 
   group('ResizableSidebar', () {

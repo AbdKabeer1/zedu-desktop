@@ -12,6 +12,7 @@ class ChannelDirectoryView extends ConsumerStatefulWidget {
 class _ChannelDirectoryViewState extends ConsumerState<ChannelDirectoryView> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _showArchived = false;
 
   @override
   void dispose() {
@@ -75,9 +76,29 @@ class _ChannelDirectoryViewState extends ConsumerState<ChannelDirectoryView> {
             style: textTheme.bodyMedium?.copyWith(color: colors.textPrimary),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+          child: Wrap(
+            spacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('Channels'),
+                selected: !_showArchived,
+                onSelected: (_) => setState(() => _showArchived = false),
+              ),
+              ChoiceChip(
+                label: const Text('Archived'),
+                selected: _showArchived,
+                onSelected: (_) => setState(() => _showArchived = true),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 16),
         Expanded(
-          child: channelState.isLoading
+          child: _showArchived
+              ? ArchivedChannelList(searchQuery: _searchQuery)
+              : channelState.isLoading
               ? const Center(child: CircularProgressIndicator())
               : channelState.hasError && !channelState.hasValue
               ? Center(
