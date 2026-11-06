@@ -52,6 +52,7 @@ Future<ProviderContainer> _pump(
   WidgetTester tester, {
   String username = 'hassanat',
   String phoneNumber = '',
+  String avatarUrl = '',
   bool statusFails = false,
 }) async {
   tester.view.physicalSize = const Size(1400, 1000);
@@ -67,6 +68,7 @@ Future<ProviderContainer> _pump(
             timezone: 'Africa/Lagos',
             username: username,
             phoneNumber: phoneNumber,
+            avatarUrl: avatarUrl,
           ),
         ),
       ),
@@ -269,5 +271,17 @@ void main() {
     await t.tap(closeBtn);
     await t.pump();
     expect(c.read(personalProfilePanelProvider), isFalse);
+  });
+
+  testWidgets('Renders image when avatarUrl is present', (t) async {
+    await _pump(t, avatarUrl: 'https://example.com/photo.png');
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.byIcon(Icons.person), findsNothing);
+  });
+
+  testWidgets('Renders initials fallback when avatarUrl is empty', (t) async {
+    await _pump(t, avatarUrl: '');
+    expect(find.text('AH'), findsOneWidget);
+    expect(find.byType(Image), findsNothing);
   });
 }
