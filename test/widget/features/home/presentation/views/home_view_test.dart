@@ -3,13 +3,22 @@ import 'package:zedu/features/features.dart';
 
 import '../../../../../helpers/helpers.dart';
 
-Channel _channel(String name) => Channel(
+Channel _channel(String name, {String? topic}) => Channel(
   id: 'channel-$name',
   name: name,
   description: '',
   organisationId: 'org-1',
   ownerId: 'user-1',
+  topic: topic,
 );
+
+class _TopicChannelNotifier extends ChannelNotifier {
+  @override
+  Future<List<Channel>> build() async => [
+    _channel('general', topic: 'Release planning'),
+    _channel('random'),
+  ];
+}
 
 class _EmptyChannelRepository extends Mock implements ChannelRepository {
   @override
@@ -139,6 +148,19 @@ void main() {
 
       expect(find.text('# general'), findsOneWidget);
       expect(find.text('Welcome to #general'), findsOneWidget);
+    });
+
+    testWidgets('shows the channel topic in the header when set (#2852)', (
+      tester,
+    ) async {
+      await pumpSidebarAndChat(tester, channels: _TopicChannelNotifier.new);
+
+      expect(find.text('Release planning'), findsOneWidget);
+
+      await tester.tap(find.text('random'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('channel_header_topic')), findsNothing);
     });
 
     testWidgets('clicking a sidebar channel opens it in the chat area', (

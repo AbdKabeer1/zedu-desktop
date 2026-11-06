@@ -432,6 +432,7 @@ class HomeChatArea extends ConsumerWidget {
     Channel? channel,
   ) {
     final colors = context.colors;
+    final topic = channel?.topic?.trim() ?? '';
 
     return Container(
       height: 60,
@@ -442,15 +443,31 @@ class HomeChatArea extends ConsumerWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              '# $channelName',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: colors.textPrimary,
-              ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '# $channelName',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                // The topic set in Edit channel, shown under the name so it
+                // is visible once saved (#2852); hidden when empty.
+                if (topic.isNotEmpty)
+                  Text(
+                    topic,
+                    key: const ValueKey('channel_header_topic'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                  ),
+              ],
             ),
           ),
           _HeaderAction(icon: Icons.headphones_outlined, label: 'Start Buzz'),
