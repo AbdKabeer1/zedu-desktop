@@ -232,6 +232,75 @@ void main() {
     });
   });
 
+  group('UserManagementSection remove confirm (Ziki #2928)', () {
+    testWidgets('a pending invite is not described as a team member', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        buildUnderTest(const [
+          TeamMember(
+            id: '2',
+            email: 'invited@example.com',
+            name: 'Invited User',
+            role: 'User',
+            dateJoined: 'Oct 2, 2026',
+            status: TeamMemberStatus.pending,
+          ),
+        ]),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Invites'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Remove invite'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Remove invitation?'), findsOneWidget);
+      expect(
+        find.text(
+          'The invitation to invited@example.com will be cancelled. They will not join this organization.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Remove invite'), findsOneWidget);
+      expect(find.text('Remove team member?'), findsNothing);
+    });
+
+    testWidgets('removing an active member still says team member', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        buildUnderTest(const [
+          TeamMember(
+            id: '1',
+            email: 'active@example.com',
+            name: 'Active User',
+            role: 'Administrator',
+            dateJoined: 'Oct 1, 2026',
+            status: TeamMemberStatus.active,
+          ),
+        ]),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Remove member'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Remove team member?'), findsOneWidget);
+      expect(
+        find.text('active@example.com will lose access to this organization.'),
+        findsOneWidget,
+      );
+      expect(find.text('Remove member'), findsOneWidget);
+    });
+  });
+
   testWidgets('renders active tab count badge with primaryBg token', (
     tester,
   ) async {
