@@ -543,9 +543,7 @@ String _initialsFor(String name) {
       .where((part) => part.isNotEmpty)
       .take(2);
   if (parts.isEmpty) return '?';
-  return parts
-      .map((part) => String.fromCharCode(part.runes.first).toUpperCase())
-      .join();
+  return parts.map((part) => part.characters.first.toUpperCase()).join();
 }
 
 Duration _durationUntilTomorrowMorning() {
