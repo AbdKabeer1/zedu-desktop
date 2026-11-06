@@ -6,11 +6,13 @@ import 'package:zedu/features/features.dart';
 class MessageComposer extends ConsumerStatefulWidget {
   final ActiveChatState activeChat;
   final ValueChanged<String> onSend;
+  final void Function(String text, List<XFile> media)? onSendMedia;
 
   const MessageComposer({
     super.key,
     required this.activeChat,
     required this.onSend,
+    this.onSendMedia,
   });
 
   @override
@@ -23,7 +25,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
   bool _isFocused = false;
   bool _isRecording = false;
   bool _showMentions = false;
-  final List<String> _attachedFiles = [];
+  final List<XFile> _attachedFiles = [];
   final AudioRecorder _audioRecorder = AudioRecorder();
 
   @override
@@ -93,15 +95,24 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
             if (bytes.isNotEmpty) {
               final fileName =
                   'pasted_image_${DateTime.now().millisecondsSinceEpoch}.$ext';
+              String? tempPath;
               try {
-                final tempPath =
+                tempPath =
                     '${Directory.systemTemp.path}${Platform.pathSeparator}$fileName';
                 final tempFile = File(tempPath);
                 await tempFile.writeAsBytes(bytes);
               } catch (_) {}
               if (mounted) {
                 setState(() {
-                  _attachedFiles.add(fileName);
+                  _attachedFiles.add(
+                    XFile(
+                      tempPath != null && tempPath.isNotEmpty
+                          ? tempPath
+                          : fileName,
+                      name: fileName,
+                      bytes: bytes,
+                    ),
+                  );
                 });
               }
             }
@@ -133,7 +144,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
             final fileName = filePath.split(Platform.pathSeparator).last;
             if (mounted) {
               setState(() {
-                _attachedFiles.add(fileName);
+                _attachedFiles.add(XFile(filePath, name: fileName));
               });
             }
           }
@@ -149,15 +160,17 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
     final text = _controller.text.trim();
     if (text.isEmpty && _attachedFiles.isEmpty) return;
 
+    final mediaToSend = List<XFile>.from(_attachedFiles);
     String finalMessage = text;
     if (_attachedFiles.isNotEmpty) {
       final attachmentsStr = _attachedFiles
-          .map((f) => '[Attachment: $f]')
+          .map((f) => '[Attachment: ${f.path.isNotEmpty ? f.path : f.name}]')
           .join(' ');
       finalMessage = text.isEmpty ? attachmentsStr : '$text\n$attachmentsStr';
     }
 
     widget.onSend(finalMessage);
+    widget.onSendMedia?.call(text, mediaToSend);
     _controller.clear();
     setState(() {
       _attachedFiles.clear();
@@ -368,14 +381,24 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                   onPressed: () async {
                     FilePickerResult? result = await FilePicker.pickFiles(
                       allowMultiple: true,
+                      type: FileType.any,
                     );
                     if (result != null) {
                       setState(() {
-                        _attachedFiles.addAll(
-                          result.files
-                              .map((f) => f.path)
-                              .whereType<String>(),
-                        );
+                        for (final file in result.files) {
+                          final path = file.path;
+                          if (path != null && path.isNotEmpty) {
+                            _attachedFiles.add(XFile(path, name: file.name));
+                          } else if (file.bytes != null) {
+                            _attachedFiles.add(
+                              XFile.fromData(file.bytes!, name: file.name),
+                            );
+                          } else if (file.name.isNotEmpty) {
+                            _attachedFiles.add(
+                              XFile(file.name, name: file.name),
+                            );
+                          }
+                        }
                       });
                     }
                   },
@@ -465,10 +488,11 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _attachedFiles.map((fileName) {
+                children: _attachedFiles.map((file) {
+                  final displayName = file.name.split(RegExp(r'[/\\]')).last;
                   return Chip(
                     label: Text(
-                      fileName,
+                      displayName,
                       style: TextStyle(fontSize: 12, color: colors.textPrimary),
                     ),
                     deleteIcon: Icon(
@@ -478,7 +502,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                     ),
                     onDeleted: () {
                       setState(() {
-                        _attachedFiles.remove(fileName);
+                        _attachedFiles.remove(file);
                       });
                     },
                     backgroundColor: colors.background,
