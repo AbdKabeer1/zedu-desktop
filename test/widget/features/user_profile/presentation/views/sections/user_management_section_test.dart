@@ -330,4 +330,58 @@ void main() {
     final decoration = containerWidget.decoration as BoxDecoration?;
     expect(decoration?.color, equals(AppPalette.light.primaryBg));
   });
+
+  group('UserManagementSection pagination page-jump (Ziki #240)', () {
+    testWidgets('renders page jump input and navigates directly to requested page', (tester) async {
+      final members = List.generate(
+        25,
+        (i) => TeamMember(
+          id: '$i',
+          email: 'member$i@example.com',
+          name: 'Member $i',
+          role: 'User',
+          dateJoined: 'Oct 1, 2026',
+          status: TeamMemberStatus.active,
+        ),
+      );
+
+      await tester.pumpWidget(buildUnderTest(members));
+      await tester.pumpAndSettle();
+
+      // Initial state on page 1 of 3
+      expect(find.text('1'), findsWidgets);
+      expect(find.text(' of 3'), findsOneWidget);
+      expect(find.byKey(const Key('user_management_page_jump_input')), findsOneWidget);
+      expect(find.byKey(const Key('user_management_page_jump_button')), findsOneWidget);
+      expect(find.text('member0@example.com'), findsOneWidget);
+      expect(find.text('member9@example.com'), findsOneWidget);
+      expect(find.text('member10@example.com'), findsNothing);
+
+      // Jump to page 3 via Go button
+      final jumpInput = find.byKey(const Key('user_management_page_jump_input'));
+      await tester.enterText(jumpInput, '3');
+      await tester.tap(find.byKey(const Key('user_management_page_jump_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('3 of 3'), findsOneWidget);
+      expect(find.text('member20@example.com'), findsOneWidget);
+      expect(find.text('member0@example.com'), findsNothing);
+
+      // Jump to page 2 via Enter key
+      await tester.enterText(jumpInput, '2');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 of 3'), findsOneWidget);
+      expect(find.text('member10@example.com'), findsOneWidget);
+
+      // Out of bounds input clamps to valid range
+      await tester.enterText(jumpInput, '99');
+      await tester.tap(find.byKey(const Key('user_management_page_jump_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('3 of 3'), findsOneWidget);
+      expect(find.text('member20@example.com'), findsOneWidget);
+    });
+  });
 }
