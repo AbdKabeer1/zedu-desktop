@@ -896,7 +896,10 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   Future<void> _deleteRecording(String? path) async {
     final result = await _fileStore.deleteRecording(path);
     if (result case Failure(:final error)) {
-      AppLogger.w(error.message, tag: 'DmMessageComposer');
+      AppLogger.w(
+        '${error.message} (recording: $path)',
+        tag: 'DmMessageComposer',
+      );
     }
   }
 
