@@ -211,6 +211,7 @@ class _SetStatusDialogState extends ConsumerState<SetStatusDialog> {
                         maxLength: 100,
                         // Rebuild so the clear button and the selected suggestion follow the text.
                         onChanged: (_) => setState(() {}),
+                        onSubmitted: (_) => _save(),
                         buildCounter:
                             (
                               _, {
