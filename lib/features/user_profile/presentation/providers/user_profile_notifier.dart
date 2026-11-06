@@ -435,18 +435,16 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchRegisteredUsers() async {
-    try {
-      final api = locator<ApiBaseService>();
-      final response = await api.get<Map<String, dynamic>>(path: '/users');
-      final data = response.data['data'] as List<dynamic>?;
-      if (data != null) {
-        return data.cast<Map<String, dynamic>>();
-      }
-    } catch (e) {
-      // ignore
-    }
-    return [];
+  /// Members of the selected organisation, for people pickers. Unlike
+  /// `GET /users`, this never includes accounts from other organisations.
+  Future<List<TeamMember>> fetchOrganisationMembers() async {
+    final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
+    if (orgId == null) return const [];
+    final result = await _repository.getTeamMembers(orgId: orgId);
+    return switch (result) {
+      Success<List<TeamMember>>() => result.value,
+      Failure<List<TeamMember>>() => const [],
+    };
   }
 
   Future<void> inviteMember({

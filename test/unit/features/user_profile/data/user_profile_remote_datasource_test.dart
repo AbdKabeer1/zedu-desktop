@@ -226,4 +226,38 @@ void main() {
       );
     });
   });
+
+  group('UserProfileRemoteDataSourceImpl.getTeamMembers', () {
+    test('lists the organisation users with their real names', () async {
+      final mockApi = MockApiBaseService();
+      final datasource = UserProfileRemoteDataSourceImpl(
+        config: const AppConfig(apiBaseUrl: '', usesMockData: false),
+        apiBaseService: mockApi,
+      );
+      const orgId = '019700db-4e22-7f90-a20e-f9116291ef24';
+      when(
+        () => mockApi.get<Map<String, dynamic>>(path: any(named: 'path')),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 200,
+          data: {
+            'data': [
+              {'id': 'u1', 'email': 'a@zedu.chat', 'full_name': 'Alice Ade'},
+              {'id': 'u2', 'email': 'b@zedu.chat', 'username': 'bobby'},
+              {'id': 'u3', 'email': 'carol@zedu.chat', 'full_name': ' '},
+            ],
+          },
+        ),
+      );
+
+      final members = await datasource.getTeamMembers(orgId: orgId);
+
+      verify(
+        () => mockApi.get<Map<String, dynamic>>(
+          path: '/organisations/$orgId/users',
+        ),
+      ).called(1);
+      expect(members.map((m) => m.name), ['Alice Ade', 'bobby', 'carol']);
+    });
+  });
 }
