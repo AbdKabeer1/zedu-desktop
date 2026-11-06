@@ -37,6 +37,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
       body: Column(
         children: [
           const _HomeAppBar(),
+          const OfflineStatusIndicator(),
           Expanded(
             child: Row(
               children: [
