@@ -1,3 +1,25 @@
+/// A single reaction (emoji) on a channel message, as returned by
+/// `GET /threads/channels/{channel_id}`.
+class ChannelReaction {
+  final String emoji;
+  final String reactionId;
+  final int count;
+
+  const ChannelReaction({
+    required this.emoji,
+    required this.reactionId,
+    required this.count,
+  });
+
+  factory ChannelReaction.fromJson(Map<String, dynamic> json) {
+    return ChannelReaction(
+      emoji: json['reaction']?.toString() ?? '',
+      reactionId: json['reaction_id']?.toString() ?? '',
+      count: (json['reaction_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 /// A top-level message in a channel, as returned by
 /// `GET /threads/channels/{channel_id}`.
 class ChannelMessage {
@@ -14,6 +36,7 @@ class ChannelMessage {
 
   /// Who sent it, so the current user's own messages can be edited.
   final String? userId;
+  final List<ChannelReaction> reactions;
 
   const ChannelMessage({
     this.id,
@@ -25,6 +48,7 @@ class ChannelMessage {
     this.media = const [],
     this.threadId,
     this.userId,
+    this.reactions = const [],
   });
 
   static List<dynamic> mediaFrom(dynamic raw) {
@@ -58,6 +82,10 @@ class ChannelMessage {
       media: mediaFrom(json['media'] ?? json['files'] ?? json['attachments']),
       threadId: nonEmpty(json['thread_id']) ?? nonEmpty(json['id']),
       userId: nonEmpty(json['user_id']),
+      reactions: [
+        for (final entry in (json['reactions'] as List? ?? const []))
+          if (entry is Map<String, dynamic>) ChannelReaction.fromJson(entry),
+      ],
     );
   }
 

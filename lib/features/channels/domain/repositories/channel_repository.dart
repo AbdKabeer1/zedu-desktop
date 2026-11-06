@@ -41,4 +41,18 @@ abstract class ChannelRepository {
     required String channelId,
     required String threadId,
   });
+
+  /// Usernames of the users who reacted with [reactionId] on [threadId].
+  Future<Result<List<String>>> fetchReactionUsers({
+    required String reactionId,
+    required String threadId,
+  });
+
+  /// Adds the current user's [emoji] reaction to [threadId], or removes it
+  /// if they have already reacted. Returns whether the user reacted now.
+  Future<Result<bool>> toggleReaction({
+    required String channelId,
+    required String threadId,
+    required String emoji,
+  });
 }
