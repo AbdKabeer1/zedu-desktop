@@ -325,4 +325,28 @@ void main() {
       }
     });
   });
+
+  group('SetStatusDialog close button', () {
+    testWidgets('exposes a Close tooltip on hover', (tester) async {
+      await _pumpDialog(tester);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: Offset.zero);
+
+      await mouse.moveTo(tester.getCenter(find.byTooltip('Close')));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text('Close'), findsOneWidget);
+    });
+
+    testWidgets('still closes the dialog', (tester) async {
+      await _pumpDialog(tester);
+
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SetStatusDialog), findsNothing);
+    });
+  });
 }
