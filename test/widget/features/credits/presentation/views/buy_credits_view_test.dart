@@ -363,4 +363,112 @@ void main() {
       verify(() => repository.getUsage('org-switched')).called(1);
     },
   );
+
+  group('when the packages fail to load', () {
+    const offline = Failure<List<CreditPackage>>(
+      ApiFailure(message: 'offline', kind: ApiFailureKind.network),
+    );
+    const package = CreditPackage(
+      id: 'starter',
+      name: 'Starter',
+      description: 'For small teams',
+      price: 10,
+      credits: 100,
+      benefits: [],
+    );
+
+    MockCreditsRepository repositoryWithPackages(
+      List<Result<List<CreditPackage>>> results,
+    ) {
+      final repository = MockCreditsRepository();
+      when(repository.getPackages).thenAnswer((_) async => results.removeAt(0));
+      when(() => repository.getUsage('test-org')).thenAnswer(
+        (_) async => const Success(
+          CreditUsage(balance: 0, totalPurchased: 0, totalConsumed: 0),
+        ),
+      );
+      when(
+        () => repository.getUsageReport('test-org'),
+      ).thenAnswer((_) async => const Success(CreditUsageReport.empty));
+      when(
+        () => repository.getTransactions('test-org'),
+      ).thenAnswer((_) async => const Success<List<CreditTransaction>>([]));
+      return repository;
+    }
+
+    Future<void> pumpView(
+      WidgetTester tester,
+      MockCreditsRepository repository,
+    ) async {
+      tester.view.physicalSize = const Size(1920, 3000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authNotifierProvider.overrideWith(FakeAuthNotifier.new),
+            userProfileNotifierProvider.overrideWith(
+              FakeUserProfileNotifier.new,
+            ),
+            creditsRepositoryProvider.overrideWithValue(repository),
+            workspaceProvider.overrideWith(FakeWorkspaceNotifier.new),
+          ],
+          // The test font is wide enough to overflow the plan card's fixed height.
+          child: buildTestMaterialApp(
+            Builder(
+              builder: (context) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: const TextScaler.linear(0.5)),
+                child: const BuyCreditsView(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('shows the error with a Retry button', (tester) async {
+      await pumpView(tester, repositoryWithPackages([offline]));
+
+      expect(find.text("Couldn't load AI credit packages."), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Retry'), findsOneWidget);
+      expect(find.text('No AI credit packages available.'), findsNothing);
+      await tester.pump(const Duration(seconds: 10));
+    });
+
+    testWidgets('Retry loads the packages again and shows them', (
+      tester,
+    ) async {
+      final repository = repositoryWithPackages([
+        offline,
+        const Success([package]),
+      ]);
+      await pumpView(tester, repository);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Retry'));
+      await tester.pumpAndSettle();
+
+      verify(repository.getPackages).called(2);
+      verify(() => repository.getUsage('test-org')).called(2);
+      expect(find.byType(CreditPackagesGrid), findsOneWidget);
+      expect(find.text("Couldn't load AI credit packages."), findsNothing);
+      await tester.pump(const Duration(seconds: 10));
+    });
+
+    testWidgets('an empty list that loaded fine is not shown as an error', (
+      tester,
+    ) async {
+      await pumpView(
+        tester,
+        repositoryWithPackages([const Success<List<CreditPackage>>([])]),
+      );
+
+      expect(find.text('No AI credit packages available.'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Retry'), findsNothing);
+    });
+  });
 }
