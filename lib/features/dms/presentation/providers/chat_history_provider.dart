@@ -5,8 +5,11 @@ import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
 class ChatHistoryNotifier extends ChangeNotifier {
+  static const _tag = 'ChatHistoryNotifier';
+
   final String channelId;
   final Ref ref;
+  late final ComposerFileStore _fileStore;
 
   /// Set in dispose(): an asynchronous continuation (polling response, save,
   /// delete or retry) that lands after it must stay a silent no-op instead of
@@ -53,6 +56,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
   static const SendRetryPolicy _retryPolicy = SendRetryPolicy();
 
   ChatHistoryNotifier(this.channelId, this.ref) {
+    _fileStore = ref.read(composerFileStoreProvider);
     _loadInitial();
   }
 
@@ -123,7 +127,13 @@ class ChatHistoryNotifier extends ChangeNotifier {
       page = 1;
       loadFailed = false;
       _markSeen(loaded);
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(
+        'Failed to load initial chat history for channel $channelId',
+        tag: _tag,
+        error: e,
+        stackTrace: st,
+      );
       loadFailed = true;
     } finally {
       if (!_isDisposed) {
@@ -230,23 +240,27 @@ class ChatHistoryNotifier extends ChangeNotifier {
     }
   }
 
-  /// Puts the server's text on every loaded message whose content changed
-  /// since it was loaded. Skips messages being edited here, and returns whether
-  /// anything changed.
+  /// Merges the server's current fields onto every loaded message with the
+  /// same id. Skips locally pending messages and messages being edited here,
+  /// and returns whether anything changed.
   bool _applyEditedContent(List<Map<String, dynamic>> fresh) {
-    final latest = <String, Object?>{
+    final latest = <String, Map<String, dynamic>>{
       for (final m in fresh)
-        if (m['id'] != null && !_isDeleted(m)) m['id'].toString(): m['content'],
+        if (m['id'] != null && !_isDeleted(m)) m['id'].toString(): m,
     };
     var changed = false;
     messages = messages.map((m) {
       final id = m['id']?.toString();
       if (id == null || !latest.containsKey(id)) return m;
-      if (_editsInFlight.contains(id) || editingMessageId == id) return m;
-      final content = latest[id];
-      if (content == null || content == m['content']) return m;
+      if (m['status'] != null ||
+          _editsInFlight.contains(id) ||
+          editingMessageId == id) {
+        return m;
+      }
+      final updated = Map<String, dynamic>.from(m)..addAll(latest[id]!);
+      if (_sameJsonValue(updated, m)) return m;
       changed = true;
-      return Map<String, dynamic>.from(m)..['content'] = content;
+      return updated;
     }).toList();
     return changed;
   }
@@ -362,7 +376,13 @@ class ChatHistoryNotifier extends ChangeNotifier {
           newMessages.length >= DmRepository.pageSize &&
           !newMessages.any(_isCleared);
       page = nextPage;
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(
+        'Failed to load more messages for channel $channelId on page ${page + 1}',
+        tag: _tag,
+        error: e,
+        stackTrace: st,
+      );
       loadMoreFailed = true;
     } finally {
       if (!_isDisposed) {
@@ -402,10 +422,9 @@ class ChatHistoryNotifier extends ChangeNotifier {
   /// the user picked are never deleted.
   Future<void> _deleteRecordings(List<XFile>? files) async {
     for (final file in files ?? const <XFile>[]) {
-      if (appRecordedPaths.remove(file.path)) {
-        try {
-          await File(file.path).delete();
-        } catch (_) {}
+      final result = await _fileStore.deleteRecording(file.path);
+      if (result case Failure(:final error)) {
+        AppLogger.w(error.message, tag: 'ChatHistoryNotifier');
       }
     }
   }
@@ -483,7 +502,13 @@ class ChatHistoryNotifier extends ChangeNotifier {
         }
         return m;
       }).toList();
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(
+        'Failed to send message in channel $channelId',
+        tag: _tag,
+        error: e,
+        stackTrace: st,
+      );
       if (_isDisposed) return;
       messages = messages.map((m) {
         if (m['id'] == tempId) {
@@ -518,7 +543,9 @@ class ChatHistoryNotifier extends ChangeNotifier {
     _cancelRetry(messageId);
 
     final idx = messages.indexWhere((m) => m['id'] == messageId);
-    if (idx == -1) return;
+    // Status changes to sending synchronously below, so repeated callbacks
+    // cannot start another request for this message before the view rebuilds.
+    if (idx == -1 || messages[idx]['status'] != 'failed') return;
 
     final failedMsg = Map<String, dynamic>.from(messages[idx]);
     final content = failedMsg['content'] as String? ?? '';
@@ -575,7 +602,13 @@ class ChatHistoryNotifier extends ChangeNotifier {
         }
         return m;
       }).toList();
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(
+        'Failed to retry message $messageId in channel $channelId',
+        tag: _tag,
+        error: e,
+        stackTrace: st,
+      );
       if (_isDisposed) return;
       messages = messages.map((m) {
         if (m['id'] == messageId) {
@@ -676,6 +709,24 @@ class ChatHistoryNotifier extends ChangeNotifier {
     }
   }
 
+  /// Pins the message on the server. Returns whether it was pinned.
+  Future<bool> pinMessage(String messageId) async {
+    final message = messages.firstWhere(
+      (m) => m['id'] == messageId,
+      orElse: () => const {},
+    );
+    if (message.isEmpty) return false;
+    final threadId = (message['thread_id'] ?? message['id']).toString();
+    try {
+      await ref
+          .read(dmRepositoryProvider)
+          .pinMessage(threadId: threadId, channelId: channelId);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> saveEdit(String messageId, String newContent) {
     final previous = _saveEditChains[messageId] ?? Future<void>.value();
     final task = previous.then((_) => _runSaveEdit(messageId, newContent));
@@ -714,11 +765,17 @@ class ChatHistoryNotifier extends ChangeNotifier {
     try {
       final repository = ref.read(dmRepositoryProvider);
       await repository.editMessage(
-        channelId,
+        messageId,
         content: newContent,
         threadId: threadId,
       );
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(
+        'Failed to save edit for message $messageId in channel $channelId',
+        tag: _tag,
+        error: e,
+        stackTrace: st,
+      );
       if (_isDisposed) return;
       messages = messages.map((m) {
         if (m['id'] == messageId && m['content'] == newContent) {

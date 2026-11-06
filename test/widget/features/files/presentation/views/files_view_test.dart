@@ -13,6 +13,29 @@ class _FakeWorkspaceNotifier extends WorkspaceNotifier {
   );
 }
 
+/// Signed in as Ada (u-1), who uploaded logo.png.
+class _FakeAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() => AuthState(
+    status: AuthStatus.authenticated,
+    user: User(
+      id: 'u-1',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      email: 'ada@zedu.test',
+      phone: '',
+      username: 'ada',
+      isVerified: true,
+      isOnboarded: true,
+      createdAt: DateTime(2026, 1, 1),
+      currentOrg: 'org-1',
+      currentOrganisationSlug: 'org-1',
+      avatarUrl: '',
+      defaultAvatarUrl: '',
+    ),
+  );
+}
+
 class _FakeProfileNotifier extends UserProfileNotifier {
   @override
   UserProfileState build() => const UserProfileState(
@@ -290,7 +313,7 @@ class _FakeFilesRepository implements FilesRepository {
   }
 
   @override
-  Future<Result<WorkspaceFile>> uploadFile(XFile file) async =>
+  Future<Result<WorkspaceFile>> uploadFile(XFile file, {String? parentId}) async =>
       Success(WorkspaceFile(id: 'up', name: file.name));
 
   @override
@@ -478,7 +501,7 @@ void main() {
     expect(find.text('Reports'), findsOneWidget);
   });
 
-  testWidgets('New Folder inside a folder sends it as the parent', (
+  testWidgets('inside a folder there is no Folders tab or New Folder', (
     tester,
   ) async {
     final repository = _FakeFilesRepository();
@@ -486,13 +509,18 @@ void main() {
 
     await tester.tap(find.text('docs'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('New Folder'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).last, 'drafts');
-    await tester.tap(find.text('Create'));
+
+    expect(find.text('spec.pdf'), findsOneWidget);
+    expect(find.text('Folders'), findsNothing);
+    expect(find.text('New Folder'), findsNothing);
+    expect(find.text('Upload File'), findsOneWidget);
+
+    // Back at the top level, both come back.
+    await tester.tap(find.widgetWithText(TextButton, 'All files'));
     await tester.pumpAndSettle();
 
-    expect(repository.createdFolders, [('drafts', 'org-1', 'docs')]);
+    expect(find.text('Folders'), findsWidgets);
+    expect(find.text('New Folder'), findsOneWidget);
   });
 
   testWidgets('New Folder shows the server error and stays open', (
@@ -1023,6 +1051,26 @@ void main() {
     await tester.tap(find.text(name));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('Share is offered only on files you uploaded', (tester) async {
+    final repository = _FakeFilesRepository()
+      ..moreFiles = [
+        const WorkspaceFile(id: 'f-2', name: 'brief.pdf', userId: 'u-2'),
+      ];
+    await _pump(tester, repository);
+    await openFilesTab(tester);
+
+    await tester.tap(find.byTooltip('More actions for brief.pdf'));
+    await tester.pumpAndSettle();
+    expect(find.text('Download'), findsOneWidget);
+    expect(find.text('Share'), findsNothing);
+    await tester.tapAt(Offset.zero);
+    await tester.pumpAndSettle();
+
+    await tester.tap(actionsMenu());
+    await tester.pumpAndSettle();
+    expect(find.text('Share'), findsOneWidget);
+  });
 
   testWidgets('shares a file with a member by direct message', (tester) async {
     final repository = _FakeFilesRepository();

@@ -35,6 +35,10 @@ class DmConversation {
 
   String get displayName => username.isNotEmpty ? username : 'Unknown';
 
+  /// True when this is the signed-in user's own space: a DM with themselves.
+  bool isOwnSpaceFor(String? userId) =>
+      userId != null && userId.isNotEmpty && participantId == userId;
+
   /// Tells conversations apart for selection and drafts. Someone you haven't
   /// messaged yet has no channel, so their row is identified by the person.
   String get conversationKey =>

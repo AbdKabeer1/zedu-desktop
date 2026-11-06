@@ -77,9 +77,32 @@ class ChannelRepositoryImpl implements ChannelRepository {
   }
 
   @override
+  Future<Result<List<Channel>>> fetchArchivedChannels(String orgId) async {
+    try {
+      return Success(await remoteDataSource.fetchArchivedChannels(orgId));
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
   Future<Result<void>> leaveChannel(String channelId) async {
     try {
       await remoteDataSource.leaveChannel(channelId);
+      return const Success(null);
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> joinChannel(String channelId) async {
+    try {
+      await remoteDataSource.joinChannel(channelId);
       return const Success(null);
     } on ApiFailure catch (e) {
       return Failure(e);
