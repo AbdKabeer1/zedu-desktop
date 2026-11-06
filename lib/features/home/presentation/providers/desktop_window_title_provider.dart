@@ -47,6 +47,7 @@ final desktopWindowTitleProvider = Provider<String>((ref) {
       final ch = channels.firstWhere(
         (c) =>
             c.id == activeChat.id ||
+            c.name.toLowerCase() == activeChat.id?.toLowerCase() ||
             (activeChat.id == 'general' && c.name.toLowerCase() == 'general'),
         orElse: () => Channel(
           id: activeChat.id ?? 'general',
@@ -95,9 +96,11 @@ final desktopWindowTitleProvider = Provider<String>((ref) {
 
   int unreadCount = 0;
   for (final c in channels) {
+    if (c.archived) continue;
     final isActive =
         activeChat.type == ActiveChatType.channel &&
         (c.id == activeChat.id ||
+            c.name.toLowerCase() == activeChat.id?.toLowerCase() ||
             (activeChat.id == 'general' && c.name.toLowerCase() == 'general'));
     if (!isActive) {
       unreadCount += c.unreadCount.toInt();
