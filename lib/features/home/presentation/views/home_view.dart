@@ -459,7 +459,11 @@ class HomeChatArea extends ConsumerWidget {
       );
     }
 
-    return Column(
+    // The channel's full-history search, beside the messages (Ziki #2849).
+    final searchOpen =
+        channelId.isNotEmpty && ref.watch(channelSearchProvider) == channelId;
+
+    final chatColumn = Column(
       children: [
         _buildChatHeader(context, channelName, selected),
         Expanded(
@@ -481,6 +485,18 @@ class HomeChatArea extends ConsumerWidget {
             participants: members,
             isChannel: true,
           ),
+      ],
+    );
+    if (!searchOpen) return chatColumn;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: chatColumn),
+        SearchPanel(
+          key: ValueKey('channel-search-$channelId'),
+          channelId: channelId,
+          onClose: () => ref.read(channelSearchProvider.notifier).close(),
+        ),
       ],
     );
   }
@@ -641,6 +657,9 @@ class _ChannelHeaderMenu extends ConsumerWidget {
       icon: Icon(Icons.more_vert, color: colors.textHint),
 
       onSelected: (value) {
+        if (value == 'search') {
+          ref.read(channelSearchProvider.notifier).open(channel.id);
+        }
         if (value == 'links') _showLinks(context, ref);
         if (value == 'export') {
           showDialog<void>(
@@ -653,6 +672,22 @@ class _ChannelHeaderMenu extends ConsumerWidget {
         if (value == 'unarchive') _setArchived(context, ref, archived: false);
       },
       itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'search',
+          child: Row(
+            children: [
+              Icon(Icons.search, size: 18, color: colors.textPrimary),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  'Search in channel',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: colors.textPrimary),
+                ),
+              ),
+            ],
+          ),
+        ),
         PopupMenuItem(
           value: 'links',
           child: Row(
