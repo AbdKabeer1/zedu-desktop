@@ -108,7 +108,7 @@ void main() {
         final sent =
             verify(() => repository.updateAccount(captureAny())).captured.single
                 as ProfileAccount;
-        expect(sent.name, '');
+        expect(sent.name, kUnchangedField);
         expect(sent.phoneNumber, '+2348012345678');
 
         final shown = container.read(userProfileNotifierProvider).account!;

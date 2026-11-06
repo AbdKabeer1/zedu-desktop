@@ -73,15 +73,27 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
     }
     // Same endpoint and multipart fields as Zedu web. Empty values are left
     // out so fields the user didn't change are never overwritten.
-    final fields = <String, String>{
-      'full_name': account.name,
-      'display_name': account.displayName,
-      'username': account.username,
-      'phone': account.phoneNumber,
-      'title': account.title,
-      'timezone': account.timezone,
-      'name_pronounciation': account.namePronunciation,
-    }..removeWhere((_, value) => value.isEmpty);
+    // Same endpoint and multipart fields as Zedu web. Fields marked with
+    // kUnchangedField (and empty required fields) are omitted from the
+    // payload so they are not overwritten. Cleared optional fields (empty
+    // strings) are sent so the backend clears them.
+    final fields =
+        <String, String>{
+          'full_name': account.name,
+          'display_name': account.displayName,
+          'username': account.username,
+          'phone': account.phoneNumber,
+          'title': account.title,
+          'timezone': account.timezone,
+          'name_pronounciation': account.namePronunciation,
+        }..removeWhere((key, value) {
+          if (value == kUnchangedField) return true;
+          if (value.isEmpty &&
+              (key == 'full_name' || key == 'username' || key == 'timezone')) {
+            return true;
+          }
+          return false;
+        });
     await _apiBaseService.patch<Map<String, dynamic>>(
       path: '/profile',
       data: FormData.fromMap(fields),
