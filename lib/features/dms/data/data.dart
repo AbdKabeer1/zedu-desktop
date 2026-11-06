@@ -1,3 +1,4 @@
+export 'conversation_transcript.dart';
 export 'dm_repository.dart';
 export 'buzz_repository.dart';
 export 'call_ringtone.dart';
