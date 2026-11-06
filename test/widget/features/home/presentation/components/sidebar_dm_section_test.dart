@@ -46,6 +46,12 @@ class _FailingDmListNotifier extends DmListNotifier {
   Future<List<DmConversation>> build() async => throw Exception('offline');
 }
 
+/// The real notifier follows the selected workspace, which loads from the API.
+class _FakeActiveChatNotifier extends ActiveChatNotifier {
+  @override
+  ActiveChatState build() => ActiveChatState.generalChannel;
+}
+
 class _FakeActionsNotifier extends DmConversationActionsNotifier {
   _FakeActionsNotifier(this._actions);
 
@@ -80,6 +86,7 @@ Future<ProviderContainer> _pump(
     ProviderScope(
       overrides: [
         authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+        activeChatProvider.overrideWith(_FakeActiveChatNotifier.new),
         dmListProvider.overrideWith(dms ?? () => _FakeDmListNotifier(const [])),
         dmConversationActionsProvider.overrideWith(
           () => _FakeActionsNotifier(actions),
@@ -179,5 +186,71 @@ void main() {
     await _pump(tester, dms: _FailingDmListNotifier.new);
 
     expect(find.text("Couldn't load direct messages"), findsOneWidget);
+  });
+
+  group('compose button', () {
+    testWidgets(
+      'sits beside the heading with a New message tooltip and label',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        try {
+          await _pump(tester);
+
+          final button = find.widgetWithIcon(IconButton, Icons.edit_note);
+          expect(button, findsOneWidget);
+          expect(tester.widget<IconButton>(button).tooltip, 'New message');
+          expect(find.bySemanticsLabel('New message'), findsOneWidget);
+
+          final headingCentre = tester.getCenter(find.text('Direct messages'));
+          final buttonCentre = tester.getCenter(button);
+          expect((buttonCentre.dy - headingCentre.dy).abs(), lessThan(12));
+          expect(buttonCentre.dx, greaterThan(headingCentre.dx));
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
+
+    testWidgets('opens the existing new-message flow and keeps Home', (
+      tester,
+    ) async {
+      final ada = _dm('c-1', 'Ada Okafor', lastReadAt: newer);
+      final container = await _pump(
+        tester,
+        dms: () => _FakeDmListNotifier([ada]),
+      );
+      container.read(selectedDmProvider.notifier).select(ada);
+
+      await tester.tap(find.byTooltip('New message'));
+      await tester.pump();
+
+      expect(container.read(activeChatProvider), ActiveChatState.newGroupChat);
+      expect(container.read(selectedDmProvider), isNull);
+      expect(container.read(homeSidebarProvider), HomeSidebarType.home);
+      expect(find.text('Direct messages'), findsOneWidget);
+      expect(find.text('Ada Okafor'), findsOneWidget);
+    });
+
+    testWidgets('the section still works after closing the new-message flow', (
+      tester,
+    ) async {
+      final ada = _dm('c-1', 'Ada Okafor', lastReadAt: newer);
+      final container = await _pump(
+        tester,
+        dms: () => _FakeDmListNotifier([ada]),
+      );
+
+      await tester.tap(find.byTooltip('New message'));
+      await tester.pump();
+      // Closing the page picks a channel again, as the Home view does.
+      container.read(activeChatProvider.notifier).selectChannel('general');
+      await tester.pump();
+
+      await tester.tap(find.text('Ada Okafor'));
+      await tester.pump();
+
+      expect(container.read(selectedDmProvider)?.channelId, 'c-1');
+      expect(container.read(homeSidebarProvider), HomeSidebarType.dms);
+    });
   });
 }
