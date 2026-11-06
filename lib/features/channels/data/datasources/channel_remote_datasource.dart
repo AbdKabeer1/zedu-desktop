@@ -3,6 +3,7 @@ import 'package:zedu/features/features.dart';
 
 abstract class ChannelRemoteDataSource {
   Future<List<Channel>> fetchChannels(String orgId);
+  Future<Map<String, int>> fetchChannelUnreadCounts(String orgId);
   Future<Channel> createChannel({
     required String name,
     required String description,
@@ -56,9 +57,41 @@ class ChannelRemoteDataSourceImpl implements ChannelRemoteDataSource {
     );
     final data = response.data['data'] as List?;
     if (data == null) return [];
-    return data
+    final channels = data
         .map((e) => Channel.fromJson(e as Map<String, dynamic>))
         .toList();
+    // The browse-all endpoint always returns unread_count 0. The
+    // user-channels endpoint fills it, so merge those counts in. A failure
+    // there must not fail the whole list: the title just counts DMs then.
+    Map<String, int> unreadCounts = const {};
+    try {
+      unreadCounts = await fetchChannelUnreadCounts(orgId);
+    } catch (_) {
+      return channels;
+    }
+    if (unreadCounts.isEmpty) return channels;
+    return [
+      for (final channel in channels)
+        unreadCounts.containsKey(channel.id)
+            ? channel.copyWith(unreadCount: unreadCounts[channel.id]!)
+            : channel,
+    ];
+  }
+
+  @override
+  Future<Map<String, int>> fetchChannelUnreadCounts(String orgId) async {
+    final response = await apiBaseService.get<Map<String, dynamic>>(
+      path: '/organisations/$orgId/user-channels',
+    );
+    final data = response.data['data'] as List?;
+    if (data == null) return const {};
+    final counts = <String, int>{};
+    for (final entry in data) {
+      final channel = Channel.fromJson(entry as Map<String, dynamic>);
+      if (channel.id.isEmpty) continue;
+      counts[channel.id] = channel.unreadCount;
+    }
+    return counts;
   }
 
   @override
