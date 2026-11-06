@@ -54,7 +54,7 @@ void main() {
         final sent =
             verify(() => repository.updateAccount(captureAny())).captured.single
                 as ProfileAccount;
-        expect(sent.name, '');
+        expect(sent.name, kUnchangedField);
         expect(sent.phoneNumber, '+2348012345678');
 
         final shown = container.read(userProfileNotifierProvider).account!;
@@ -63,5 +63,58 @@ void main() {
         expect(shown.email, placeholder.email);
       });
     });
+
+    test(
+      'allows clearing optional fields (title, phone, display name, pronunciation)',
+      () {
+        return ignoringProfileLoadError(() async {
+          final container = ProviderContainer(
+            overrides: [
+              userProfileRepositoryProvider.overrideWithValue(repository),
+            ],
+          );
+          addTearDown(container.dispose);
+          final notifier = container.read(userProfileNotifierProvider.notifier);
+          const current = ProfileAccount(
+            name: 'Jane Doe',
+            email: 'jane@zedu.chat',
+            timezone: 'Africa/Lagos',
+            title: 'Software Engineer',
+            phoneNumber: '+2348012345678',
+            displayName: 'JaneD',
+            namePronunciation: 'Jayn',
+          );
+
+          notifier.state = notifier.state.copyWith(account: current);
+
+          await notifier.updateAccount(
+            current.copyWith(
+              title: '',
+              phoneNumber: '',
+              displayName: '',
+              namePronunciation: '',
+            ),
+          );
+
+          final sent =
+              verify(
+                    () => repository.updateAccount(captureAny()),
+                  ).captured.single
+                  as ProfileAccount;
+          expect(sent.name, kUnchangedField);
+          expect(sent.title, '');
+          expect(sent.phoneNumber, '');
+          expect(sent.displayName, '');
+          expect(sent.namePronunciation, '');
+
+          final shown = container.read(userProfileNotifierProvider).account!;
+          expect(shown.title, '');
+          expect(shown.phoneNumber, '');
+          expect(shown.displayName, '');
+          expect(shown.namePronunciation, '');
+          expect(shown.name, 'Jane Doe');
+        });
+      },
+    );
   });
 }

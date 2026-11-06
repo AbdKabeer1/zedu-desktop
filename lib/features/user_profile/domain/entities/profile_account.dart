@@ -1,21 +1,30 @@
+/// Sentinel value representing a profile field that was not modified by the user.
+const String kUnchangedField = '\u0000UNCHANGED\u0000';
+
 class ProfileAccount {
   const ProfileAccount({
     required this.name,
     required this.email,
     required this.timezone,
     this.avatarUrl,
-    this.displayName = '',
-    this.username = '',
-    this.phoneNumber = '',
-    this.title = '',
-    this.namePronunciation = '',
-    this.country = '',
+    this.displayName = kUnchangedField,
+    this.username = kUnchangedField,
+    this.phoneNumber = kUnchangedField,
+    this.title = kUnchangedField,
+    this.namePronunciation = kUnchangedField,
+    this.country = kUnchangedField,
   });
 
   factory ProfileAccount.empty() => const ProfileAccount(
     name: 'Anonymous user',
     email: 'anonymoususer@email.com',
     timezone: 'Africa/Lagos',
+    displayName: '',
+    username: '',
+    phoneNumber: '',
+    title: '',
+    namePronunciation: '',
+    country: '',
   );
 
   final String name;

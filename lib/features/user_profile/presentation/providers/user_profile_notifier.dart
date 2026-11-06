@@ -62,13 +62,15 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     }
   }
 
-  /// Keeps only the fields the user edited (others become empty), so the
-  /// placeholder values shown before the profile loads are never saved.
+  /// Keeps only the fields the user edited. Unchanged fields are set to
+  /// [kUnchangedField] so they are not sent to the server. Explicitly cleared
+  /// optional fields are preserved as empty strings so they can be cleared.
   ProfileAccount _changedFields(
     ProfileAccount updated,
     ProfileAccount current,
   ) {
-    String changed(String now, String was) => now == was ? '' : now;
+    String changed(String now, String was) =>
+        now == was ? kUnchangedField : now;
     return ProfileAccount(
       name: changed(updated.name, current.name),
       email: changed(updated.email, current.email),
@@ -87,10 +89,11 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
   }
 
   /// The profile as the server now holds it. `PATCH /profile` doesn't take
-  /// email, country or avatar, and the backend ignores empty values, so those
-  /// keep their current values instead of showing edits that weren't saved.
+  /// email, country or avatar. Unchanged fields (marked with [kUnchangedField])
+  /// keep their current values, while cleared or updated fields are updated in state.
   ProfileAccount _savedAccount(ProfileAccount current, ProfileAccount changes) {
-    String saved(String sent, String was) => sent.isEmpty ? was : sent;
+    String saved(String sent, String was) =>
+        sent == kUnchangedField ? was : sent;
     return current.copyWith(
       name: saved(changes.name, current.name),
       timezone: saved(changes.timezone, current.timezone),
@@ -102,6 +105,7 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
         changes.namePronunciation,
         current.namePronunciation,
       ),
+      country: saved(changes.country, current.country),
     );
   }
 

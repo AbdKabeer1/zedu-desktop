@@ -52,5 +52,38 @@ void main() {
       });
       expect(saved.phoneNumber, '+2348012345678');
     });
+
+    test(
+      'sends cleared optional fields to PATCH /profile as empty strings',
+      () async {
+        const account = ProfileAccount(
+          name: 'Odofin Moronke',
+          email: '',
+          timezone: '',
+          title: '',
+          phoneNumber: '',
+          displayName: '',
+          namePronunciation: '',
+        );
+
+        await datasource.updateAccount(account);
+
+        final data =
+            verify(
+                  () => mockApi.patch<Map<String, dynamic>>(
+                    path: '/profile',
+                    data: captureAny(named: 'data'),
+                  ),
+                ).captured.single
+                as FormData;
+        expect(Map.fromEntries(data.fields), {
+          'full_name': 'Odofin Moronke',
+          'display_name': '',
+          'phone': '',
+          'title': '',
+          'name_pronounciation': '',
+        });
+      },
+    );
   });
 }
