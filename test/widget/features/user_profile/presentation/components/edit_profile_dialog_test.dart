@@ -317,4 +317,86 @@ void main() {
       expect(find.text('Edit your profile'), findsNothing);
     });
   });
+
+  group('discarding edits', () {
+    testWidgets('Cancel on a changed form asks before discarding', (
+      tester,
+    ) async {
+      await openDialog(tester, (_) async => null);
+
+      await tester.enterText(find.byType(TextFormField).first, 'Ada B');
+      await tester.pump();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // The form is still up, with a question on top of it.
+      expect(find.text('Discard changes?'), findsOneWidget);
+      expect(find.text('Edit your profile'), findsOneWidget);
+
+      // Keeping the edits drops the question and leaves the typing in place.
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('Cancel'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Discard changes?'), findsNothing);
+      expect(find.text('Edit your profile'), findsOneWidget);
+      expect(find.text('Ada B'), findsOneWidget);
+
+      // Discarding then closes it.
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit your profile'), findsNothing);
+    });
+
+    testWidgets('Cancel on an unchanged form closes straight away', (
+      tester,
+    ) async {
+      await openDialog(tester, (_) async => null);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Discard changes?'), findsNothing);
+      expect(find.text('Edit your profile'), findsNothing);
+    });
+
+    testWidgets('the header close button asks too', (tester) async {
+      await openDialog(tester, (_) async => null);
+
+      await tester.enterText(find.byType(TextFormField).first, 'Changed');
+      await tester.pump();
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Discard changes?'), findsOneWidget);
+      expect(find.text('Edit your profile'), findsOneWidget);
+    });
+
+    testWidgets('a scrim tap asks before discarding', (tester) async {
+      await openDialog(tester, (_) async => null);
+
+      await tester.enterText(find.byType(TextFormField).first, 'Changed');
+      await tester.pump();
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Discard changes?'), findsOneWidget);
+      expect(find.text('Edit your profile'), findsOneWidget);
+    });
+
+    testWidgets('a scrim tap still closes an unchanged form', (tester) async {
+      await openDialog(tester, (_) async => null);
+
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Discard changes?'), findsNothing);
+      expect(find.text('Edit your profile'), findsNothing);
+    });
+  });
 }
