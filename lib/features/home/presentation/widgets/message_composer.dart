@@ -353,6 +353,12 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                   ),
                   const Spacer(),
                   _ToolbarButton(
+                    key: const Key('message_composer_formatting_help_button'),
+                    icon: Icons.help_outline_rounded,
+                    onPressed: () => showFormattingHelp(context),
+                    tooltip: 'Formatting help',
+                  ),
+                  _ToolbarButton(
                     icon: Icons.emoji_emotions_outlined,
                     onPressed: () => _insertFormatting('😀', ''),
                     tooltip: 'Emoji',
@@ -523,6 +529,7 @@ class _ToolbarButton extends StatelessWidget {
   final String tooltip;
 
   const _ToolbarButton({
+    super.key,
     required this.icon,
     required this.onPressed,
     required this.tooltip,

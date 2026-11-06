@@ -11,6 +11,7 @@ export 'dm_empty_state.dart';
 export 'sidebar_channel_list.dart';
 export 'sidebar_dm_section.dart';
 export 'keyboard_shortcuts_dialog.dart';
+export 'formatting_help_dialog.dart';
 export 'quick_switcher.dart';
 export 'quick_switcher_shortcut.dart';
 export 'app_zoom_shortcut.dart';
