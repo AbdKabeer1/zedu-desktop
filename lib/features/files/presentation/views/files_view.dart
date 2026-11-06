@@ -400,6 +400,7 @@ class _FilesSection extends ConsumerWidget {
         ? const <String>{}
         : ref.watch(pinnedFilesProvider).value ?? const <String>{};
     final ownerName = _ownerNames(ref);
+    final myId = ref.watch(authNotifierProvider.select((s) => s.user?.id));
 
     return page.when(
       loading: () => const _Loading(),
@@ -437,6 +438,9 @@ class _FilesSection extends ConsumerWidget {
           onRename: isTrash ? null : (file) => _rename(context, file),
           onMove: isTrash ? null : (file) => _move(context, file),
           onShare: isTrash ? null : (file) => _share(context, file),
+          // zedu-be lets only the person who uploaded a file share it, so
+          // other people's files don't offer a Share that can only fail.
+          canShare: (file) => myId != null && file.userId == myId,
           onInfo: isTrash
               ? null
               : (file) => FileInfoPanel.show(
