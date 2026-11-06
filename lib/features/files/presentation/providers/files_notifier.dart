@@ -69,7 +69,12 @@ class FilesNotifier extends Notifier<FilesState> {
     state = _with(search: search, page: 1);
   }
 
-  void setSort(FilesSort sort) => state = _with(sort: sort);
+  void setSort(FilesSort sort) {
+    if (sort == state.sort) return;
+    // Reversing the order moves the oldest files to the other end of the
+    // list, so the page the user was on no longer means the same thing.
+    state = _with(sort: sort, page: 1);
+  }
 
   void setTab(FilesTab tab) => state = _with(tab: tab);
 
@@ -85,11 +90,50 @@ class FilesNotifier extends Notifier<FilesState> {
 }
 
 /// The current page of files for the Files page's query.
+///
+/// The server always lists files newest first and offers no sort parameter,
+/// so oldest-first is read from the other end: display page 1 is the last
+/// server page, display page 2 the one before it, and so on. The first page
+/// is fetched once to learn how many pages there are.
 class FilesListNotifier extends AsyncNotifier<FilesPage> {
+  FilesQuery? _seedQuery;
+  int? _serverPages;
+
   @override
   Future<FilesPage> build() async {
     final query = ref.watch(filesProvider.select((s) => s.query));
-    final result = await ref.read(filesRepositoryProvider).fetchFiles(query);
+    final repository = ref.read(filesRepositoryProvider);
+
+    if (query.sort == FilesSort.newestFirst) {
+      _seedQuery = null;
+      _serverPages = null;
+      return _fetch(repository, query);
+    }
+
+    // The seed page depends on the filters, not on the page or the sort.
+    final seedQuery = query.copyWith(page: 1);
+    if (_seedQuery != seedQuery) {
+      _seedQuery = seedQuery;
+      _serverPages = null;
+    }
+    var totalPages = _serverPages;
+    if (totalPages == null) {
+      totalPages = (await _fetch(repository, seedQuery)).totalPages;
+      _serverPages = totalPages;
+    }
+
+    final serverPage = (totalPages - query.page + 1).clamp(1, totalPages);
+    final page = await _fetch(repository, query.copyWith(page: serverPage));
+    _serverPages = page.totalPages;
+    return FilesPage(
+      files: query.sort.apply(page.files),
+      currentPage: query.page.clamp(1, page.totalPages),
+      totalPages: page.totalPages,
+    );
+  }
+
+  Future<FilesPage> _fetch(FilesRepository repository, FilesQuery query) async {
+    final result = await repository.fetchFiles(query);
     return switch (result) {
       Success<FilesPage>(:final value) => value,
       Failure<FilesPage>(:final error) => throw error,
