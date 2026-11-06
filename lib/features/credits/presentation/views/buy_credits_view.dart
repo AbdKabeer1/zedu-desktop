@@ -187,11 +187,12 @@ class _BuyCreditsViewState extends ConsumerState<BuyCreditsView> {
         );
       }
     } catch (e) {
+      AppLogger.w('Could not launch credit checkout page', error: e);
       if (context.mounted) {
         AppToastService.show(
           context,
           type: AppToastType.error,
-          message: 'Error launching payment page: $e',
+          message: 'Could not open the payment page. Please try again.',
         );
       }
     }
