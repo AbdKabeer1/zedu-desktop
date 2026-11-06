@@ -112,6 +112,7 @@ class AuthNotifier extends Notifier<AuthState> {
     _interceptor = locator<AuthInterceptor>();
     ref.onDispose(() {
       _disposed = true;
+      _interceptor.onUnauthorized = null;
       _statusExpiryTimer?.cancel();
     });
     // Whenever the user (or their status) changes, re-arm the "Clear after" timer.
@@ -129,6 +130,7 @@ class AuthNotifier extends Notifier<AuthState> {
     });
 
     _interceptor.onUnauthorized = () {
+      if (_disposed || !ref.mounted) return;
       AppLogger.w('Unauthorized — clearing session', tag: _tag);
       // Only a session that was signed in expired: a 401 from a login attempt
       // or a session restore is not one, and further 401s from requests that
