@@ -309,14 +309,23 @@ class _PreviewCard extends StatelessWidget {
           Container(
             height: 200,
             color: colors.primaryBg,
-            child: file.isImage && file.link.isNotEmpty
-                ? Image.network(
-                    file.link,
-                    fit: BoxFit.contain,
-                    semanticLabel: file.name,
-                    errorBuilder: (_, _, _) => noPreview(),
-                  )
-                : noPreview(),
+            child: file.link.isEmpty
+                ? noPreview()
+                : switch (FilePreviewKind.of(file)) {
+                    FilePreviewKind.svg => SvgPicture.network(
+                      file.link,
+                      fit: BoxFit.contain,
+                      semanticsLabel: file.name,
+                      errorBuilder: (_, _, _) => noPreview(),
+                    ),
+                    FilePreviewKind.image => Image.network(
+                      file.link,
+                      fit: BoxFit.contain,
+                      semanticLabel: file.name,
+                      errorBuilder: (_, _, _) => noPreview(),
+                    ),
+                    _ => noPreview(),
+                  },
           ),
         ],
       ),
