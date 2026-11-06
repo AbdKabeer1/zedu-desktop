@@ -223,6 +223,18 @@ class DmRepository {
     );
   }
 
+  /// Pins a message for everyone in the conversation, through the route the
+  /// web app uses for channels and DMs alike.
+  Future<void> pinMessage({
+    required String threadId,
+    required String channelId,
+  }) async {
+    await _apiClient.post<Map<String, dynamic>>(
+      path: '/channels/pin/$channelId/thread',
+      data: {'thread_id': threadId},
+    );
+  }
+
   Future<void> editMessage(
     String messageId, {
     required String content,
