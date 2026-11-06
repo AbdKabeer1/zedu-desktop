@@ -63,7 +63,15 @@ class ActiveCallNotifier extends ChangeNotifier {
   Timer? _ringTimer;
   bool _disposed = false;
 
-  ActiveCallNotifier(this._ref, {this.ringTimeout = defaultRingTimeout});
+  ActiveCallNotifier(this._ref, {this.ringTimeout = defaultRingTimeout}) {
+    // Listen for the notifier's whole lifetime, not just while placing a call:
+    // an idle client must hear an incoming call, since the modal only shows
+    // once the state flips to CallStatus.incoming.
+    _callEventsSub = _ref
+        .read(buzzRepositoryProvider)
+        .callEvents
+        .listen(_handleCallSignal);
+  }
 
   ActiveCallState get state => _state;
   bool get isDisposed => _disposed;
@@ -140,7 +148,6 @@ class ActiveCallNotifier extends ChangeNotifier {
 
       if (_disposed) return;
 
-      _callEventsSub = repo.callEvents.listen(_handleCallSignal);
       _ringTimer = Timer(ringTimeout, () {
         if (_disposed) return;
         if (_state.status == CallStatus.calling && _state.buzzId == buzzId) {
@@ -182,7 +189,58 @@ class ActiveCallNotifier extends ChangeNotifier {
         type == 'buzz_ended' ||
         type == 'missed') {
       onRemoteCallDeclined(buzzId: eventBuzzId);
+    } else if (type == 'incoming' ||
+        type == 'incoming_call' ||
+        type == 'call_incoming' ||
+        type == 'invite' ||
+        type == 'invitation' ||
+        type == 'direct_call_invite' ||
+        type == 'ring' ||
+        type == 'ringing') {
+      final String? remoteUserId = _firstString(event, [
+        'remoteUserId',
+        'remote_user_id',
+        'callerId',
+        'caller_id',
+        'fromUserId',
+        'from_user_id',
+      ]);
+      final String? remoteUserName = _firstString(event, [
+        'remoteUserName',
+        'remote_user_name',
+        'callerName',
+        'caller_name',
+        'name',
+      ]);
+      final String? channelId =
+          _firstString(event, ['channelId', 'channel_id']);
+      final String? avatarUrl = _firstString(event, [
+        'remoteAvatarUrl',
+        'remote_avatar_url',
+        'avatarUrl',
+        'avatar_url',
+      ]);
+      if (eventBuzzId != null &&
+          remoteUserId != null &&
+          remoteUserName != null &&
+          channelId != null) {
+        receiveIncomingCall(
+          buzzId: eventBuzzId,
+          remoteUserId: remoteUserId,
+          remoteUserName: remoteUserName,
+          channelId: channelId,
+          remoteAvatarUrl: avatarUrl,
+        );
+      }
     }
+  }
+
+  String? _firstString(Map<String, dynamic> event, List<String> keys) {
+    for (final key in keys) {
+      final value = event[key];
+      if (value is String && value.isNotEmpty) return value;
+    }
+    return null;
   }
 
   void onRemoteCallAccepted({String? buzzId, String? token}) {
@@ -238,6 +296,15 @@ class ActiveCallNotifier extends ChangeNotifier {
       lastCallAt: DateTime.now(),
     );
     notifyListeners();
+
+    // The caller gives up after its own ring timeout; dismiss the ring on the
+    // same schedule so the modal never rings forever.
+    _ringTimer = Timer(ringTimeout, () {
+      if (_disposed) return;
+      if (_state.status == CallStatus.incoming && _state.buzzId == buzzId) {
+        unawaited(declineCall());
+      }
+    });
   }
 
   Future<void> acceptCall() async {
@@ -294,8 +361,6 @@ class ActiveCallNotifier extends ChangeNotifier {
   void _cancelTimersAndSubscriptions() {
     _ringTimer?.cancel();
     _ringTimer = null;
-    unawaited(_callEventsSub?.cancel());
-    _callEventsSub = null;
   }
 
   @override
@@ -303,6 +368,8 @@ class ActiveCallNotifier extends ChangeNotifier {
     if (_disposed) return;
     _disposed = true;
     _cancelTimersAndSubscriptions();
+    unawaited(_callEventsSub?.cancel());
+    _callEventsSub = null;
     // The Ref can't be used while disposing, so stop the ringtone we hold.
     final ringtone = _ringing;
     _ringing = null;
