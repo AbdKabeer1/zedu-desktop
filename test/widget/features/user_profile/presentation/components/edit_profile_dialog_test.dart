@@ -13,7 +13,11 @@ void main() {
     timezone: 'Africa/Lagos',
   );
 
-  Future<void> openDialog(WidgetTester tester, EditProfileSave onSave) async {
+  Future<void> openDialog(
+    WidgetTester tester,
+    EditProfileSave onSave, [
+    ProfileAccount initialAccount = account,
+  ]) async {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     tester.view.physicalSize = const Size(1280, 900);
@@ -23,7 +27,8 @@ void main() {
         Builder(
           builder: (context) => Scaffold(
             body: TextButton(
-              onPressed: () => showEditProfileDialog(context, account, onSave),
+              onPressed: () =>
+                  showEditProfileDialog(context, initialAccount, onSave),
               child: const Text('Open'),
             ),
           ),
@@ -106,6 +111,93 @@ void main() {
 
     expect(find.text('Select a country from the list'), findsNothing);
     expect(saved?.country, 'Nigeria');
+  });
+
+  testWidgets('displays the friendly label for the saved IANA timezone', (
+    tester,
+  ) async {
+    await openDialog(tester, (_) async => null);
+
+    expect(find.text('(UTC+01:00) West Central Africa'), findsOneWidget);
+  });
+
+  testWidgets(
+    'preserves existing valid IANA value when saved without changing timezone',
+    (tester) async {
+      ProfileAccount? saved;
+      await openDialog(tester, (account) async {
+        saved = account;
+        return null;
+      });
+
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+
+      expect(saved?.timezone, 'Africa/Lagos');
+    },
+  );
+
+  testWidgets(
+    'selecting a timezone persists an IANA identifier, not the dropdown label',
+    (tester) async {
+      ProfileAccount? saved;
+      await openDialog(tester, (account) async {
+        saved = account;
+        return null;
+      });
+
+      final timezoneDropdown = find.byType(DropdownButtonFormField<String>);
+      await tester.ensureVisible(timezoneDropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(timezoneDropdown);
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.text('(UTC+00:00) London, Dublin, Lisbon').last,
+        warnIfMissed: false,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+
+      expect(saved?.timezone, 'Europe/London');
+    },
+  );
+
+  testWidgets(
+    'maps an older saved display label to its IANA identifier on save',
+    (tester) async {
+      ProfileAccount? saved;
+      await openDialog(tester, (account) async {
+        saved = account;
+        return null;
+      }, account.copyWith(timezone: '(UTC+01:00) West Central Africa'));
+
+      expect(find.text('(UTC+01:00) West Central Africa'), findsOneWidget);
+
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+
+      expect(saved?.timezone, 'Africa/Lagos');
+    },
+  );
+
+  testWidgets('preserves an unknown IANA timezone if the account has one', (
+    tester,
+  ) async {
+    ProfileAccount? saved;
+    await openDialog(tester, (account) async {
+      saved = account;
+      return null;
+    }, account.copyWith(timezone: 'Africa/Accra'));
+
+    expect(find.text('Africa/Accra'), findsOneWidget);
+
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+
+    expect(saved?.timezone, 'Africa/Accra');
   });
 
   group('saving', () {
