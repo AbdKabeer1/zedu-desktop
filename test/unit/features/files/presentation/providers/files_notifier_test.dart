@@ -202,21 +202,27 @@ void main() {
       expect(uploads.read(filesActionsProvider).isUploading, isFalse);
     });
 
-    test('shows the top-level Files tab afterwards', () async {
-      uploads.read(filesProvider.notifier)
-        ..selectView(FilesScope.trash)
-        ..openFolder(_docs)
-        ..setTab(FilesTab.folders);
+    test(
+      'keeps the open folder afterwards so the uploads are visible',
+      () async {
+        uploads.read(filesProvider.notifier)
+          ..selectView(FilesScope.trash)
+          ..openFolder(_docs)
+          ..setTab(FilesTab.folders);
 
-      await uploads.read(filesActionsProvider.notifier).uploadFiles([
-        _file('a.png'),
-      ]);
+        await uploads.read(filesActionsProvider.notifier).uploadFiles([
+          _file('a.png'),
+        ]);
 
-      final state = uploads.read(filesProvider);
-      expect(state.view, FilesScope.all);
-      expect(state.folderPath, isEmpty);
-      expect(state.tab, FilesTab.files);
-    });
+        final state = uploads.read(filesProvider);
+        expect(state.view, FilesScope.all);
+        // The old behaviour jumped to the top level, leaving the user staring at
+        // a folder that looked empty because the file landed at the root.
+        expect(state.folderPath, isNotEmpty);
+        expect(state.folderId, isNotNull);
+        expect(state.tab, FilesTab.files);
+      },
+    );
   });
 }
 
@@ -257,7 +263,7 @@ class _PagedRepository implements FilesRepository {
   }) async => const Success(FoldersPage(folders: []));
 
   @override
-  Future<Result<WorkspaceFile>> uploadFile(XFile file) async =>
+  Future<Result<WorkspaceFile>> uploadFile(XFile file, {String? parentId}) async =>
       Success(WorkspaceFile(id: file.name, name: file.name));
 
   @override
@@ -273,7 +279,7 @@ class _UploadRepository implements FilesRepository {
   ApiFailure? folderError;
 
   @override
-  Future<Result<WorkspaceFile>> uploadFile(XFile file) async {
+  Future<Result<WorkspaceFile>> uploadFile(XFile file, {String? parentId}) async {
     uploaded.add(file.name);
     return file.name.startsWith('bad')
         ? const Failure(ApiFailure(message: 'too large'))

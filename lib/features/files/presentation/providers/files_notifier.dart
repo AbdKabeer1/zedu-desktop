@@ -210,6 +210,7 @@ class FilesActionsNotifier extends Notifier<FilesActionsState> {
       return const FilesUploadOutcome(uploaded: 0, failedNames: []);
     }
     final repository = ref.read(filesRepositoryProvider);
+    final parentId = ref.read(filesProvider).folderId;
     final workspace = ref.read(currentOrgIdProvider);
     final version = _workspaceVersion;
     bool sameWorkspace() =>
@@ -229,7 +230,7 @@ class FilesActionsNotifier extends Notifier<FilesActionsState> {
         break;
       }
       final file = files[index];
-      final result = await repository.uploadFile(file);
+      final result = await repository.uploadFile(file, parentId: parentId);
       if (!ref.mounted) break;
       switch (result) {
         case Success():
@@ -249,10 +250,10 @@ class FilesActionsNotifier extends Notifier<FilesActionsState> {
     if (!workspaceChanged && uploaded > 0) {
       final files = ref.read(filesProvider.notifier);
       if (ref.read(filesProvider).view == FilesScope.trash) {
+        // Trash has no folders, so All files is the only place uploads can show.
         files.selectView(FilesScope.all);
       }
       files
-        ..goToDepth(0)
         ..setTab(FilesTab.files)
         ..setPage(1);
       ref.invalidate(filesListProvider);
