@@ -81,6 +81,10 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
 
   Timer? _draftSaveDebounce;
 
+  /// Last time this composer published a typing keystroke. Publishing is
+  /// throttled so holding a key doesn't notify on every character.
+  DateTime? _lastTypingPublish;
+
   /// Draft store for the current user and org. Held in a field because `ref`
   /// can't be used in [dispose], and a flush must go to the store the draft
   /// was typed against.
@@ -117,6 +121,9 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
           _draftChannelId ?? oldWidget.draftKey ?? oldWidget.channelId;
       final previousDrafts = _drafts;
       final wasEditing = _isEditMode;
+      // Typing belongs to the previous conversation; drop it there. The
+      // throttle resets so the first keystroke here publishes at once.
+      _clearTypingActivity(previousChannel);
 
       // Edit-mode text is an already-sent message, never a draft. Otherwise
       // flush the previous conversation's text. Store and chat-history writes
@@ -154,6 +161,8 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     // the write is deferred because the store notifies providers, which isn't
     // allowed while the tree is unmounting.
     _draftSaveDebounce?.cancel();
+    // Best effort: the entry expires on its own if the read below can't run.
+    _clearTypingActivity(widget.channelId);
     if (!_isEditMode &&
         !_channelDeleted &&
         _controller.text.trim().isNotEmpty) {
@@ -209,6 +218,69 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
       if (!mounted) return;
       _drafts.save(_draftKey, text);
     });
+    _publishTypingActivity();
+  }
+
+  /// The signed-in user's id, or null when auth isn't available (e.g. a
+  /// widget test pumping the composer without auth set up). Typing presence
+  /// is ancillary: it stays inert rather than breaking the composer.
+  String? get _selfUserId {
+    try {
+      final id = ref.read(authNotifierProvider).user?.id;
+      return id == null || id.isEmpty ? null : id;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? get _selfDisplayName {
+    try {
+      final user = ref.read(authNotifierProvider).user;
+      if (user == null) return null;
+      final name = '${user.firstName} ${user.lastName}'.trim();
+      final display = name.isNotEmpty ? name : user.username;
+      return display.isEmpty ? null : display;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Tells the conversation someone is typing, throttled to one publish
+  /// every 3 seconds while the box holds text. An empty box clears the
+  /// entry at once; otherwise the entry expires 4 seconds after the last
+  /// keystroke (see [TypingPresenceNotifier]).
+  void _publishTypingActivity() {
+    if (widget.channelId.isEmpty) return;
+    final userId = _selfUserId;
+    if (userId == null) return;
+    final typing = ref.read(typingPresenceProvider(widget.channelId).notifier);
+    if (_controller.text.trim().isEmpty) {
+      typing.clearTyping(userId);
+      _lastTypingPublish = null;
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastTypingPublish != null &&
+        now.difference(_lastTypingPublish!) < const Duration(seconds: 3)) {
+      return;
+    }
+    _lastTypingPublish = now;
+    final displayName = _selfDisplayName;
+    if (displayName == null) return;
+    typing.setTyping(userId: userId, displayName: displayName);
+  }
+
+  /// Drops this user's typing entry for [channelId] without notifying.
+  void _clearTypingActivity(String channelId) {
+    if (channelId.isEmpty) return;
+    final userId = _selfUserId;
+    if (userId == null) return;
+    try {
+      ref.read(typingPresenceProvider(channelId).notifier).clearTyping(userId);
+    } catch (_) {
+      // The presence entry expires on its own a few seconds later.
+    }
+    _lastTypingPublish = null;
   }
 
   void _updateFormattingState() {
@@ -356,6 +428,8 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     // The message is out, so the draft no longer exists.
     _draftSaveDebounce?.cancel();
     _drafts.clear(_draftKey);
+    // Sent text is no longer typing.
+    _clearTypingActivity(widget.channelId);
 
     _controller.clear();
     // Saving an edit sends nothing, so a waiting voice note or file is kept.
@@ -1076,6 +1150,10 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     final mainColumn = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        TypingIndicator(
+          channelId: widget.channelId,
+          excludeUserId: _selfUserId,
+        ),
         if (_mentionSuggestions.isNotEmpty)
           MentionSuggestionList(
             suggestions: _mentionSuggestions,
