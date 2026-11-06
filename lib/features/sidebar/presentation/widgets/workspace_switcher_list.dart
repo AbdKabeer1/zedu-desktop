@@ -156,7 +156,7 @@ class WorkspaceSwitcherList extends ConsumerWidget {
                   ),
                 ),
                 Text(
-                  workspace.channelsLabel,
+                  workspace.membersLabel,
                   style: TextStyle(color: colors.textHint, fontSize: 13),
                 ),
               ],

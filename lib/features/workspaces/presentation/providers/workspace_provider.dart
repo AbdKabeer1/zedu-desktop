@@ -62,7 +62,7 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
               id: id,
               name: item['name'] as String? ?? 'Workspace',
               avatar: item['logo_url'] as String? ?? '',
-              channelsCount: (item['channels_count'] as num?)?.toInt() ?? 0,
+              membersCount: (item['Users'] as List<dynamic>?)?.length ?? 0,
             ),
           );
         }
@@ -106,28 +106,28 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
         name: 'HNG Workspace',
         avatar: '',
         unreadCount: 1351,
-        channelsCount: 1351,
+        membersCount: 1351,
       ),
       const Workspace(
         id: '2',
         name: 'TeamFlow Collective',
         avatar: '',
         unreadCount: 15,
-        channelsCount: 42,
+        membersCount: 42,
       ),
       const Workspace(
         id: '3',
         name: 'Coffee & Code House',
         avatar: '',
         unreadCount: 0,
-        channelsCount: 12,
+        membersCount: 12,
       ),
       const Workspace(
         id: '4',
         name: 'ConnectHub',
         avatar: '',
         unreadCount: 3,
-        channelsCount: 89,
+        membersCount: 89,
       ),
     ];
 

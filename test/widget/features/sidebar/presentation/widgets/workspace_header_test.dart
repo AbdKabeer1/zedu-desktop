@@ -8,7 +8,7 @@ class FakeWorkspaceNotifier extends WorkspaceNotifier {
     id: '1',
     name: 'commabuster',
     avatar: '',
-    channelsCount: 12,
+    membersCount: 12,
   );
 
   @override
