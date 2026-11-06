@@ -37,6 +37,8 @@ class _AuthDeepLinkListenerState extends ConsumerState<AuthDeepLinkListener> {
       AppLogger.w('Failed to read initial deep link', tag: _tag);
     }
 
+    if (!mounted) return;
+
     _linkSubscription = _appLinks.uriLinkStream.listen(
       (uri) {
         unawaited(_handleUri(uri));

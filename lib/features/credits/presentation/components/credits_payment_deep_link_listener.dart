@@ -43,6 +43,8 @@ class _CreditsPaymentDeepLinkListenerState
       AppLogger.w('Failed to read initial payment deep link', tag: _tag);
     }
 
+    if (!mounted) return;
+
     _linkSubscription = _appLinks.uriLinkStream.listen(
       (uri) => unawaited(_handleUri(uri)),
       onError: (Object error, StackTrace stackTrace) {
