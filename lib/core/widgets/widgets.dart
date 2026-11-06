@@ -7,3 +7,4 @@ export 'app_toast.dart';
 export 'code_block.dart';
 export 'desktop_manager.dart';
 export 'message_links.dart';
+export 'offline_status_indicator.dart';
