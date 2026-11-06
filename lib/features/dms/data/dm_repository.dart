@@ -54,6 +54,21 @@ class DmRepository {
     );
   }
 
+  /// Searches the whole history of one conversation on the server, not just
+  /// the messages loaded on screen.
+  Future<List<ConversationSearchHit>> searchMessages({
+    required String channelId,
+    required String query,
+  }) async {
+    final trimmed = query.trim();
+    if (channelId.isEmpty || trimmed.isEmpty) return const [];
+    final response = await _apiClient.get<Map<String, dynamic>>(
+      path: '/search/channel/$channelId',
+      queryParameters: {'query': trimmed, 'sortBy': 'relevance'},
+    );
+    return ConversationSearchHit.fromResponse(response.data['data']);
+  }
+
   Future<List<Map<String, dynamic>>> getMessages(
     String channelId, {
     int page = 1,
