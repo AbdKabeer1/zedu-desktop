@@ -30,9 +30,7 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
 
   bool get _isOwnSpace {
     final userId = ref.read(authNotifierProvider).user?.id;
-    return userId != null &&
-        userId.isNotEmpty &&
-        widget.conversation.participantId == userId;
+    return widget.conversation.isOwnSpaceFor(userId);
   }
 
   bool _isOwnSpaceSystemEvent(Map<String, dynamic> message) {
