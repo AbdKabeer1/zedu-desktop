@@ -2,6 +2,8 @@ import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
 class ChatHistoryNotifier extends ChangeNotifier {
+  static const _tag = 'ChatHistoryNotifier';
+
   final String channelId;
   final Ref ref;
   late final ComposerFileStore _fileStore;
@@ -107,7 +109,13 @@ class ChatHistoryNotifier extends ChangeNotifier {
       page = 1;
       loadFailed = false;
       _markSeen(loaded);
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(
+        'Failed to load initial chat history for channel $channelId',
+        tag: _tag,
+        error: e,
+        stackTrace: st,
+      );
       loadFailed = true;
     } finally {
       if (!_isDisposed) {
@@ -299,7 +307,13 @@ class ChatHistoryNotifier extends ChangeNotifier {
           newMessages.length >= DmRepository.pageSize &&
           !newMessages.any(_isCleared);
       page = nextPage;
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(
+        'Failed to load more messages for channel $channelId on page ${page + 1}',
+        tag: _tag,
+        error: e,
+        stackTrace: st,
+      );
       loadMoreFailed = true;
     } finally {
       if (!_isDisposed) {
@@ -401,7 +415,13 @@ class ChatHistoryNotifier extends ChangeNotifier {
         }
         return m;
       }).toList();
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(
+        'Failed to send message in channel $channelId',
+        tag: _tag,
+        error: e,
+        stackTrace: st,
+      );
       if (_isDisposed) return;
       messages = messages.map((m) {
         if (m['id'] == tempId) {
@@ -453,7 +473,13 @@ class ChatHistoryNotifier extends ChangeNotifier {
         }
         return m;
       }).toList();
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(
+        'Failed to retry message $messageId in channel $channelId',
+        tag: _tag,
+        error: e,
+        stackTrace: st,
+      );
       if (_isDisposed) return;
       messages = messages.map((m) {
         if (m['id'] == messageId) {
@@ -613,7 +639,13 @@ class ChatHistoryNotifier extends ChangeNotifier {
         content: newContent,
         threadId: threadId,
       );
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(
+        'Failed to save edit for message $messageId in channel $channelId',
+        tag: _tag,
+        error: e,
+        stackTrace: st,
+      );
       if (_isDisposed) return;
       messages = messages.map((m) {
         if (m['id'] == messageId && m['content'] == newContent) {
