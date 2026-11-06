@@ -213,26 +213,56 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('right-click offers Copy text and copies the plain text', (
+    // On a desktop the message text has its own right-click menu (Select
+    // all, Copy). That menu has to carry Copy text as well.
+    testWidgets('right-clicking the text offers Copy text and copies the '
+        'plain text', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        await mockClipboard(tester);
+        await pumpList(
+          tester,
+          const Success([
+            ChannelMessage(senderName: 'Ada', text: 'Ship **it** today'),
+          ]),
+        );
+
+        await rightClick(tester, find.byType(SelectableText));
+        expect(find.text('Copy text'), findsOneWidget);
+
+        await tester.tap(find.text('Copy text'));
+        await tester.pump();
+
+        expect(copied, ['Ship it today']);
+        expect(find.text('Copied'), findsOneWidget);
+        await tester.pumpAndSettle(const Duration(seconds: 5));
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    testWidgets('right-clicking beside the text offers Copy text too', (
       tester,
     ) async {
-      await mockClipboard(tester);
-      await pumpList(
-        tester,
-        const Success([
-          ChannelMessage(senderName: 'Ada', text: 'Ship **it** today'),
-        ]),
-      );
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        await mockClipboard(tester);
+        await pumpList(
+          tester,
+          const Success([ChannelMessage(senderName: 'Ada', text: 'hello')]),
+        );
 
-      await rightClick(tester, find.byType(ChannelMessageTile));
-      expect(find.text('Copy text'), findsOneWidget);
+        await rightClick(tester, find.byType(CircleAvatar));
+        expect(find.text('Copy text'), findsOneWidget);
 
-      await tester.tap(find.text('Copy text'));
-      await tester.pump();
+        await tester.tap(find.text('Copy text'));
+        await tester.pump();
 
-      expect(copied, ['Ship it today']);
-      expect(find.text('Copied'), findsOneWidget);
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+        expect(copied, ['hello']);
+        await tester.pumpAndSettle(const Duration(seconds: 5));
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
     });
 
     testWidgets('hovering a message shows an actions button with Copy text', (

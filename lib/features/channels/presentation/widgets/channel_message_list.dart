@@ -344,6 +344,22 @@ class _ChannelMessageTileState extends State<ChannelMessageTile> {
                 const SizedBox(height: 4),
                 MessageLinkScope(
                   builder: (context, links) => SelectableText.rich(
+                    // Right-clicking the text opens the text's own menu, not
+                    // the tile's, so "Copy text" has to be added to it.
+                    contextMenuBuilder: (context, editableTextState) =>
+                        AdaptiveTextSelectionToolbar.buttonItems(
+                          anchors: editableTextState.contextMenuAnchors,
+                          buttonItems: [
+                            ContextMenuButtonItem(
+                              label: 'Copy text',
+                              onPressed: () {
+                                editableTextState.hideToolbar();
+                                copyChannelMessageText(this.context, message);
+                              },
+                            ),
+                            ...editableTextState.contextMenuButtonItems,
+                          ],
+                        ),
                     buildInlineMarkdownSpan(
                       message.text,
                       TextStyle(fontSize: 15, color: colors.textPrimary),
