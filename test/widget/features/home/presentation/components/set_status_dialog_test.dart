@@ -78,6 +78,43 @@ MouseCursor _activeCursor() =>
     RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1)!;
 
 void main() {
+  testWidgets('close button has a tooltip and dismisses the status dialog', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [authNotifierProvider.overrideWith(_FakeAuthNotifier.new)],
+        child: MaterialApp(
+          theme: AppTheme.light.copyWith(splashFactory: NoSplash.splashFactory),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (_) => const SetStatusDialog(),
+                ),
+                child: const Text('Open status'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open status'));
+    await tester.pumpAndSettle();
+
+    final closeButton = find.byTooltip('Close');
+    expect(closeButton, findsOneWidget);
+    await tester.tap(closeButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SetStatusDialog), findsNothing);
+  });
+
   group('SetStatusDialog suggested statuses', () {
     testWidgets('shows no selected suggestion initially', (tester) async {
       await _pumpDialog(tester);
