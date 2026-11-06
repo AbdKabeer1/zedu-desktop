@@ -155,7 +155,7 @@ class _OrganizationAvatar extends StatelessWidget {
       width: 120,
       height: 120,
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
+        color: context.colors.primaryBg,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Center(
