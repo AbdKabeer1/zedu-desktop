@@ -584,9 +584,14 @@ class _ChannelHeaderMenu extends ConsumerWidget {
         AppToastService.showWith(
           overlay,
           type: AppToastType.error,
-          message: error.message.isEmpty
-              ? 'Could not leave #${channel.name}'
-              : error.message,
+          message: switch (error.kind) {
+            ApiFailureKind.unknown || ApiFailureKind.parsing =>
+              'Could not leave #${channel.name}. Please try again.',
+            _ =>
+              error.friendlyMessage.isEmpty
+                  ? 'Could not leave #${channel.name}'
+                  : error.friendlyMessage,
+          },
         );
     }
   }
