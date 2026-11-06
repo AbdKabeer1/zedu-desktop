@@ -230,6 +230,7 @@ class _FoldersSection extends ConsumerWidget {
               folders: page.folders,
               ownerNameOf: ownerName,
               onOpen: notifier.openFolder,
+              onDelete: (folder) => _deleteFolder(context, ref, folder),
             ),
             if (page.totalPages > 1)
               _Pagination(
@@ -538,6 +539,47 @@ Future<void> _newFolder(BuildContext context) async {
       context,
     ).showSnackBar(const SnackBar(content: Text('Folder created')));
   }
+}
+
+Future<void> _deleteFolder(
+  BuildContext context,
+  WidgetRef ref,
+  FileFolder folder,
+) async {
+  final colors = context.colors;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: colors.onPrimary,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      title: Text('Delete "${folder.name}"?'),
+      content: const Text(
+        'The folder and everything inside it will be deleted.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: colors.error,
+            foregroundColor: colors.onPrimary,
+          ),
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+  final error = await ref
+      .read(filesActionsProvider.notifier)
+      .deleteFolder(folder);
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(error ?? 'Folder deleted')),
+  );
 }
 
 /// Picks files and uploads them, showing progress on the button.

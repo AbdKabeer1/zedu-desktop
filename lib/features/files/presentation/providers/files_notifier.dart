@@ -180,10 +180,12 @@ class FilesUploadOutcome {
 class FilesActionsState {
   final int uploadsLeft;
   final bool isCreatingFolder;
+  final bool isDeletingFolder;
 
   const FilesActionsState({
     this.uploadsLeft = 0,
     this.isCreatingFolder = false,
+    this.isDeletingFolder = false,
   });
 
   bool get isUploading => uploadsLeft > 0;
@@ -298,6 +300,36 @@ class FilesActionsNotifier extends Notifier<FilesActionsState> {
         return message.isNotEmpty
             ? message
             : 'Could not create the folder. Try again.';
+    }
+  }
+
+  /// Deletes [folder]. Returns an error message, or null when it worked.
+  Future<String?> deleteFolder(FileFolder folder) async {
+    if (state.isDeletingFolder) return null;
+    state = FilesActionsState(
+      uploadsLeft: state.uploadsLeft,
+      isCreatingFolder: state.isCreatingFolder,
+      isDeletingFolder: true,
+    );
+    final result = await ref
+        .read(filesRepositoryProvider)
+        .deleteFolder(folder.id);
+    if (!ref.mounted) return null;
+    state = FilesActionsState(uploadsLeft: state.uploadsLeft);
+    switch (result) {
+      case Success():
+        final notifier = ref.read(filesProvider.notifier);
+        // Leaving a folder that no longer exists: step back to its parent.
+        final path = ref.read(filesProvider).folderPath;
+        final depth = path.indexWhere((f) => f.id == folder.id);
+        if (depth >= 0) notifier.goToDepth(depth);
+        notifier.setTab(FilesTab.folders);
+        ref.invalidate(foldersListProvider);
+        return null;
+      case Failure(:final error):
+        return error.message.isNotEmpty
+            ? error.message
+            : 'Could not delete the folder. Try again.';
     }
   }
 }
