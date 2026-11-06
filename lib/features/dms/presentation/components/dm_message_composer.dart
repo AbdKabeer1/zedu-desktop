@@ -802,7 +802,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'File ${file.name} could not be attached: invalid file.',
+                "Couldn't read ${file.path.split(RegExp(r'[\\/]')).last}.",
               ),
             ),
           );
