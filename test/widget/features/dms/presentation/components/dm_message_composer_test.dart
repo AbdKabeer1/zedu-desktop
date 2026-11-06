@@ -629,6 +629,25 @@ void main() {
       expect(recorder.recordedPaths, hasLength(1));
       expect(sendIcon().color, AppPalette.light.primary);
     });
+
+    testWidgets('tapping formatting help button opens FormattingHelpDialog', (
+      tester,
+    ) async {
+      await pumpComposer(tester);
+
+      expect(
+        find.byKey(const Key('dm_composer_formatting_help_button')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const Key('dm_composer_formatting_help_button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FormattingHelpDialog), findsOneWidget);
+      expect(find.text('Formatting help'), findsOneWidget);
+    });
   });
 }
 
