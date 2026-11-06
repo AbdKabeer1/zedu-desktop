@@ -11,6 +11,7 @@ class FakeBuzzRepository extends BuzzRepository {
   final String buzzId;
   final String token;
   final List<(String, bool)> directCallResponses = <(String, bool)>[];
+  final List<(String, bool)> invitationResponses = <(String, bool)>[];
   Completer<Map<String, dynamic>>? pendingInitiateCall;
 
   @override
@@ -31,6 +32,25 @@ class FakeBuzzRepository extends BuzzRepository {
     directCallResponses.add((buzzId, accept));
     return true;
   }
+
+  @override
+  Future<bool> respondToInvitation(String buzzId, bool accept) async {
+    invitationResponses.add((buzzId, accept));
+    return true;
+  }
+}
+
+class _FakeRingtone implements CallRingtone {
+  final calls = <String>[];
+
+  @override
+  Future<void> start() async => calls.add('start');
+
+  @override
+  Future<void> stop() async => calls.add('stop');
+
+  @override
+  Future<void> dispose() async => calls.add('dispose');
 }
 
 void main() {
@@ -176,6 +196,148 @@ void main() {
         await expectLater(future, completes);
         // Verify state is not modified and buzzId is not populated after disposal
         expect(notifier.state.buzzId, isNull);
+      },
+    );
+  });
+
+  group('ActiveCallNotifier incoming calls (#2917)', () {
+    late FakeBuzzRepository repository;
+    late ProviderContainer container;
+
+    setUp(() {
+      repository = FakeBuzzRepository();
+      container = ProviderContainer(
+        overrides: [
+          buzzRepositoryProvider.overrideWithValue(repository),
+          callRingtoneProvider.overrideWithValue(_FakeRingtone()),
+          activeCallProvider.overrideWith(
+            (ref) => ActiveCallNotifier(
+              ref,
+              ringTimeout: const Duration(milliseconds: 250),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+    });
+
+    Map<String, dynamic> incomingEvent({
+      String buzzId = 'in-buzz-1',
+      String type = 'incoming_call',
+    }) {
+      return <String, dynamic>{
+        'type': type,
+        'buzzId': buzzId,
+        'remoteUserId': 'user-2',
+        'remoteUserName': 'Bob',
+        'channelId': 'dm-1',
+        'remoteAvatarUrl': 'https://example.com/bob.png',
+      };
+    }
+
+    test(
+      'an idle client flips to incoming when a call signal arrives',
+      () async {
+        final notifier = container.read(activeCallProvider);
+        expect(notifier.state.status, CallStatus.none);
+
+        repository.emitCallEvent(incomingEvent());
+        await Future<void>.delayed(Duration.zero);
+
+        expect(notifier.state.status, CallStatus.incoming);
+        expect(notifier.state.buzzId, 'in-buzz-1');
+        expect(notifier.state.remoteUserId, 'user-2');
+        expect(notifier.state.remoteUserName, 'Bob');
+        expect(notifier.state.channelId, 'dm-1');
+        expect(
+          notifier.state.remoteAvatarUrl,
+          'https://example.com/bob.png',
+        );
+      },
+    );
+
+    test(
+      'keeps the modal reachable after an outgoing call ends',
+      () async {
+        final notifier = container.read(activeCallProvider);
+        await notifier.initiateCall(
+          remoteUserId: 'user-3',
+          remoteUserName: 'Cara',
+          channelId: 'dm-2',
+        );
+        expect(notifier.state.status, CallStatus.calling);
+
+        // Caller gives up.
+        notifier.endCall();
+        expect(notifier.state.status, CallStatus.none);
+
+        repository.emitCallEvent(incomingEvent());
+        await Future<void>.delayed(Duration.zero);
+        expect(notifier.state.status, CallStatus.incoming);
+      },
+    );
+
+    test(
+      'declines an incoming call when already busy',
+      () async {
+        final notifier = container.read(activeCallProvider);
+        await notifier.initiateCall(
+          remoteUserId: 'user-3',
+          remoteUserName: 'Cara',
+          channelId: 'dm-2',
+        );
+
+        repository.emitCallEvent(incomingEvent());
+        await Future<void>.delayed(Duration.zero);
+
+        expect(notifier.state.status, CallStatus.calling);
+        expect(repository.invitationResponses, [('in-buzz-1', false)]);
+      },
+    );
+
+    test(
+      'accepting an incoming call goes active with a token',
+      () async {
+        final notifier = container.read(activeCallProvider);
+        repository.emitCallEvent(incomingEvent());
+        await Future<void>.delayed(Duration.zero);
+
+        await notifier.acceptCall();
+
+        expect(notifier.state.status, CallStatus.active);
+        expect(repository.invitationResponses, [('in-buzz-1', true)]);
+      },
+    );
+
+    test(
+      'stops ringing when the incoming call times out unanswered',
+      () async {
+        final notifier = container.read(activeCallProvider);
+        repository.emitCallEvent(incomingEvent());
+        await Future<void>.delayed(Duration.zero);
+        expect(notifier.state.status, CallStatus.incoming);
+
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+
+        expect(notifier.state.status, CallStatus.none);
+        expect(repository.invitationResponses, [('in-buzz-1', false)]);
+      },
+    );
+
+    test(
+      'ignores malformed incoming events instead of half-ringing',
+      () async {
+        final notifier = container.read(activeCallProvider);
+
+        repository.emitCallEvent(<String, dynamic>{
+          'type': 'incoming_call',
+          'buzzId': 'in-buzz-1',
+          'remoteUserId': 'user-2',
+          // Missing remoteUserName and channelId.
+        });
+        await Future<void>.delayed(Duration.zero);
+
+        expect(notifier.state.status, CallStatus.none);
       },
     );
   });
