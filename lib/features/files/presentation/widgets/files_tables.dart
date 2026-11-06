@@ -39,9 +39,17 @@ String formatFileSize(int bytes) {
     size /= 1024;
     unit++;
   }
-  final text = size >= 10 || size == size.roundToDouble()
-      ? size.round().toString()
-      : size.toStringAsFixed(1);
+  // Round to one decimal, then step up a unit when that rounds to a whole
+  // 1024, so 1023.9 KB reads 1 MB instead of an impossible 1024 KB.
+  var one = (size * 10).round() / 10;
+  while (one.round() >= 1024 && unit < units.length - 1) {
+    size /= 1024;
+    unit++;
+    one = (size * 10).round() / 10;
+  }
+  final text = one >= 10 || one == one.roundToDouble()
+      ? one.round().toString()
+      : one.toStringAsFixed(1);
   return '$text ${units[unit]}';
 }
 
