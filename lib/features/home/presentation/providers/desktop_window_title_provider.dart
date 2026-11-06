@@ -29,10 +29,12 @@ bool _isChannelMatch(Channel c, String? activeId) {
   if (activeId == null) return false;
   if (c.id == activeId || c.name == activeId) return true;
   if (activeId == 'general' && c.name.toLowerCase() == 'general') return true;
-  final cleanName =
-      c.name.startsWith('#') ? c.name.substring(1).trim() : c.name.trim();
-  final cleanActive =
-      activeId.startsWith('#') ? activeId.substring(1).trim() : activeId.trim();
+  final cleanName = c.name.startsWith('#')
+      ? c.name.substring(1).trim()
+      : c.name.trim();
+  final cleanActive = activeId.startsWith('#')
+      ? activeId.substring(1).trim()
+      : activeId.trim();
   if (cleanName.isNotEmpty &&
       cleanName.toLowerCase() == cleanActive.toLowerCase()) {
     return true;

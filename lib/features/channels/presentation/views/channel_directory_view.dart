@@ -180,6 +180,27 @@ class _ChannelDirectoryViewState extends ConsumerState<ChannelDirectoryView> {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          if (channel.unreadCount > 0) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.error,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '${channel.unreadCount}',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onError,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
                           Text(
                             channel.membersCount.countLabel('member'),
                             style: textTheme.bodySmall?.copyWith(
