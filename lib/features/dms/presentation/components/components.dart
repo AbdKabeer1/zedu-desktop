@@ -1,4 +1,5 @@
 export 'dm_sidebar_list.dart';
+export 'composer/inline_markdown.dart';
 export 'incoming_call_modal.dart';
 export 'dm_list_tile.dart';
 export 'dm_chat_area.dart';
