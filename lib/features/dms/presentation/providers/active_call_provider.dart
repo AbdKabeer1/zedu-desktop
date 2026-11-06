@@ -212,8 +212,10 @@ class ActiveCallNotifier extends ChangeNotifier {
         'caller_name',
         'name',
       ]);
-      final String? channelId =
-          _firstString(event, ['channelId', 'channel_id']);
+      final String? channelId = _firstString(event, [
+        'channelId',
+        'channel_id',
+      ]);
       final String? avatarUrl = _firstString(event, [
         'remoteAvatarUrl',
         'remote_avatar_url',
