@@ -190,6 +190,90 @@ void main() {
     });
   });
 
+  testWidgets('checkout launch failure shows a friendly message', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1920, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_urlLauncherChannel, (_) async {
+          throw PlatformException(
+            code: 'launch_failed',
+            message: 'private detail',
+          );
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_urlLauncherChannel, null),
+    );
+
+    final repository = MockCreditsRepository();
+    when(repository.getPackages).thenAnswer(
+      (_) async => const Success<List<CreditPackage>>([
+        CreditPackage(
+          id: 'pro',
+          name: 'Pro',
+          description: 'More credits',
+          price: 10,
+          credits: 100,
+          benefits: [],
+        ),
+      ]),
+    );
+    when(() => repository.getUsage('test-org')).thenAnswer(
+      (_) async => const Success(
+        CreditUsage(balance: 0, totalPurchased: 0, totalConsumed: 0),
+      ),
+    );
+    when(
+      () => repository.getUsageReport('test-org'),
+    ).thenAnswer((_) async => const Success(CreditUsageReport.empty));
+    when(
+      () => repository.getTransactions('test-org'),
+    ).thenAnswer((_) async => const Success<List<CreditTransaction>>([]));
+    when(
+      () => repository.purchaseCredits(
+        packageId: 'pro',
+        planId: 'pro',
+        email: 'sample@example.com',
+      ),
+    ).thenAnswer(
+      (_) async => const Success(
+        CreditCheckoutSession(
+          checkoutSessionId: 'session',
+          checkoutSessionUrl: 'https://example.invalid/checkout',
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith(FakeAuthNotifier.new),
+          userProfileNotifierProvider.overrideWith(FakeUserProfileNotifier.new),
+          creditsRepositoryProvider.overrideWithValue(repository),
+          workspaceProvider.overrideWith(FakeWorkspaceNotifier.new),
+        ],
+        child: buildTestMaterialApp(const BuyCreditsView()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Upgrade to Zedu Pro'));
+    await tester.pump();
+
+    expect(
+      find.text('Could not open the payment page. Please try again.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('private detail'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pump(const Duration(seconds: 10));
+  });
+
   for (final balance in [0, 25]) {
     testWidgets('Billing and user menu show the loaded balance of $balance', (
       tester,
