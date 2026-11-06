@@ -38,7 +38,7 @@ abstract interface class UserProfileRemoteDataSource {
   });
   Future<TeamMemberModel> updateMember(TeamMember member);
   Future<void> removeMember(String memberId);
-  Future<List<RolePermissionModel>> getRolesAndPermissions();
+  Future<List<RolePermissionModel>> getRolesAndPermissions({String? orgId});
   Future<BillingInfoModel> getBillingInfo();
 }
 
@@ -432,9 +432,9 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
       return list;
     }
 
-    if (orgId == null || orgId.length < 36) {
-      orgId = '019700db-4e22-7f90-a20e-f9116291ef24';
-    }
+    // With no workspace selected there are no members to show; never fall
+    // back to another organisation's members (Ziki #1452).
+    if (orgId == null || orgId.isEmpty) return [];
 
     try {
       final response = await _apiBaseService.get<Map<String, dynamic>>(
@@ -450,7 +450,8 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
           email: user['email'] as String? ?? '',
           role: user['role'] as String? ?? 'User',
           dateJoined: user['created_at'] as String? ?? '',
-          status: TeamMemberStatus.active, // Or parse from user['status']
+          // Pending invites and deactivated members come back here too.
+          status: TeamMemberModel.statusFromJson(user),
           name: _displayName(user),
           avatarUrl: user['avatar_url'] as String?,
         );
@@ -542,12 +543,17 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   }
 
   @override
-  Future<List<RolePermissionModel>> getRolesAndPermissions() async {
+  Future<List<RolePermissionModel>> getRolesAndPermissions({
+    String? orgId,
+  }) async {
     if (_config.usesMockData) {
       return _roles.map(RolePermissionModel.fromJson).toList();
     }
+    // The API serves an organisation's roles at /organisations/{orgId}/roles;
+    // /profile/organization/roles does not exist (#720).
+    if (orgId == null || orgId.isEmpty) return const [];
     final response = await _apiBaseService.get<Map<String, dynamic>>(
-      path: '/profile/organization/roles',
+      path: '/organisations/$orgId/roles',
     );
     final data = response.data['data'] as List<dynamic>;
     return data
