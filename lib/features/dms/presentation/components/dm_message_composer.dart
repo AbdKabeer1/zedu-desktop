@@ -476,6 +476,19 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     final text = _controller.text;
     final sel = _controller.selection;
     if (!sel.isValid) return;
+    if (sel.isCollapsed) {
+      // "> " only quotes at the start of a line, so a bare caret prefixes the
+      // current line and the caret stays on the same character.
+      final lineStart = sel.start == 0
+          ? 0
+          : text.lastIndexOf('\n', sel.start - 1) + 1;
+      _controller.value = TextEditingValue(
+        text: '${text.substring(0, lineStart)}> ${text.substring(lineStart)}',
+        selection: TextSelection.collapsed(offset: sel.start + 2),
+      );
+      _focusNode.requestFocus();
+      return;
+    }
     final selected = text.substring(sel.start, sel.end);
     // A selection that ends right after a newline leaves an empty last piece.
     // Quoting it would put "> " on the first line that is not selected.
