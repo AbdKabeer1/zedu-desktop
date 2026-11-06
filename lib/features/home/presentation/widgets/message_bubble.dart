@@ -259,11 +259,8 @@ class _MessageBody extends StatelessWidget {
     final cleanText = text.replaceAll(attachmentRegex, '').trim();
 
     Widget markdownWidget = cleanText.isNotEmpty
-        ? MarkdownBody(
+        ? MarkdownWithCodeBlocks(
             data: cleanText,
-            onTapLink: (_, href, _) {
-              if (href != null) openMessageLink(href);
-            },
             styleSheet: MarkdownStyleSheet(
               p: TextStyle(fontSize: 14, color: colors.textPrimary),
               strong: TextStyle(
@@ -283,6 +280,9 @@ class _MessageBody extends StatelessWidget {
                 fontFamily: 'monospace',
               ),
             ),
+            onTapLink: (href) {
+              if (href != null) openMessageLink(href);
+            },
           )
         : const SizedBox.shrink();
 
