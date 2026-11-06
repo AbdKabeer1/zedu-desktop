@@ -87,6 +87,26 @@ void main() {
     );
   });
 
+  test('clears the selected DM when the workspace changes', () {
+    final selected = _conversation('channel-from-org-a');
+    container.read(selectedDmProvider.notifier).select(selected);
+
+    expect(container.read(selectedDmProvider), same(selected));
+
+    container.read(_orgProvider.notifier).select('org-b');
+
+    expect(container.read(selectedDmProvider), isNull);
+  });
+
+  test('preserves the selected DM when the workspace does not change', () {
+    final selected = _conversation('channel-from-org-a');
+    container.read(selectedDmProvider.notifier).select(selected);
+
+    container.read(_orgProvider.notifier).select('org-a');
+
+    expect(container.read(selectedDmProvider), same(selected));
+  });
+
   test(
     'a page from the previous workspace is dropped after a switch',
     () async {

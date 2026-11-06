@@ -15,7 +15,13 @@ final dmListProvider =
 
 class SelectedDmNotifier extends Notifier<DmConversation?> {
   @override
-  DmConversation? build() => null;
+  DmConversation? build() {
+    // A conversation belongs to the active workspace. Rebuild and clear the
+    // selection when that workspace changes so it cannot remain the composer
+    // target for a different workspace.
+    ref.watch(currentOrgIdProvider);
+    return null;
+  }
 
   void select(DmConversation? conversation) {
     state = conversation;
