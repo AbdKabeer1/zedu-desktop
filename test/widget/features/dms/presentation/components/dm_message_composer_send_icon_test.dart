@@ -187,6 +187,8 @@ void main() {
   composerTest('completed voice note activates the icon until removed', (
     tester,
   ) async {
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pump();
     await tester.tap(find.byTooltip('Voice message'));
     await tester.pumpAndSettle();
     expect(find.text('Recording...'), findsOneWidget);

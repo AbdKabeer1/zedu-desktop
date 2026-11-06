@@ -46,6 +46,9 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   final _scrollController = ScrollController();
 
   bool _showEmojiPicker = false;
+
+  /// Whether the plus menu with the less-used actions is open.
+  bool _showMoreActions = false;
   bool _isEditMode = false;
   late final AudioRecorder _audioRecorder;
   bool _isRecording = false;
@@ -542,6 +545,10 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
         setState(() => _mentionSuggestions = []);
         return KeyEventResult.handled;
       }
+      if (_showMoreActions) {
+        setState(() => _showMoreActions = false);
+        return KeyEventResult.handled;
+      }
       if (_isEditMode) {
         _exitEditMode();
         return KeyEventResult.handled;
@@ -699,6 +706,28 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     _controller.value = TextEditingValue(
       text: before + insert + text.substring(pos),
       selection: TextSelection.collapsed(offset: pos + insert.length),
+    );
+    _focusNode.requestFocus();
+  }
+
+  void _toggleMoreActions() {
+    setState(() => _showMoreActions = !_showMoreActions);
+  }
+
+  /// Closes the plus menu, then runs the picked action as before.
+  void _runMoreAction(VoidCallback action) {
+    setState(() => _showMoreActions = false);
+    action();
+  }
+
+  void _insertChannelTag() {
+    final text = _controller.text;
+    final sel = _controller.selection;
+    final pos = sel.isValid ? sel.baseOffset : text.length;
+    final newText = '${text.substring(0, pos)}#${text.substring(pos)}';
+    _controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: pos + 1),
     );
     _focusNode.requestFocus();
   }
@@ -1308,14 +1337,6 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
                   child: Row(
                     children: [
                       ToolbarButton(
-                        icon: Icons.attach_file_rounded,
-                        tooltip: 'Attach file',
-                        onTap: _pickFiles,
-                        colors: colors,
-                        isActive: _pendingFiles.isNotEmpty,
-                      ),
-                      const SizedBox(width: 2),
-                      ToolbarButton(
                         icon: Icons.emoji_emotions_outlined,
                         tooltip: 'Emoji',
                         onTap: _toggleEmojiPicker,
@@ -1341,43 +1362,48 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
                         },
                         colors: colors,
                       ),
+                      const SizedBox(width: 2),
                       ToolbarButton(
-                        icon: Icons.tag,
-                        tooltip: 'Channel tag',
-                        onTap: () {
-                          final text = _controller.text;
-                          final sel = _controller.selection;
-                          final pos = sel.isValid
-                              ? sel.baseOffset
-                              : text.length;
-                          final newText =
-                              '${text.substring(0, pos)}#${text.substring(pos)}';
-                          _controller.value = TextEditingValue(
-                            text: newText,
-                            selection: TextSelection.collapsed(offset: pos + 1),
-                          );
-                          _focusNode.requestFocus();
-                        },
+                        icon: _showMoreActions ? Icons.close : Icons.add,
+                        tooltip: _showMoreActions
+                            ? 'Close more actions'
+                            : 'More actions',
+                        onTap: _toggleMoreActions,
                         colors: colors,
+                        isActive: _showMoreActions,
                       ),
-                      ToolbarButton(
-                        icon: Icons.horizontal_rule_rounded,
-                        tooltip: 'Divider',
-                        onTap: _insertDivider,
-                        colors: colors,
-                      ),
-                      const SizedBox(width: 4),
-                      ToolbarButton(
-                        icon: _isRecording
-                            ? Icons.stop_rounded
-                            : Icons.mic_none_rounded,
-                        tooltip: _isRecording
-                            ? 'Stop recording'
-                            : 'Voice message',
-                        onTap: _toggleVoiceRecording,
-                        colors: colors,
-                        isActive: _isRecording || _voiceNote != null,
-                      ),
+                      if (_showMoreActions) ...[
+                        ToolbarButton(
+                          icon: Icons.attach_file_rounded,
+                          tooltip: 'Attach file',
+                          onTap: () => _runMoreAction(_pickFiles),
+                          colors: colors,
+                          isActive: _pendingFiles.isNotEmpty,
+                        ),
+                        ToolbarButton(
+                          icon: _isRecording
+                              ? Icons.stop_rounded
+                              : Icons.mic_none_rounded,
+                          tooltip: _isRecording
+                              ? 'Stop recording'
+                              : 'Voice message',
+                          onTap: () => _runMoreAction(_toggleVoiceRecording),
+                          colors: colors,
+                          isActive: _isRecording || _voiceNote != null,
+                        ),
+                        ToolbarButton(
+                          icon: Icons.tag,
+                          tooltip: 'Channel tag',
+                          onTap: () => _runMoreAction(_insertChannelTag),
+                          colors: colors,
+                        ),
+                        ToolbarButton(
+                          icon: Icons.horizontal_rule_rounded,
+                          tooltip: 'Divider',
+                          onTap: () => _runMoreAction(_insertDivider),
+                          colors: colors,
+                        ),
+                      ],
                       const Spacer(),
                       Tooltip(
                         message: 'Send message',
