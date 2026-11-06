@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart'
     show AudioPlayer, DeviceFileSource;
 
 import 'package:zedu/core/core.dart';
+import 'package:zedu/core/utils/shortcut_manager.dart';
 import 'package:zedu/features/features.dart';
 
 import 'composer/composer.dart';
@@ -380,6 +381,20 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
     final key = event.logicalKey;
+
+    // Pass system-reserved shortcuts (Ctrl+S, Ctrl+P, Cmd+S, Cmd+P) through
+    // to the operating system instead of handling them in the app.
+    final modifiers = <String>{};
+    if (HardwareKeyboard.instance.isControlPressed) modifiers.add('ctrl');
+    if (HardwareKeyboard.instance.isShiftPressed) modifiers.add('shift');
+    if (HardwareKeyboard.instance.isAltPressed) modifiers.add('alt');
+    if (HardwareKeyboard.instance.isMetaPressed) modifiers.add('meta');
+
+    if (modifiers.isNotEmpty &&
+        ref.read(shortcutManagerProvider.notifier).shouldPassToSystem(key,
+            modifiers)) {
+      return KeyEventResult.ignored;
+    }
 
     if (key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.numpadEnter) {
