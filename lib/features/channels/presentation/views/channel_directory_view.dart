@@ -49,7 +49,7 @@ class _ChannelDirectoryViewState extends ConsumerState<ChannelDirectoryView> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: TextField(
             controller: _searchController,
-            onChanged: (val) => setState(() => _searchQuery = val),
+            onChanged: (val) => setState(() => _searchQuery = val.trim()),
             decoration: InputDecoration(
               hintText: 'Search channels',
               prefixIcon: Icon(Icons.search, color: colors.textHint),
