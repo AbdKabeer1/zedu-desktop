@@ -119,9 +119,17 @@ Future<void> pumpOpenMenu(
   await tester.pumpAndSettle();
 }
 
-AuthState readAuthState(WidgetTester tester) {
+ProviderContainer readContainer(WidgetTester tester) {
   final context = tester.element(find.byType(Scaffold));
-  return ProviderScope.containerOf(context).read(authNotifierProvider);
+  return ProviderScope.containerOf(context);
+}
+
+AuthState readAuthState(WidgetTester tester) {
+  return readContainer(tester).read(authNotifierProvider);
+}
+
+NotificationSettings readNotificationSettings(WidgetTester tester) {
+  return readContainer(tester).read(notificationSettingsProvider);
 }
 
 void main() {
@@ -275,6 +283,109 @@ void main() {
         await tester.pumpAndSettle();
       },
     );
+  });
+
+  group('UserMenuDialog notification pause', () {
+    testWidgets('offers pause durations and resumes early', (tester) async {
+      await pumpOpenMenu(
+        tester,
+        FakeAuthNotifier(
+          initial: AuthState(
+            status: AuthStatus.authenticated,
+            user: _buildUser(),
+          ),
+        ),
+      );
+
+      expect(find.text('Pause notifications'), findsOneWidget);
+      await tester.tap(find.text('Pause notifications'));
+      await tester.pumpAndSettle();
+
+      for (final label in [
+        '30 minutes',
+        '1 hour',
+        '2 hours',
+        'Until tomorrow morning',
+      ]) {
+        expect(find.text(label), findsOneWidget);
+      }
+
+      await tester.tap(find.text('30 minutes'));
+      await tester.pumpAndSettle();
+
+      final container = readContainer(tester);
+      final paused = container.read(notificationSettingsProvider);
+      expect(paused.isDndActive, isTrue);
+      expect(
+        paused.dndUntil!.difference(DateTime.now()).inSeconds,
+        closeTo(1800, 15),
+      );
+      expect(find.byType(UserMenuDialog), findsNothing);
+
+      await tester.tap(find.text('open menu'));
+      await tester.pumpAndSettle();
+      expect(find.text('Resume notifications'), findsOneWidget);
+      expect(find.textContaining('Paused until '), findsOneWidget);
+
+      await tester.tap(find.text('Resume notifications'));
+      await tester.pumpAndSettle();
+      expect(find.byType(UserMenuDialog), findsNothing);
+      expect(container.read(notificationSettingsProvider).isDndActive, isFalse);
+    });
+
+    testWidgets('returns to Pause when the pause expires', (tester) async {
+      await pumpOpenMenu(
+        tester,
+        FakeAuthNotifier(
+          initial: AuthState(
+            status: AuthStatus.authenticated,
+            user: _buildUser(),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Pause notifications'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1 hour'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('open menu'));
+      await tester.pumpAndSettle();
+      expect(find.text('Resume notifications'), findsOneWidget);
+
+      await tester.pump(const Duration(hours: 1, seconds: 1));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pause notifications'), findsOneWidget);
+      expect(find.text('Resume notifications'), findsNothing);
+      expect(readNotificationSettings(tester).isDndActive, isFalse);
+    });
+
+    testWidgets('can pause until tomorrow morning', (tester) async {
+      await pumpOpenMenu(
+        tester,
+        FakeAuthNotifier(
+          initial: AuthState(
+            status: AuthStatus.authenticated,
+            user: _buildUser(),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Pause notifications'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Until tomorrow morning'));
+      await tester.pumpAndSettle();
+
+      final container = readContainer(tester);
+      final until = container.read(notificationSettingsProvider).dndUntil!;
+      expect(until.hour, 8);
+      expect(until.minute, 0);
+      expect(until.isAfter(DateTime.now()), isTrue);
+
+      container.read(notificationSettingsProvider.notifier).clearDndMode();
+      await tester.pump();
+    });
   });
 
   group('UserMenuDialog layout', () {
