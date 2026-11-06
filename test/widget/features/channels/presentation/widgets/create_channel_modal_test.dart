@@ -66,6 +66,17 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    testWidgets('the channel name field is focused when the modal opens', (
+      tester,
+    ) async {
+      await openModal(tester);
+
+      final input = tester.widget<EditableText>(
+        find.byType(EditableText).first,
+      );
+      expect(input.focusNode.hasFocus, isTrue);
+    });
+
     // AppToastService auto-dismisses on a 4s timer; let it fire before the
     // test ends so no timer is left pending.
     Future<void> drainToastTimer(WidgetTester tester) async {
