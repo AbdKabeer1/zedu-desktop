@@ -593,7 +593,9 @@ class _ChannelHeaderMenu extends ConsumerWidget {
     switch (result) {
       case Success<void>():
         // Open another channel so the header never shows one we left.
-        final remaining = ref.read(channelProvider).value ?? const <Channel>[];
+        final remaining = (ref.read(channelProvider).value ?? const <Channel>[])
+            .where((c) => !c.archived && c.hasAccess)
+            .toList();
         ref
             .read(activeChatProvider.notifier)
             .selectChannel(
