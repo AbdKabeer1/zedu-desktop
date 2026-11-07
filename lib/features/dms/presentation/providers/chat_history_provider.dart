@@ -313,11 +313,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
       final repository = ref.read(dmRepositoryProvider);
       final page = await repository.getMessages(channelId, page: 1);
       if (_isDisposed) return null;
-      return findDeliveredCopy(
-        page,
-        send: send,
-        senderId: _currentUserId,
-      );
+      return findDeliveredCopy(page, send: send, senderId: _currentUserId);
     } catch (_) {
       return null;
     }
@@ -593,11 +589,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
     final now = DateTime.now();
     _outboundSends[messageId] = record == null
-        ? OutboundSend.starting(
-            clientId: messageId,
-            content: content,
-            at: now,
-          )
+        ? OutboundSend.starting(clientId: messageId, content: content, at: now)
         : record.withAnotherAttempt(now);
 
     failedMsg['status'] = 'sending';
@@ -784,19 +776,20 @@ class ChatHistoryNotifier extends ChangeNotifier {
       }
       return m;
     }).toList();
-    if (editingMessageId == messageId) {
-      editingMessageId = null;
-    }
     notifyListeners();
 
     _editsInFlight.add(messageId);
     try {
       final repository = ref.read(dmRepositoryProvider);
       await repository.editMessage(
-        messageId,
+        channelId,
         content: newContent,
         threadId: threadId,
       );
+      // Only clear editing state after successful save
+      if (editingMessageId == messageId) {
+        editingMessageId = null;
+      }
     } catch (e, st) {
       AppLogger.e(
         'Failed to save edit for message $messageId in channel $channelId',
