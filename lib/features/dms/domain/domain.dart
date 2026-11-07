@@ -1,4 +1,5 @@
 export 'dm_conversation.dart';
+export 'dm_sort.dart';
 export 'conversation_search_hit.dart';
 export 'message_plain_text.dart';
 export 'message_content.dart';

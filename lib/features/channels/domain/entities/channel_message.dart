@@ -1,6 +1,29 @@
+/// A single reaction (emoji) on a channel message, as returned by
+/// `GET /threads/channels/{channel_id}`.
+class ChannelReaction {
+  final String emoji;
+  final String reactionId;
+  final int count;
+
+  const ChannelReaction({
+    required this.emoji,
+    required this.reactionId,
+    required this.count,
+  });
+
+  factory ChannelReaction.fromJson(Map<String, dynamic> json) {
+    return ChannelReaction(
+      emoji: json['reaction']?.toString() ?? '',
+      reactionId: json['reaction_id']?.toString() ?? '',
+      count: (json['reaction_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 /// A top-level message in a channel, as returned by
 /// `GET /threads/channels/{channel_id}`.
 class ChannelMessage {
+  /// The thread id from the backend. Null for a message the backend gave none.
   final String? id;
   final String senderName;
   final String? avatarUrl;
@@ -14,6 +37,7 @@ class ChannelMessage {
 
   /// Who sent it, so the current user's own messages can be edited.
   final String? userId;
+  final List<ChannelReaction> reactions;
 
   const ChannelMessage({
     this.id,
@@ -25,6 +49,7 @@ class ChannelMessage {
     this.media = const [],
     this.threadId,
     this.userId,
+    this.reactions = const [],
   });
 
   static List<dynamic> mediaFrom(dynamic raw) {
@@ -34,6 +59,12 @@ class ChannelMessage {
     return const [];
   }
 
+  /// Identifies this message when pages are merged, so a message that shows
+  /// up on two pages is listed once. Falls back to the content for a message
+  /// without an [id].
+  String get dedupeKey =>
+      id ?? '$senderName|${createdAt?.toIso8601String()}|$text';
+
   factory ChannelMessage.fromJson(Map<String, dynamic> json) {
     String? nonEmpty(Object? value) {
       final text = value?.toString().trim() ?? '';
@@ -41,7 +72,7 @@ class ChannelMessage {
     }
 
     return ChannelMessage(
-      id: json['id']?.toString(),
+      id: nonEmpty(json['thread_id']) ?? nonEmpty(json['id']),
       senderName:
           nonEmpty(json['full_name']) ??
           nonEmpty(json['sender_name']) ??
@@ -58,6 +89,10 @@ class ChannelMessage {
       media: mediaFrom(json['media'] ?? json['files'] ?? json['attachments']),
       threadId: nonEmpty(json['thread_id']) ?? nonEmpty(json['id']),
       userId: nonEmpty(json['user_id']),
+      reactions: [
+        for (final entry in (json['reactions'] as List? ?? const []))
+          if (entry is Map<String, dynamic>) ChannelReaction.fromJson(entry),
+      ],
     );
   }
 
