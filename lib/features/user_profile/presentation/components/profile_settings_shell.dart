@@ -258,6 +258,16 @@ class _SettingsNavigationState extends State<_SettingsNavigation> {
                       ),
                     ),
                     _NavigationTile(
+                      icon: Icons.tag,
+                      label: 'Channel Management',
+                      selected:
+                          selectedSection ==
+                          UserProfileSection.channelManagement,
+                      onTap: () => onSectionSelected(
+                        UserProfileSection.channelManagement,
+                      ),
+                    ),
+                    _NavigationTile(
                       icon: Icons.credit_card_outlined,
                       label: 'Billing',
                       selected: selectedSection == UserProfileSection.billing,

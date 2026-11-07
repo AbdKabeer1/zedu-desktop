@@ -9,6 +9,7 @@ enum UserProfileSection {
   userManagement,
   rolesAndPermissions,
   billing,
+  channelManagement,
 }
 
 class UserProfileState {
