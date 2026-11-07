@@ -132,6 +132,7 @@ class _ProfileContent extends StatelessWidget {
               isSaving: state.isSaving,
               onChangePassword: notifier.changePassword,
             ),
+            UserProfileSection.webhooks => const WebhookManagementSection(),
             UserProfileSection.organization =>
               organization == null
                   ? _OrganizationLoadError(

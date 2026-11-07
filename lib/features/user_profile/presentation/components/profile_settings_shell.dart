@@ -232,6 +232,13 @@ class _SettingsNavigationState extends State<_SettingsNavigation> {
                   ),
                   if (_organizationExpanded) ...[
                     _NavigationTile(
+                      icon: Icons.webhook_outlined,
+                      label: 'Webhooks',
+                      selected: selectedSection == UserProfileSection.webhooks,
+                      onTap: () =>
+                          onSectionSelected(UserProfileSection.webhooks),
+                    ),
+                    _NavigationTile(
                       icon: Icons.settings_outlined,
                       label: 'General',
                       selected:
