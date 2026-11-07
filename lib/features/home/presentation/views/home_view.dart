@@ -287,16 +287,16 @@ class _MainSidebar extends ConsumerWidget {
                       vertical: 8,
                     ),
                     child: Material(
-                      color: colors.onPrimary.withValues(alpha: 0.05),
+                      color: colors.onPrimary.withValues(alpha: 0.12),
                       shape: RoundedRectangleBorder(
                         side: BorderSide(
-                          color: colors.onPrimary.withValues(alpha: 0.24),
+                          color: colors.onPrimary.withValues(alpha: 0.45),
                         ),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: InkWell(
-                        hoverColor: colors.onPrimary.withValues(alpha: 0.1),
+                        hoverColor: colors.onPrimary.withValues(alpha: 0.2),
                         onTap: () => ref
                             .read(activeChatProvider.notifier)
                             .selectChannelDirectory(),
@@ -311,16 +311,14 @@ class _MainSidebar extends ConsumerWidget {
                                 child: Text(
                                   'View all channels',
                                   style: TextStyle(
-                                    color: colors.onPrimary.withValues(
-                                      alpha: 0.7,
-                                    ),
+                                    color: colors.onPrimary,
                                     fontSize: 13,
                                   ),
                                 ),
                               ),
                               Icon(
                                 Icons.chevron_right,
-                                color: colors.onPrimary.withValues(alpha: 0.7),
+                                color: colors.onPrimary,
                                 size: 16,
                               ),
                             ],
@@ -627,11 +625,39 @@ class _ChannelHeaderMenu extends ConsumerWidget {
       position: PopupMenuPosition.under,
       icon: Icon(Icons.more_vert, color: colors.textHint),
       onSelected: (value) {
+        if (value == 'export') {
+          showDialog<void>(
+            context: context,
+            builder: (_) => ChannelExportDialog(channel: channel),
+          );
+        }
         if (value == 'leave') _confirmLeave(context, ref);
         if (value == 'archive') _confirmArchive(context, ref);
         if (value == 'unarchive') _setArchived(context, ref, archived: false);
       },
       itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'export',
+          child: Row(
+            children: [
+              Icon(
+                Icons.download_outlined,
+                size: 18,
+                color: colors.textPrimary,
+              ),
+              const SizedBox(width: 12),
+              // The menu is at most 280 px wide; let the label shrink
+              // rather than overflow (e.g. with the app's text zoom).
+              Flexible(
+                child: Text(
+                  'Export history',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: colors.textPrimary),
+                ),
+              ),
+            ],
+          ),
+        ),
         PopupMenuItem(
           value: channel.archived ? 'unarchive' : 'archive',
           child: Row(

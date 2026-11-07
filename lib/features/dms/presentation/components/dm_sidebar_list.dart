@@ -61,6 +61,7 @@ class _DmSidebarListState extends ConsumerState<DmSidebarList> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final textColor = colors.onPrimary.withValues(alpha: 0.9);
+    final sort = ref.watch(dmSortProvider);
 
     return Container(
       color: colors.sidebar,
@@ -123,6 +124,30 @@ class _DmSidebarListState extends ConsumerState<DmSidebarList> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 6),
+                PopupMenuButton<DmSort>(
+                  tooltip: 'Sort conversations',
+                  onSelected: (value) =>
+                      ref.read(dmSortProvider.notifier).select(value),
+                  itemBuilder: (context) => [
+                    for (final option in DmSort.values)
+                      PopupMenuItem<DmSort>(
+                        value: option,
+                        child: Text(option.label),
+                      ),
+                  ],
+                  child: Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(
+                        color: colors.onPrimary.withValues(alpha: 0.68),
+                      ),
+                    ),
+                    child: Icon(Icons.sort, color: textColor, size: 16),
+                  ),
+                ),
               ],
             ),
           ),
@@ -145,6 +170,11 @@ class _DmSidebarListState extends ConsumerState<DmSidebarList> {
                         final actions = ref.watch(
                           dmConversationActionsProvider,
                         );
+                        // Search results keep today's ordering; the chosen
+                        // sort applies to the conversation list itself.
+                        final activeSort = _debouncedQuery.isEmpty
+                            ? sort
+                            : DmSort.recentActivity;
                         final visibleConversations =
                             conversations
                                 .where(
@@ -152,18 +182,18 @@ class _DmSidebarListState extends ConsumerState<DmSidebarList> {
                                       .contains(conversation.channelId),
                                 )
                                 .toList()
-                              ..sort((a, b) {
-                                final aPinned = actions.pinnedIds.contains(
-                                  a.channelId,
-                                );
-                                final bPinned = actions.pinnedIds.contains(
-                                  b.channelId,
-                                );
-                                if (aPinned != bPinned) return aPinned ? -1 : 1;
-                                return b.lastActivityAt.compareTo(
-                                  a.lastActivityAt,
-                                );
-                              });
+                              ..sort(
+                                (a, b) => activeSort.compare(
+                                  a,
+                                  b,
+                                  aPinned: actions.pinnedIds.contains(
+                                    a.channelId,
+                                  ),
+                                  bPinned: actions.pinnedIds.contains(
+                                    b.channelId,
+                                  ),
+                                ),
+                              );
                         if (visibleConversations.isEmpty) {
                           return Center(
                             child: Text(
