@@ -12,10 +12,11 @@ class InviteTeammatesModal extends ConsumerStatefulWidget {
 class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
   final _emailController = TextEditingController();
   final List<Map<String, String?>> _invites = [];
-  List<Map<String, dynamic>> _registeredUsers = [];
-  List<Map<String, dynamic>> _filteredUsers = [];
+  List<TeamMember> _orgMembers = [];
+  List<TeamMember> _filteredUsers = [];
   bool _isLoading = false;
   bool _isAddingEveryone = false;
+  String? _emailError;
 
   @override
   void initState() {
@@ -27,10 +28,10 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
 
   Future<void> _loadUsers() async {
     final notifier = ref.read(userProfileNotifierProvider.notifier);
-    final users = await notifier.fetchRegisteredUsers();
+    final members = await notifier.fetchOrganisationMembers();
     if (mounted) {
       setState(() {
-        _registeredUsers = users;
+        _orgMembers = members;
       });
     }
   }
@@ -41,12 +42,11 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
       return;
     }
     setState(() {
-      _filteredUsers = _registeredUsers.where((u) {
-        final email = (u['email'] as String?)?.toLowerCase() ?? '';
-        final name = (u['full_name'] as String?)?.toLowerCase() ?? '';
-        final username = (u['username'] as String?)?.toLowerCase() ?? '';
+      _filteredUsers = _orgMembers.where((u) {
+        final email = u.email.toLowerCase();
+        final name = (u.name ?? '').toLowerCase();
         final q = query.toLowerCase();
-        return email.contains(q) || name.contains(q) || username.contains(q);
+        return email.contains(q) || name.contains(q);
       }).toList();
     });
   }
@@ -57,21 +57,29 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
     super.dispose();
   }
 
-  void _addEmailFromInput() {
+  /// Adds the typed email as an invite. Returns false, and shows an error,
+  /// when the box holds text that is not a valid email address.
+  bool _addEmailFromInput() {
     final email = _emailController.text.trim();
-    if (email.isNotEmpty && email.contains('@')) {
-      _addInvite(email, null);
+    if (email.isEmpty) return true;
+    if (Validators.validateEmail(context, email) != null) {
+      setState(() => _emailError = 'Please enter a valid email address.');
+      return false;
     }
+    _addInvite(email, null);
+    return true;
   }
 
   void _addInvite(String email, String? userId) {
-    if (!_invites.any((invite) => invite['email'] == email)) {
+    final key = email.toLowerCase();
+    if (!_invites.any((invite) => invite['email']!.toLowerCase() == key)) {
       setState(() {
         _invites.add({'email': email, 'userId': userId});
         _filteredUsers = [];
       });
     }
     _emailController.clear();
+    if (_emailError != null) setState(() => _emailError = null);
   }
 
   void _removeInvite(String email) {
@@ -81,14 +89,14 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
   }
 
   Future<void> _submit() async {
-    _addEmailFromInput(); // Catch any typed email not yet submitted
+    // Catch any typed email not yet submitted
+    if (!_addEmailFromInput()) return;
 
     if (_invites.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please enter at least one email address.'),
-          backgroundColor: context.colors.error,
-        ),
+      AppToastService.show(
+        context,
+        type: AppToastType.error,
+        message: 'Please enter at least one email address.',
       );
       return;
     }
@@ -122,7 +130,9 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
     if (successCount > 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Successfully invited $successCount teammates.'),
+          content: Text(
+            "Successfully invited $successCount ${successCount == 1 ? 'teammate' : 'teammates'}.",
+          ),
           backgroundColor: context.colors.success,
         ),
       );
@@ -131,11 +141,10 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(lastError),
-          backgroundColor: context.colors.error,
-        ),
+      AppToastService.show(
+        context,
+        type: AppToastType.error,
+        message: lastError,
       );
     }
   }
@@ -146,30 +155,28 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
     if (!mounted) return;
     setState(() => _isAddingEveryone = false);
 
-    final colors = context.colors;
-    final messenger = ScaffoldMessenger.of(context);
     switch (result) {
       case AddEveryoneAdded(:final count, :final channelName):
-        messenger.showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               'Added $count ${count == 1 ? 'person' : 'people'} to #$channelName.',
             ),
-            backgroundColor: colors.success,
+            backgroundColor: context.colors.success,
           ),
         );
         Navigator.pop(context);
       case AddEveryoneNobodyToAdd(:final channelName):
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Everyone in your organisation is already in #$channelName.',
-            ),
-          ),
+        AppToastService.show(
+          context,
+          type: AppToastType.info,
+          message: 'Everyone in your organisation is already in #$channelName.',
         );
       case AddEveryoneFailed(:final message):
-        messenger.showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: colors.error),
+        AppToastService.show(
+          context,
+          type: AppToastType.error,
+          message: message,
         );
     }
   }
@@ -207,6 +214,7 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
                 const SizedBox(width: 12),
                 IconButton(
                   icon: Icon(Icons.close, color: colors.textHint),
+                  tooltip: 'Close invitation dialog',
                   onPressed: () => Navigator.pop(context),
                   splashRadius: 20,
                   padding: EdgeInsets.zero,
@@ -257,9 +265,7 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
                     child: TextField(
                       controller: _emailController,
                       decoration: InputDecoration(
-                        hintText: _invites.isEmpty
-                            ? '|Enter name or email'
-                            : '',
+                        hintText: _invites.isEmpty ? 'Enter name or email' : '',
                         hintStyle: TextStyle(
                           color: colors.textHint.withValues(alpha: 0.7),
                         ),
@@ -267,7 +273,12 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       ),
-                      onChanged: _onSearchChanged,
+                      onChanged: (value) {
+                        if (_emailError != null) {
+                          setState(() => _emailError = null);
+                        }
+                        _onSearchChanged(value);
+                      },
                       onSubmitted: (_) => _addEmailFromInput(),
                       onEditingComplete: _addEmailFromInput,
                     ),
@@ -275,6 +286,14 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
                 ],
               ),
             ),
+            if (_emailError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  _emailError!,
+                  style: TextStyle(color: colors.error, fontSize: 12),
+                ),
+              ),
             if (_filteredUsers.isNotEmpty)
               Container(
                 margin: const EdgeInsets.only(top: 4),
@@ -291,12 +310,9 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
                     itemCount: _filteredUsers.length,
                     itemBuilder: (context, index) {
                       final user = _filteredUsers[index];
-                      final email = user['email'] as String? ?? '';
-                      final name =
-                          user['full_name'] as String? ??
-                          user['username'] as String? ??
-                          'Unknown';
-                      final userId = user['id'] as String?;
+                      final email = user.email;
+                      final name = user.name ?? email.split('@').first;
+                      final userId = user.id.isEmpty ? null : user.id;
                       return ListTile(
                         title: Text(
                           name,
@@ -354,11 +370,10 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
                             );
                           }
                         } else if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Failed to generate link'),
-                              backgroundColor: colors.error,
-                            ),
+                          AppToastService.show(
+                            context,
+                            type: AppToastType.error,
+                            message: 'Failed to generate link',
                           );
                         }
                       },

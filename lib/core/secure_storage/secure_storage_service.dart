@@ -7,12 +7,33 @@ class SecureStorageService {
 
   static const _accessTokenKey = 'access_token';
 
-  Future<void> saveAccessToken(String token) =>
-      _storage.write(key: _accessTokenKey, value: token);
+  /// Token kept for this run only, never written to disk.
+  String? _sessionToken;
 
-  Future<String?> getAccessToken() => _storage.read(key: _accessTokenKey);
+  /// With [persist] false ("Remember me" unticked) the token lives in memory
+  /// only, so the next launch starts signed out.
+  Future<void> saveAccessToken(String token, {bool persist = true}) async {
+    if (persist) {
+      _sessionToken = null;
+      await _storage.write(key: _accessTokenKey, value: token);
+    } else {
+      _sessionToken = token;
+      await _storage.delete(key: _accessTokenKey);
+    }
+  }
 
-  Future<void> deleteAccessToken() => _storage.delete(key: _accessTokenKey);
+  /// Swaps in a new token for the signed-in session, keeping whether it is
+  /// remembered across launches the same as when the user signed in.
+  Future<void> replaceAccessToken(String token) =>
+      saveAccessToken(token, persist: _sessionToken == null);
+
+  Future<String?> getAccessToken() async =>
+      _sessionToken ?? await _storage.read(key: _accessTokenKey);
+
+  Future<void> deleteAccessToken() async {
+    _sessionToken = null;
+    await _storage.delete(key: _accessTokenKey);
+  }
 
   Future<void> writeData(String key, String value) =>
       _storage.write(key: key, value: value);
@@ -20,5 +41,11 @@ class SecureStorageService {
 
   Future<void> deleteValue(String key) => _storage.delete(key: key);
 
-  Future<void> clearAll() => _storage.deleteAll();
+  /// Every stored key and value, for removing a group of keys by prefix.
+  Future<Map<String, String>> readAll() => _storage.readAll();
+
+  Future<void> clearAll() async {
+    _sessionToken = null;
+    await _storage.deleteAll();
+  }
 }
