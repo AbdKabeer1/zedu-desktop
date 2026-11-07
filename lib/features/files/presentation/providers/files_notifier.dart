@@ -116,7 +116,9 @@ class FilesListNotifier extends AsyncNotifier<FilesPage> {
     final query = ref.watch(filesProvider.select((s) => s.query));
     final repository = ref.read(filesRepositoryProvider);
 
-    if (query.sort == FilesSort.newestFirst) {
+    // Only oldest-first reads the pages backwards; name order sorts each
+    // page as the server sends it (Ziki #3449).
+    if (query.sort != FilesSort.oldestFirst) {
       _seedQuery = null;
       _serverPages = null;
       return _fetch(repository, query);
