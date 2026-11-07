@@ -22,8 +22,10 @@ class _TopicChannelNotifier extends ChannelNotifier {
 
 class _EmptyChannelRepository extends Mock implements ChannelRepository {
   @override
-  Future<Result<List<ChannelMessage>>> fetchChannelMessages(String id) async =>
-      const Success(<ChannelMessage>[]);
+  Future<Result<ChannelMessagePage>> fetchChannelMessages(
+    String id, {
+    int page = 1,
+  }) async => const Success(ChannelMessagePage(messages: [], hasMore: false));
 
   @override
   Future<Result<List<DmParticipant>>> fetchChannelMembers(String id) async =>

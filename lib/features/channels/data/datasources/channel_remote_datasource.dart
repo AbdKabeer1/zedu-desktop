@@ -31,8 +31,15 @@ abstract class ChannelRemoteDataSource {
     required List<String> userIds,
   });
 
-  /// The latest messages of a channel, newest first.
-  Future<List<ChannelMessage>> fetchChannelMessages(String channelId);
+  /// How many messages one page of a channel's history holds.
+  static const messagePageSize = 50;
+
+  /// One page of a channel's messages, newest first. Page 1 is the newest.
+  Future<ChannelMessagePage> fetchChannelMessages(
+    String channelId, {
+    int page = 1,
+    int limit = messagePageSize,
+  });
 
   /// Replaces the text of the message with [threadId] in [channelId].
   Future<void> editChannelMessage({
@@ -268,18 +275,56 @@ class ChannelRemoteDataSourceImpl implements ChannelRemoteDataSource {
   }
 
   @override
-  Future<List<ChannelMessage>> fetchChannelMessages(String channelId) async {
+  Future<ChannelMessagePage> fetchChannelMessages(
+    String channelId, {
+    int page = 1,
+    int limit = ChannelRemoteDataSource.messagePageSize,
+  }) async {
     final response = await apiBaseService.get<Map<String, dynamic>>(
       path: '/threads/channels/$channelId',
-      queryParameters: {'page': 1, 'limit': 50},
+      queryParameters: {'page': page, 'limit': limit},
     );
     final data = response.data['data'];
-    if (data == null) return const [];
+    if (data == null) {
+      return const ChannelMessagePage(messages: [], hasMore: false);
+    }
     // A wrong shape throws, so the list shows its retry state.
-    return (data as List)
+    final messages = (data as List)
         .cast<Map<String, dynamic>>()
         .map(ChannelMessage.fromJson)
         .toList();
+    return ChannelMessagePage(
+      messages: messages,
+      hasMore: _hasMorePages(
+        response.data['pagination'],
+        page: page,
+        limit: limit,
+        received: messages.length,
+      ),
+    );
+  }
+
+  /// Reads the response's pagination block. Without a usable one, a full page
+  /// means there may be another, and the next request settles it: an empty
+  /// page ends the list.
+  bool _hasMorePages(
+    Object? pagination, {
+    required int page,
+    required int limit,
+    required int received,
+  }) {
+    if (pagination is Map) {
+      final hasMore =
+          pagination['has_more'] ??
+          pagination['has_next'] ??
+          pagination['hasNext'];
+      if (hasMore is bool) return hasMore;
+      final totalPages = int.tryParse(
+        '${pagination['total_pages'] ?? pagination['total_pages_count'] ?? pagination['totalPages']}',
+      );
+      if (totalPages != null) return page < totalPages;
+    }
+    return received >= limit;
   }
 
   // The channel users route nests username and avatar_url under profile.
