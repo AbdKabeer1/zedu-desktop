@@ -835,3 +835,24 @@ final chatHistoryProvider = ChangeNotifierProvider.autoDispose
     .family<ChatHistoryNotifier, String>(
       (ref, channelId) => ChatHistoryNotifier(channelId, ref),
     );
+
+// Polling payloads contain nested maps and arrays. Map identity must not turn
+// an unchanged server response into a chat refresh.
+bool _sameJsonValue(Object? left, Object? right) {
+  if (identical(left, right)) return true;
+  if (left is Map && right is Map) {
+    return left.length == right.length &&
+        left.keys.every(
+          (key) =>
+              right.containsKey(key) && _sameJsonValue(left[key], right[key]),
+        );
+  }
+  if (left is List && right is List) {
+    if (left.length != right.length) return false;
+    for (var index = 0; index < left.length; index++) {
+      if (!_sameJsonValue(left[index], right[index])) return false;
+    }
+    return true;
+  }
+  return left == right;
+}
