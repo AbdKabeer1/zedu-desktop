@@ -83,20 +83,19 @@ void main() {
     FakeChatHistoryNotifier? chatNotifier,
   ]) async {
     if (legacy != null) {
-      stubPage(
-        1,
-        switch (legacy) {
-          Success<List<ChannelMessage>>(:final value) =>
-            Success(ChannelMessagePage(messages: value, hasMore: false)),
-          Failure<List<ChannelMessage>>(:final error) =>
-            Failure<ChannelMessagePage>(error),
-        },
-      );
+      stubPage(1, switch (legacy) {
+        Success<List<ChannelMessage>>(:final value) => Success(
+          ChannelMessagePage(messages: value, hasMore: false),
+        ),
+        Failure<List<ChannelMessage>>(:final error) =>
+          Failure<ChannelMessagePage>(error),
+      });
     }
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           channelRepositoryProvider.overrideWithValue(repository),
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
           chatHistoryProvider.overrideWith(
             (ref, channelId) => chatNotifier ?? fakeChatHistory,
           ),
