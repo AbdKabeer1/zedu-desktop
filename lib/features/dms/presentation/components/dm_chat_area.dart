@@ -911,7 +911,6 @@ class _DmChatHeader extends StatelessWidget {
               menuItem('export_transcript', 'Export transcript'),
               const PopupMenuDivider(height: 1),
               menuItem('clear_history', 'Clear history'),
-              menuItem('block_user', 'Block User'),
               menuItem(
                 'delete_conversation',
                 'Delete conversation',
