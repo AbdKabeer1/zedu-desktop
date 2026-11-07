@@ -1,4 +1,5 @@
 export 'app_version_row.dart';
+export 'bulk_invite_dialog.dart';
 export 'edit_profile_dialog.dart';
 export 'launch_at_login_tile.dart';
 export 'personal_profile_panel.dart';
