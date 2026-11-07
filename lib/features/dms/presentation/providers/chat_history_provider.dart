@@ -6,6 +6,17 @@ import 'package:zedu/features/features.dart';
 class ChatHistoryNotifier extends ChangeNotifier {
   static const _tag = 'ChatHistoryNotifier';
 
+  /// Returns true when [a] and [b] hold the same JSON values (ignoring key
+  /// order). Used to skip no-op message updates.
+  static bool _sameJsonValue(Map<String, dynamic> a, Map<String, dynamic> b) {
+    if (a.length != b.length) return false;
+    for (final key in a.keys) {
+      if (!b.containsKey(key)) return false;
+      if (a[key] != b[key]) return false;
+    }
+    return true;
+  }
+
   final String channelId;
   final Ref ref;
   late final ComposerFileStore _fileStore;
@@ -274,6 +285,25 @@ class ChatHistoryNotifier extends ChangeNotifier {
     return changed;
   }
 
+  bool _sameJsonValue(Object? a, Object? b) {
+    if (identical(a, b) || a == b) return true;
+    if (a is List && b is List) {
+      return a.length == b.length &&
+          Iterable<int>.generate(
+            a.length,
+          ).every((index) => _sameJsonValue(a[index], b[index]));
+    }
+    if (a is Map && b is Map) {
+      return a.length == b.length &&
+          a.entries.every(
+            (entry) =>
+                b.containsKey(entry.key) &&
+                _sameJsonValue(entry.value, b[entry.key]),
+          );
+    }
+    return false;
+  }
+
   /// Whether [messageId] is being sent right now.
   bool isSending(String messageId) => _sendsInFlight.contains(messageId);
 
@@ -399,16 +429,23 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
   /// Loads every remaining page, for views that need the whole conversation
   /// (such as its files). Waits for a load already in flight, and stops after
-  /// [maxPages] pages or when a page fails, so it can't loop forever.
+  /// [maxPages] pages, when a page fails, or once this notifier is disposed.
+  ///
+  /// A load interrupted by dispose() never clears [isLoading] (its finally
+  /// skips the update on a disposed notifier), so the wait checks for
+  /// disposal too; otherwise a caller such as the conversation files dialog
+  /// would keep waking every 50 ms forever after the conversation closed
+  /// (#2939).
   Future<void> loadAll({int maxPages = 50}) async {
     for (var i = 0; i < maxPages && hasMore; i++) {
       while (isLoading) {
+        if (_isDisposed) return;
         await Future<void>.delayed(const Duration(milliseconds: 50));
       }
-      if (!hasMore) break;
+      if (_isDisposed || !hasMore) return;
       final before = page;
       await loadMore();
-      if (page == before) break; // the page failed to load
+      if (_isDisposed || page == before) return; // closed, or the page failed
     }
   }
 
@@ -757,19 +794,20 @@ class ChatHistoryNotifier extends ChangeNotifier {
       }
       return m;
     }).toList();
-    if (editingMessageId == messageId) {
-      editingMessageId = null;
-    }
     notifyListeners();
 
     _editsInFlight.add(messageId);
     try {
       final repository = ref.read(dmRepositoryProvider);
       await repository.editMessage(
-        messageId,
+        channelId,
         content: newContent,
         threadId: threadId,
       );
+      // Only clear editing state after successful save
+      if (editingMessageId == messageId) {
+        editingMessageId = null;
+      }
     } catch (e, st) {
       AppLogger.e(
         'Failed to save edit for message $messageId in channel $channelId',

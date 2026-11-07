@@ -111,7 +111,6 @@ class _OrganizationSectionState extends State<OrganizationSection> {
           ),
         ),
         const SizedBox(height: 48),
-        // Wraps so both buttons stay visible in a narrow window.
         Wrap(
           spacing: 16,
           runSpacing: 12,

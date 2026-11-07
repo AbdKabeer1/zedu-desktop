@@ -172,6 +172,10 @@ class _FakeFilesRepository extends Fake implements FilesRepository {
     return details.future;
   }
 
+  @override
+  Future<Result<WorkspaceFileInfo>> fetchFileInfo(String fileId) async =>
+      Success(WorkspaceFileInfo());
+
   Set<String> pinnedIds = {};
   final pinCalls = <(String, bool)>[];
   Result<void> pinResult = const Success(null);
@@ -210,6 +214,9 @@ class _FakeFilesRepository extends Fake implements FilesRepository {
     deletes.add((fileId, permanent));
     return deleteResult;
   }
+
+  @override
+  Future<Result<void>> deleteFolder(String id) async => const Success(null);
 
   /// What a download returns; complete it to finish the download.
   Completer<Result<void>> download = Completer()..complete(const Success(null));
