@@ -32,8 +32,9 @@ class ChannelMessageList extends ConsumerWidget {
                 ? m['avatar_url'] as String
                 : chatHistory.currentUserAvatarUrl,
             text: m['content']?.toString() ?? '',
-            createdAt: DateTime.tryParse(m['created_at']?.toString() ?? '')
-                ?.toLocal(),
+            createdAt: DateTime.tryParse(
+              m['created_at']?.toString() ?? '',
+            )?.toLocal(),
             status: m['status']?.toString(),
             media: ChannelMessage.mediaFrom(m['media'] ?? m['files']),
           ),
@@ -90,6 +91,13 @@ class ChannelMessageList extends ConsumerWidget {
         final own = isMine(message);
         final tile = ChannelMessageTile(
           message: message,
+          saveAction:
+              message.status == null && (message.threadId ?? message.id) != null
+              ? SaveLaterButton(
+                  channelId: channelId,
+                  threadId: message.threadId ?? message.id!,
+                )
+              : null,
           onRetry: message.id != null
               ? () => ref
                     .read(chatHistoryProvider(channelId))
@@ -212,6 +220,7 @@ class ChannelMessageTile extends StatelessWidget {
     this.onRetry,
     this.onEdit,
     this.onDelete,
+    this.saveAction,
   });
 
   final ChannelMessage message;
@@ -222,6 +231,7 @@ class ChannelMessageTile extends StatelessWidget {
 
   /// Set for the current user's own messages; shows Delete in the menu.
   final VoidCallback? onDelete;
+  final Widget? saveAction;
 
   @override
   Widget build(BuildContext context) {
@@ -275,6 +285,7 @@ class ChannelMessageTile extends StatelessWidget {
                         ),
                       ),
                     ),
+                    ?saveAction,
                     if (onEdit != null || onDelete != null)
                       _OwnMessageMenu(onEdit: onEdit, onDelete: onDelete),
                   ],
