@@ -925,6 +925,11 @@ class _DmChatHeader extends StatelessWidget {
   }
 }
 
+const _bubbleMonths = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
 class _MessageBubble extends ConsumerWidget {
   final Map<String, dynamic> message;
   final DmConversation conversation;
@@ -1075,7 +1080,15 @@ class _MessageBubble extends ConsumerWidget {
         : (createdAt.hour == 0 ? 12 : createdAt.hour);
     final minute = createdAt.minute.toString().padLeft(2, '0');
     final period = createdAt.hour >= 12 ? 'PM' : 'AM';
-    final timeString = '$hour:$minute $period';
+    var timeString = '$hour:$minute $period';
+    final now = DateTime.now();
+    if (createdAt.year != now.year ||
+        createdAt.month != now.month ||
+        createdAt.day != now.day) {
+      // Without the day, a message from last week reads as today.
+      timeString =
+          '${_bubbleMonths[createdAt.month - 1]} ${createdAt.day}, $timeString';
+    }
 
     final senderName = isMe
         ? history.currentUserName

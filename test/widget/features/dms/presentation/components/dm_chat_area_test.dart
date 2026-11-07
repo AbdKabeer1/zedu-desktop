@@ -282,6 +282,33 @@ void main() {
       return repository;
     }
 
+    testWidgets('a bubble from another day carries its date (#3057)', (
+      tester,
+    ) async {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day, 9, 5);
+      final earlier = DateTime(now.year, now.month, now.day - 3, 9, 5);
+
+      await pumpChat(tester, [
+        {
+          'id': 'm-today',
+          'content': 'today',
+          'user_id': 'u-2',
+          'created_at': today.toIso8601String(),
+        },
+        {
+          'id': 'm-earlier',
+          'content': 'earlier',
+          'user_id': 'u-2',
+          'created_at': earlier.toIso8601String(),
+        },
+      ]);
+
+      // Today keeps the bare clock; the older bubble names its day.
+      expect(find.text('9:05 AM'), findsOneWidget);
+      expect(find.textContaining(', 9:05 AM'), findsOneWidget);
+    });
+
     testWidgets('own space explains privacy and hides its system event', (
       tester,
     ) async {
