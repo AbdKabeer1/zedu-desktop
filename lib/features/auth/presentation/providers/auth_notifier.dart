@@ -75,6 +75,7 @@ class AuthNotifier extends Notifier<AuthState> {
         state = AuthState(
           status: AuthStatus.authenticated,
           user: result.value.user,
+          isLoading: false,
         );
       case Failure<AuthSession>():
         AppLogger.w('Login rejected — ${result.error.message}', tag: _tag);
