@@ -272,7 +272,7 @@ class _OlderMessagesFooter extends ConsumerWidget {
   }
 }
 
-class ChannelMessageTile extends StatelessWidget {
+class ChannelMessageTile extends ConsumerStatefulWidget {
   const ChannelMessageTile({
     super.key,
     required this.channelId,
@@ -412,6 +412,7 @@ class _ChannelMessageTileState extends ConsumerState<ChannelMessageTile> {
                         ),
                       ),
                     ),
+                    ?widget.saveAction,
                     if (widget.onEdit != null || widget.onDelete != null)
                       _OwnMessageMenu(
                         onEdit: widget.onEdit,
