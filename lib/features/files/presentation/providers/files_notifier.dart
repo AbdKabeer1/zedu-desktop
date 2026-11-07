@@ -79,6 +79,18 @@ class FilesNotifier extends Notifier<FilesState> {
     state = _with(search: search, page: 1);
   }
 
+  /// Clears the name search, file type and date-modified filters in one
+  /// refresh, keeping the folder, list, tab and sort (Ziki #3445).
+  void resetFilters() {
+    if (!state.hasFilters) return;
+    state = _with(
+      category: () => null,
+      dateModified: () => null,
+      search: '',
+      page: 1,
+    );
+  }
+
   void setSort(FilesSort sort) {
     if (sort == state.sort) return;
     // Reversing the order moves the oldest files to the other end of the
