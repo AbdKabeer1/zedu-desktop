@@ -201,6 +201,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Checkbox(
                                   value: _rememberMe,
