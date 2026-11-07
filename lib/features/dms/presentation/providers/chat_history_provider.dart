@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show File;
 
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
@@ -273,6 +272,25 @@ class ChatHistoryNotifier extends ChangeNotifier {
       return updated;
     }).toList();
     return changed;
+  }
+
+  bool _sameJsonValue(Object? a, Object? b) {
+    if (identical(a, b) || a == b) return true;
+    if (a is List && b is List) {
+      return a.length == b.length &&
+          Iterable<int>.generate(
+            a.length,
+          ).every((index) => _sameJsonValue(a[index], b[index]));
+    }
+    if (a is Map && b is Map) {
+      return a.length == b.length &&
+          a.entries.every(
+            (entry) =>
+                b.containsKey(entry.key) &&
+                _sameJsonValue(entry.value, b[entry.key]),
+          );
+    }
+    return false;
   }
 
   /// Whether [messageId] is being sent right now.
