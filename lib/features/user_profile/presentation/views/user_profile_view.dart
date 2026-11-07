@@ -159,6 +159,7 @@ class _ProfileContent extends StatelessWidget {
             UserProfileSection.billing => BillingSection(
               billing: state.billing ?? BillingInfo.empty(),
               onInvite: notifier.inviteMember,
+              onComparePlans: () => context.go(AppRouter.buyCredits),
             ),
           },
         ),
