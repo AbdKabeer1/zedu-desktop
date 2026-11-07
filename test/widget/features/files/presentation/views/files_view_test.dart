@@ -211,6 +211,9 @@ class _FakeFilesRepository extends Fake implements FilesRepository {
     return deleteResult;
   }
 
+  @override
+  Future<Result<void>> deleteFolder(String id) async => const Success(null);
+
   /// What a download returns; complete it to finish the download.
   Completer<Result<void>> download = Completer()..complete(const Success(null));
   void Function(double?)? reportProgress;
