@@ -533,11 +533,26 @@ class HomeChatArea extends ConsumerWidget {
           ),
           _HeaderAction(icon: Icons.headphones_outlined, label: 'Start Buzz'),
           const SizedBox(width: 12),
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: colors.accent,
-            child: Icon(Icons.person, size: 18, color: colors.onPrimary),
-          ),
+          // The same count the channel directory shows, so the two agree.
+          if (channel != null)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.person_outline,
+                  size: 18,
+                  color: colors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  channel.membersCount.countLabel('member'),
+                  key: const ValueKey('channel_header_member_count'),
+                  style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                ),
+              ],
+            )
+          else
+            Icon(Icons.person_outline, size: 20, color: colors.textHint),
           const SizedBox(width: 8),
           if (channel == null)
             Icon(Icons.more_vert, color: colors.textHint)

@@ -20,6 +20,14 @@ class _TopicChannelNotifier extends ChannelNotifier {
   ];
 }
 
+class _MemberCountChannelNotifier extends ChannelNotifier {
+  @override
+  Future<List<Channel>> build() async => [
+    _channel('general').copyWith(membersCount: 12),
+    _channel('random').copyWith(membersCount: 1),
+  ];
+}
+
 class _EmptyChannelRepository extends Mock implements ChannelRepository {
   @override
   Future<Result<List<ChannelMessage>>> fetchChannelMessages(String id) async =>
@@ -179,6 +187,27 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('channel_header_topic')), findsNothing);
+    });
+
+    testWidgets('shows the channel member count in the header (#3062)', (
+      tester,
+    ) async {
+      await pumpSidebarAndChat(
+        tester,
+        channels: _MemberCountChannelNotifier.new,
+      );
+
+      expect(
+        find.byKey(const ValueKey('channel_header_member_count')),
+        findsOneWidget,
+      );
+      expect(find.text('12 members'), findsOneWidget);
+
+      await tester.tap(find.text('random'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 member'), findsOneWidget);
+      expect(find.text('12 members'), findsNothing);
     });
 
     testWidgets('clicking a sidebar channel opens it in the chat area', (
