@@ -54,10 +54,9 @@ class _BuzzViewState extends ConsumerState<BuzzView> {
   }
 
   Future<void> _join() async {
-    final code = buzzMeetingCode(_codeController.text);
-    if (code.isEmpty) return;
-    final result = ref.read(buzzMeetingsProvider.notifier).joinLink(code);
-    switch (result) {
+    final input = _codeController.text;
+    if (buzzMeetingCode(input).isEmpty) return;
+    switch (ref.read(buzzMeetingsProvider.notifier).joinLink(input)) {
       case Success<Uri>(:final value):
         await _open(value);
       case Failure<Uri>(:final error):

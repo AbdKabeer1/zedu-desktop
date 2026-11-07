@@ -43,10 +43,23 @@ class BuzzMeetingsNotifier extends Notifier<BuzzMeetingAction> {
     );
   }
 
-  /// The link to meeting [code], or a failure with a message for the
-  /// person: sign in again only when there is no session.
-  Result<Uri> joinLink(String code) {
-    final link = linkFor(code);
+  /// The page to open for what was typed in Join, or a failure with a message
+  /// for the person. A pasted link keeps its own organisation; a bare code
+  /// joins in the current one. "Sign in again" is shown only when there is
+  /// no session; a signed-in person whose workspace isn't loaded is told so.
+  Result<Uri> joinLink(String input) {
+    if (isBuzzMeetingAddress(input)) {
+      final link = buzzMeetingUrlFromLink(
+        input,
+        webBaseUrl: ref.read(buzzConfigProvider).webBaseUrl,
+      );
+      return link == null
+          ? const Failure(
+              ApiFailure(message: "That isn't a Zedu meeting link."),
+            )
+          : Success(link);
+    }
+    final link = linkFor(buzzMeetingCode(input));
     if (link != null) return Success(link);
     return Failure(
       ApiFailure(
