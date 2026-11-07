@@ -410,9 +410,14 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     }
 
     if (isEdit) {
-      ref
-          .read(chatHistoryProvider(widget.channelId))
-          .saveEdit(_editingMessageId!, text);
+      if (widget.isChannel) {
+        // A channel message is a thread: the DM edit route can't change it.
+        _saveChannelEdit(_editingMessageId!, text);
+      } else {
+        ref
+            .read(chatHistoryProvider(widget.channelId))
+            .saveEdit(_editingMessageId!, text);
+      }
       // An edit sends nothing new: the unsent reply and its draft come back,
       // and a waiting voice note or file is kept.
       _exitEditMode();
@@ -447,6 +452,47 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
       });
     }
     _focusNode.requestFocus();
+  }
+
+  /// The signed-in user's latest message in this channel, which the Up arrow
+  /// edits. The channel history is newest first and only holds channel
+  /// messages, which carry the thread id the edit route needs.
+  ChannelMessage? _lastOwnChannelMessage() {
+    final me = ref.read(chatHistoryProvider(widget.channelId)).currentUserId;
+    final messages = ref.read(channelHistoryProvider(widget.channelId)).value;
+    if (messages == null) return null;
+    for (final message in messages) {
+      if (message.userId == me &&
+          message.threadId != null &&
+          message.text.isNotEmpty) {
+        return message;
+      }
+    }
+    return null;
+  }
+
+  /// Saves an edited channel message through the thread route (Ziki #3440)
+  /// and reloads the channel's messages.
+  Future<void> _saveChannelEdit(String threadId, String text) async {
+    final channelId = widget.channelId;
+    final result = await ref
+        .read(channelRepositoryProvider)
+        .editChannelMessage(
+          channelId: channelId,
+          threadId: threadId,
+          content: text,
+        );
+    if (!mounted) return;
+    switch (result) {
+      case Success():
+        ref.invalidate(channelHistoryProvider(channelId));
+      case Failure():
+        AppToastService.show(
+          context,
+          type: AppToastType.error,
+          message: "Couldn't edit the message. Please try again.",
+        );
+    }
   }
 
   /// Puts the given message in the composer for editing, the same way the
@@ -559,12 +605,20 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     }
 
     if (key == LogicalKeyboardKey.arrowUp && _controller.text.isEmpty) {
-      final history = ref.read(chatHistoryProvider(widget.channelId));
-      final lastId = history.lastSentMessageId;
-      final lastContent = history.lastSentMessageContent;
-      if (lastId != null && lastContent != null) {
-        _enterEditMode(lastId, lastContent);
-        return KeyEventResult.handled;
+      if (widget.isChannel) {
+        final own = _lastOwnChannelMessage();
+        if (own != null) {
+          _enterEditMode(own.threadId!, own.text);
+          return KeyEventResult.handled;
+        }
+      } else {
+        final history = ref.read(chatHistoryProvider(widget.channelId));
+        final lastId = history.lastSentMessageId;
+        final lastContent = history.lastSentMessageContent;
+        if (lastId != null && lastContent != null) {
+          _enterEditMode(lastId, lastContent);
+          return KeyEventResult.handled;
+        }
       }
     }
 
