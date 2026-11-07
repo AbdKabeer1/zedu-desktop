@@ -225,11 +225,14 @@ class ChannelRepositoryImpl implements ChannelRepository {
   }
 
   @override
-  Future<Result<List<ChannelMessage>>> fetchChannelMessages(
-    String channelId,
-  ) async {
+  Future<Result<ChannelMessagePage>> fetchChannelMessages(
+    String channelId, {
+    int page = 1,
+  }) async {
     try {
-      return Success(await remoteDataSource.fetchChannelMessages(channelId));
+      return Success(
+        await remoteDataSource.fetchChannelMessages(channelId, page: page),
+      );
     } on ApiFailure catch (e) {
       return Failure(e);
     } catch (e) {

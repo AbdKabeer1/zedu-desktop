@@ -36,8 +36,11 @@ abstract class ChannelRepository {
     required List<String> userIds,
   });
 
-  /// The latest messages of a channel, newest first.
-  Future<Result<List<ChannelMessage>>> fetchChannelMessages(String channelId);
+  /// One page of a channel's messages, newest first. Page 1 is the newest.
+  Future<Result<ChannelMessagePage>> fetchChannelMessages(
+    String channelId, {
+    int page = 1,
+  });
   Future<Result<void>> editChannelMessage({
     required String channelId,
     required String threadId,

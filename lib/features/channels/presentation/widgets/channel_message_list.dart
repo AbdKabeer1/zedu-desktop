@@ -56,11 +56,11 @@ class ChannelMessageList extends ConsumerWidget {
                   ),
                 )
               : _buildList(context, ref, pendingMessages),
-          data: (serverMessages) {
-            final allMessages = [...pendingMessages, ...serverMessages];
+          data: (history) {
+            final allMessages = [...pendingMessages, ...history.messages];
             return allMessages.isEmpty
                 ? empty
-                : _buildList(context, ref, allMessages);
+                : _buildList(context, ref, allMessages, history: history);
           },
         );
   }
@@ -68,8 +68,9 @@ class ChannelMessageList extends ConsumerWidget {
   Widget _buildList(
     BuildContext context,
     WidgetRef ref,
-    List<ChannelMessage> messages,
-  ) {
+    List<ChannelMessage> messages, {
+    ChannelHistoryState? history,
+  }) {
     // Read only when a message names its sender, so lists without sender ids
     // never touch the signed-in user.
     String? me;
@@ -81,11 +82,20 @@ class ChannelMessageList extends ConsumerWidget {
       return me!.isNotEmpty && sender == me;
     }
 
+    // The footer sits after the oldest message, which is the top of this
+    // reversed list. Older pages are appended behind the reader, so the
+    // scroll offset (measured from the newest end) holds.
+    final showFooter =
+        history != null && (history.hasMore || history.loadMoreError != null);
+
     return ListView.builder(
       reverse: true,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      itemCount: messages.length,
+      itemCount: messages.length + (showFooter ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index == messages.length) {
+          return _OlderMessagesFooter(channelId: channelId);
+        }
         final message = messages[index];
         // Only the sender's own, already sent messages can be changed.
         final own = isMine(message);
@@ -207,7 +217,55 @@ class ChannelDayDivider extends StatelessWidget {
   }
 }
 
-class ChannelMessageTile extends ConsumerStatefulWidget {
+/// The top of the list while older messages remain: loads the next page once
+/// it scrolls into view, and offers a retry when that fails.
+class _OlderMessagesFooter extends ConsumerWidget {
+  const _OlderMessagesFooter({required this.channelId});
+
+  final String channelId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final history = ref.watch(channelHistoryProvider(channelId)).value;
+    final notifier = ref.read(channelHistoryProvider(channelId).notifier);
+
+    if (history?.loadMoreError != null) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Center(
+          child: TextButton(
+            onPressed: notifier.loadMore,
+            child: const Text("Couldn't load older messages. Retry"),
+          ),
+        ),
+      );
+    }
+
+    if (history != null && history.hasMore && !history.isLoadingMore) {
+      // Built means visible: the list only builds what is on screen. Retries
+      // are left to the button above so a failing request cannot loop.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) notifier.loadMore();
+      });
+    }
+
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 16),
+      child: Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            semanticsLabel: 'Loading older messages',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ChannelMessageTile extends StatelessWidget {
   const ChannelMessageTile({
     super.key,
     required this.channelId,
