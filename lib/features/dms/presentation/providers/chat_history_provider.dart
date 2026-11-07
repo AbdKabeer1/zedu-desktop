@@ -418,16 +418,23 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
   /// Loads every remaining page, for views that need the whole conversation
   /// (such as its files). Waits for a load already in flight, and stops after
-  /// [maxPages] pages or when a page fails, so it can't loop forever.
+  /// [maxPages] pages, when a page fails, or once this notifier is disposed.
+  ///
+  /// A load interrupted by dispose() never clears [isLoading] (its finally
+  /// skips the update on a disposed notifier), so the wait checks for
+  /// disposal too; otherwise a caller such as the conversation files dialog
+  /// would keep waking every 50 ms forever after the conversation closed
+  /// (#2939).
   Future<void> loadAll({int maxPages = 50}) async {
     for (var i = 0; i < maxPages && hasMore; i++) {
       while (isLoading) {
+        if (_isDisposed) return;
         await Future<void>.delayed(const Duration(milliseconds: 50));
       }
-      if (!hasMore) break;
+      if (_isDisposed || !hasMore) return;
       final before = page;
       await loadMore();
-      if (page == before) break; // the page failed to load
+      if (_isDisposed || page == before) return; // closed, or the page failed
     }
   }
 
