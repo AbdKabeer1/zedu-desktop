@@ -233,6 +233,10 @@ class _PagedRepository implements FilesRepository {
   final pages = <int>[];
 
   @override
+  Future<Result<WorkspaceFileInfo>> fetchFileInfo(String fileId) async =>
+      Success(WorkspaceFileInfo());
+
+  @override
   Future<Result<FilesPage>> fetchFiles(FilesQuery query) async {
     pages.add(query.page);
     return Success(
