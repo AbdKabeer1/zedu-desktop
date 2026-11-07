@@ -6,6 +6,17 @@ import 'package:zedu/features/features.dart';
 class ChatHistoryNotifier extends ChangeNotifier {
   static const _tag = 'ChatHistoryNotifier';
 
+  /// Returns true when [a] and [b] hold the same JSON values (ignoring key
+  /// order). Used to skip no-op message updates.
+  static bool _sameJsonValue(Map<String, dynamic> a, Map<String, dynamic> b) {
+    if (a.length != b.length) return false;
+    for (final key in a.keys) {
+      if (!b.containsKey(key)) return false;
+      if (a[key] != b[key]) return false;
+    }
+    return true;
+  }
+
   final String channelId;
   final Ref ref;
   late final ComposerFileStore _fileStore;
