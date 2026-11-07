@@ -36,15 +36,22 @@ class _EmptyChannelRepository extends Mock implements ChannelRepository {
 
 class _LinksChannelRepository extends _EmptyChannelRepository {
   @override
-  Future<Result<List<ChannelMessage>>> fetchChannelMessages(String id) async =>
-      Success([
+  Future<Result<ChannelMessagePage>> fetchChannelMessages(
+    String id, {
+    int page = 1,
+  }) async => Success(
+    ChannelMessagePage(
+      messages: [
         ChannelMessage(
           senderName: 'Ada',
           text: 'Roadmap',
           rawContent: '<a href="https://zedu.chat/roadmap">Roadmap</a>',
           createdAt: DateTime.utc(2026, 11, 1, 9),
         ),
-      ]);
+      ],
+      hasMore: false,
+    ),
+  );
 }
 
 /// Records leave calls and answers with [leaveResult].

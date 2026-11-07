@@ -791,7 +791,7 @@ class _ChannelHeaderMenu extends ConsumerWidget {
           );
           return [
             ...pendingSources(),
-            for (final message in messages)
+            for (final message in messages.messages)
               ConversationLinkSource(
                 content: message.rawContent,
                 author: message.senderName,
