@@ -634,12 +634,15 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     return KeyEventResult.ignored;
   }
 
+  // An unfocused composer has no selection; its markers still go at the end.
+  TextSelection get _selectionOrEnd => _controller.selection.isValid
+      ? _controller.selection
+      : TextSelection.collapsed(offset: _controller.text.length);
+
   void _wrapSelection(String before, [String? after]) {
     after ??= before;
     final text = _controller.text;
-    final sel = _controller.selection;
-
-    if (!sel.isValid) return;
+    final sel = _selectionOrEnd;
 
     if (sel.isCollapsed &&
         before == after &&
@@ -708,8 +711,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
 
   void _insertQuote() {
     final text = _controller.text;
-    final sel = _controller.selection;
-    if (!sel.isValid) return;
+    final sel = _selectionOrEnd;
     if (sel.isCollapsed) {
       // "> " only quotes at the start of a line, so a bare caret prefixes the
       // current line and the caret stays on the same character.
