@@ -77,6 +77,9 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   List<XFile> _pendingFiles = [];
 
   List<DmParticipant> _mentionSuggestions = [];
+
+  /// The @mention suggestion Enter or Tab inserts; Up and Down move it.
+  int _mentionIndex = 0;
   String _mentionQuery = '';
 
   /// Draft key this composer instance is currently bound to.
@@ -352,8 +355,28 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
       return p.username.toLowerCase().contains(query) ||
           p.email.toLowerCase().contains(query);
     }).toList();
-    setState(() => _mentionSuggestions = suggestions);
+    final sameList =
+        suggestions.length == _mentionSuggestions.length &&
+        Iterable<int>.generate(
+          suggestions.length,
+        ).every((i) => suggestions[i].userId == _mentionSuggestions[i].userId);
+    setState(() {
+      _mentionSuggestions = suggestions;
+      if (!sameList) _mentionIndex = 0;
+    });
   }
+
+  /// Moves the highlighted @mention suggestion by [delta], wrapping around.
+  void _moveMentionHighlight(int delta) {
+    final count = _mentionSuggestions.length;
+    setState(() => _mentionIndex = (_mentionIndex + delta) % count);
+  }
+
+  DmParticipant get _highlightedMention =>
+      _mentionSuggestions[_mentionIndex.clamp(
+        0,
+        _mentionSuggestions.length - 1,
+      )];
 
   void _insertMention(DmParticipant participant) {
     final text = _controller.text;
@@ -461,7 +484,10 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   /// messages, which carry the thread id the edit route needs.
   ChannelMessage? _lastOwnChannelMessage() {
     final me = ref.read(chatHistoryProvider(widget.channelId)).currentUserId;
-    final messages = ref.read(channelHistoryProvider(widget.channelId)).value;
+    final messages = ref
+        .read(channelHistoryProvider(widget.channelId))
+        .value
+        ?.messages;
     if (messages == null) return null;
     for (final message in messages) {
       if (message.userId == me &&
@@ -499,6 +525,10 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
 
   /// Puts the given message in the composer for editing, the same way the
   /// Up-arrow shortcut does. Called from the message menu's "Edit message".
+  /// Moves the cursor back into the message box, for example after the
+  /// conversation search panel closes.
+  void focusInput() => _focusNode.requestFocus();
+
   void enterEditMode(String messageId, String content) =>
       _enterEditMode(messageId, content);
 
@@ -551,6 +581,23 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
       return KeyEventResult.ignored;
     }
 
+    // With the @mention list open, Up and Down move the highlight and Tab
+    // inserts it, like the web composer (Ziki #3437).
+    if (_mentionSuggestions.isNotEmpty && modifiers.isEmpty) {
+      if (key == LogicalKeyboardKey.arrowDown) {
+        _moveMentionHighlight(1);
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.arrowUp) {
+        _moveMentionHighlight(-1);
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.tab) {
+        _insertMention(_highlightedMention);
+        return KeyEventResult.handled;
+      }
+    }
+
     if (key == LogicalKeyboardKey.keyE &&
         HardwareKeyboard.instance.isShiftPressed &&
         (HardwareKeyboard.instance.isControlPressed ||
@@ -574,10 +621,10 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
           !_controller.value.composing.isCollapsed) {
         return KeyEventResult.ignored;
       }
-      // With the @mention list open, plain Enter picks the first suggestion
-      // instead of sending the half-typed mention.
+      // With the @mention list open, plain Enter picks the highlighted
+      // suggestion instead of sending the half-typed mention.
       if (!hasModifier && _mentionSuggestions.isNotEmpty) {
-        _insertMention(_mentionSuggestions.first);
+        _insertMention(_highlightedMention);
         return KeyEventResult.handled;
       }
       // Plain Enter, Ctrl+Enter and Cmd+Enter all share the send path, which
@@ -1299,6 +1346,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
             suggestions: _mentionSuggestions,
             query: _mentionQuery,
             colors: colors,
+            selectedIndex: _mentionIndex,
             onSelect: _insertMention,
           ),
 
