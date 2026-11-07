@@ -23,6 +23,7 @@ final buzzMeetingsRemoteDataSourceProvider =
     Provider<BuzzMeetingsRemoteDataSource>(
       (ref) => BuzzMeetingsRemoteDataSourceImpl(
         apiBaseService: locator<ApiBaseService>(),
+        config: ref.watch(buzzConfigProvider),
       ),
     );
 
