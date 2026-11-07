@@ -635,7 +635,7 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             callRingtoneProvider.overrideWithValue(ringtone),
-            buzzRepositoryProvider.overrideWithValue(FakeBuzzRepository()),
+            buzzRepositoryProvider.overrideWithValue(FakeBuzzCallRepository()),
           ],
         );
         addTearDown(container.dispose);
