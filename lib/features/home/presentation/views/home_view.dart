@@ -60,7 +60,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                     Visibility(
                       visible:
                           ref.watch(homeSidebarProvider) !=
-                              HomeSidebarType.buzz,
+                          HomeSidebarType.buzz,
                       maintainState: true,
                       child: sidebarVisible
                           ? const ResizableSidebar(
@@ -123,30 +123,41 @@ class _HomeAppBar extends ConsumerWidget {
           TopUserMenu(userName: userName),
           const Spacer(),
           Flexible(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 400),
-              height: 28,
-              decoration: BoxDecoration(
-                color: colors.onPrimary.withValues(alpha: 0.16),
+            child: Semantics(
+              button: true,
+              label: 'Search messages',
+              child: InkWell(
+                key: const Key('home-search-messages'),
                 borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.search,
-                    color: colors.onPrimary.withValues(alpha: 0.7),
-                    size: 18,
+                // #2825: opens workspace message search with From, In and
+                // Date filters.
+                onTap: () => showMessageSearch(context),
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: colors.onPrimary.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Search messages...',
-                    style: TextStyle(
-                      color: colors.onPrimary.withValues(alpha: 0.7),
-                      fontSize: 13,
-                    ),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.search,
+                        color: colors.onPrimary.withValues(alpha: 0.7),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Search messages...',
+                        style: TextStyle(
+                          color: colors.onPrimary.withValues(alpha: 0.7),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -276,16 +287,16 @@ class _MainSidebar extends ConsumerWidget {
                       vertical: 8,
                     ),
                     child: Material(
-                      color: colors.onPrimary.withValues(alpha: 0.05),
+                      color: colors.onPrimary.withValues(alpha: 0.12),
                       shape: RoundedRectangleBorder(
                         side: BorderSide(
-                          color: colors.onPrimary.withValues(alpha: 0.24),
+                          color: colors.onPrimary.withValues(alpha: 0.45),
                         ),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: InkWell(
-                        hoverColor: colors.onPrimary.withValues(alpha: 0.1),
+                        hoverColor: colors.onPrimary.withValues(alpha: 0.2),
                         onTap: () => ref
                             .read(activeChatProvider.notifier)
                             .selectChannelDirectory(),
@@ -300,16 +311,14 @@ class _MainSidebar extends ConsumerWidget {
                                 child: Text(
                                   'View all channels',
                                   style: TextStyle(
-                                    color: colors.onPrimary.withValues(
-                                      alpha: 0.7,
-                                    ),
+                                    color: colors.onPrimary,
                                     fontSize: 13,
                                   ),
                                 ),
                               ),
                               Icon(
                                 Icons.chevron_right,
-                                color: colors.onPrimary.withValues(alpha: 0.7),
+                                color: colors.onPrimary,
                                 size: 16,
                               ),
                             ],
@@ -522,11 +531,26 @@ class HomeChatArea extends ConsumerWidget {
           ),
           _HeaderAction(icon: Icons.headphones_outlined, label: 'Start Buzz'),
           const SizedBox(width: 12),
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: colors.accent,
-            child: Icon(Icons.person, size: 18, color: colors.onPrimary),
-          ),
+          // The same count the channel directory shows, so the two agree.
+          if (channel != null)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.person_outline,
+                  size: 18,
+                  color: colors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  channel.membersCount.countLabel('member'),
+                  key: const ValueKey('channel_header_member_count'),
+                  style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                ),
+              ],
+            )
+          else
+            Icon(Icons.person_outline, size: 20, color: colors.textHint),
           const SizedBox(width: 8),
           if (channel == null)
             Icon(Icons.more_vert, color: colors.textHint)
@@ -615,12 +639,52 @@ class _ChannelHeaderMenu extends ConsumerWidget {
       tooltip: 'Channel options',
       position: PopupMenuPosition.under,
       icon: Icon(Icons.more_vert, color: colors.textHint),
+
       onSelected: (value) {
+        if (value == 'links') _showLinks(context, ref);
+        if (value == 'export') {
+          showDialog<void>(
+            context: context,
+            builder: (_) => ChannelExportDialog(channel: channel),
+          );
+        }
         if (value == 'leave') _confirmLeave(context, ref);
         if (value == 'archive') _confirmArchive(context, ref);
         if (value == 'unarchive') _setArchived(context, ref, archived: false);
       },
       itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'links',
+          child: Row(
+            children: [
+              Icon(Icons.link, size: 18, color: colors.textPrimary),
+              const SizedBox(width: 12),
+              Text('View links', style: TextStyle(color: colors.textPrimary)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'export',
+          child: Row(
+            children: [
+              Icon(
+                Icons.download_outlined,
+                size: 18,
+                color: colors.textPrimary,
+              ),
+              const SizedBox(width: 12),
+              // The menu is at most 280 px wide; let the label shrink
+              // rather than overflow (e.g. with the app's text zoom).
+              Flexible(
+                child: Text(
+                  'Export history',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: colors.textPrimary),
+                ),
+              ),
+            ],
+          ),
+        ),
         PopupMenuItem(
           value: channel.archived ? 'unarchive' : 'archive',
           child: Row(
@@ -715,6 +779,43 @@ class _ChannelHeaderMenu extends ConsumerWidget {
           message: archiveFailureMessage(error, channel, archived: archived),
         );
     }
+  }
+
+  Future<void> _showLinks(BuildContext context, WidgetRef ref) async {
+    List<ConversationLinkSource> pendingSources() => [
+      for (final message in ref.read(chatHistoryProvider(channel.id)).messages)
+        if (message['channel_id'] == channel.id ||
+            message['is_channel'] == true)
+          ConversationLinkSource(
+            content: message['content']?.toString() ?? '',
+            author: (message['sender_name'] ?? '').toString(),
+            sharedAt: DateTime.tryParse(
+              message['created_at']?.toString() ?? '',
+            ),
+          ),
+    ];
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => ConversationLinksDialog(
+        title: '#${channel.name} links',
+        messages: pendingSources(),
+        loadMessages: () async {
+          final messages = await ref.read(
+            channelHistoryProvider(channel.id).future,
+          );
+          return [
+            ...pendingSources(),
+            for (final message in messages.messages)
+              ConversationLinkSource(
+                content: message.rawContent,
+                author: message.senderName,
+                sharedAt: message.createdAt,
+              ),
+          ];
+        },
+      ),
+    );
   }
 
   Future<void> _confirmLeave(BuildContext context, WidgetRef ref) async {
